@@ -6,4 +6,4 @@ adversarial_training:
   # --- Target Model and Attack Configurations ---
   models: null # List of models used for generating adversarial examples.
   attacks: # List of attacks used for generating adversarial examples.
-    - attack1: config_file.yml
+    - cw: ../attacks/cw_attack_config.yml
