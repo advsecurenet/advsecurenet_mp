@@ -6,10 +6,10 @@ from unittest.mock import MagicMock, mock_open, patch
 import pytest
 import torch
 
-from advsecurenet.attacks.attacker import AttackerConfig
-from advsecurenet.attacks.attacker.attacker import Attacker
-from advsecurenet.attacks.attacker.ddp_attacker import DDPAttacker
-from advsecurenet.attacks.gradient_based.fgsm import FGSM
+from advsecurenet.computer_vision.image_classification.attacks.attacker import AttackerConfig
+from advsecurenet.computer_vision.image_classification.attacks.attacker.attacker import Attacker
+from advsecurenet.computer_vision.image_classification.attacks.attacker.ddp_attacker import DDPAttacker
+from advsecurenet.computer_vision.image_classification.attacks.gradient_based.fgsm import FGSM
 from advsecurenet.datasets import DatasetFactory
 from advsecurenet.distributed.ddp_base_task import DDPBaseTask
 from advsecurenet.models.model_factory import ModelFactory
@@ -53,8 +53,8 @@ def attacker_config(processor):
 
 
 @pytest.fixture
-@patch("advsecurenet.attacks.attacker.ddp_attacker.DDPBaseTask._setup_model")
-@patch("advsecurenet.attacks.attacker.ddp_attacker.DDPBaseTask._setup_device")
+@patch("advsecurenet.computer_vision.image_classification.attacks.attacker.ddp_attacker.DDPBaseTask._setup_model")
+@patch("advsecurenet.computer_vision.image_classification.attacks.attacker.ddp_attacker.DDPBaseTask._setup_device")
 def ddp_attacker(mock_device, mock_model, attacker_config):
     rank = 0
     world_size = 2
@@ -72,8 +72,8 @@ def test_ddp_attacker_initialization(ddp_attacker):
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
-@patch("advsecurenet.attacks.attacker.ddp_attacker.DDPBaseTask._setup_model")
-@patch("advsecurenet.attacks.attacker.ddp_attacker.DDPBaseTask._setup_device")
+@patch("advsecurenet.computer_vision.image_classification.attacks.attacker.ddp_attacker.DDPBaseTask._setup_model")
+@patch("advsecurenet.computer_vision.image_classification.attacks.attacker.ddp_attacker.DDPBaseTask._setup_device")
 def test_execute_attack(mock_device, mock_setup_model, attacker_config):
     attacker_config.return_adversarial_images = True
 

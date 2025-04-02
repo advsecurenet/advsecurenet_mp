@@ -3,8 +3,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 import torch
 
-from advsecurenet.attacks.attacker.attacker import Attacker
-from advsecurenet.attacks.gradient_based.fgsm import FGSM
+from advsecurenet.computer_vision.image_classification.attacks.attacker.attacker import Attacker
+from advsecurenet.computer_vision.image_classification.attacks.gradient_based.fgsm import FGSM
 from advsecurenet.datasets import DatasetFactory
 from advsecurenet.models.model_factory import ModelFactory
 from advsecurenet.shared.types.configs.attack_configs import FgsmAttackConfig
@@ -154,8 +154,8 @@ def test_get_iterator(config, kwargs):
 @pytest.mark.advsecurenet
 @pytest.mark.essential
 @patch("torch.cuda.is_available", return_value=True)
-@patch("advsecurenet.attacks.attacker.attacker.Attacker._setup_model")
-@patch("advsecurenet.attacks.attacker.attacker.Attacker._create_dataloader")
+@patch("advsecurenet.computer_vision.image_classification.attacks.attacker.attacker.Attacker._setup_model")
+@patch("advsecurenet.computer_vision.image_classification.attacks.attacker.attacker.Attacker._create_dataloader")
 def test_setup_device_default_cuda(
     mock_dataloader, mock_model, mock_cuda, config, kwargs
 ):
@@ -167,8 +167,8 @@ def test_setup_device_default_cuda(
 @pytest.mark.advsecurenet
 @pytest.mark.essential
 @patch("torch.cuda.is_available", return_value=False)
-@patch("advsecurenet.attacks.attacker.attacker.Attacker._setup_model")
-@patch("advsecurenet.attacks.attacker.attacker.Attacker._create_dataloader")
+@patch("advsecurenet.computer_vision.image_classification.attacks.attacker.attacker.Attacker._setup_model")
+@patch("advsecurenet.computer_vision.image_classification.attacks.attacker.attacker.Attacker._create_dataloader")
 def test_setup_device_default_cpu(
     mock_dataloader, mock_model, mock_cuda, config, kwargs
 ):

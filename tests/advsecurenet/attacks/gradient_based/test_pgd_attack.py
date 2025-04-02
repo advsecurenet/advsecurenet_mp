@@ -2,7 +2,7 @@ import pytest
 import torch
 import torch.nn as nn
 
-from advsecurenet.attacks import PGD
+from advsecurenet.computer_vision.image_classification.attacks import PGD
 from advsecurenet.shared.types.configs.attack_configs import PgdAttackConfig
 from advsecurenet.shared.types.configs.device_config import DeviceConfig
 

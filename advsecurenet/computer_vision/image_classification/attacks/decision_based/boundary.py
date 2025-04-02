@@ -7,7 +7,7 @@ from torch import nn
 from tqdm.auto import trange
 
 import advsecurenet.shared.types.configs.attack_configs as AttackConfigs
-from advsecurenet.attacks.base.adversarial_attack import AdversarialAttack
+from advsecurenet.computer_vision.image_classification.attacks.base.adversarial_attack import AdversarialAttack
 from advsecurenet.models.base_model import BaseModel
 
 

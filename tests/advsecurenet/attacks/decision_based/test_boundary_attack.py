@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 import torch
 
-from advsecurenet.attacks.decision_based.boundary import DecisionBoundary
+from advsecurenet.computer_vision.image_classification.attacks.decision_based.boundary import DecisionBoundary
 from advsecurenet.shared.types.configs import attack_configs
 from advsecurenet.utils.device_manager import DeviceManager
 

@@ -1,7 +1,7 @@
 from torch.utils.data.distributed import DistributedSampler
 from tqdm.auto import tqdm
 
-from advsecurenet.defenses import AdversarialTraining
+from advsecurenet.computer_vision.image_classification.defenses import AdversarialTraining
 from advsecurenet.shared.types.configs.defense_configs.adversarial_training_config import (
     AdversarialTrainingConfig,
 )

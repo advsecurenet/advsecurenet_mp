@@ -5,7 +5,7 @@ import torch
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 
-from advsecurenet.attacks import AdversarialAttack
+from advsecurenet.computer_vision.image_classification.attacks import AdversarialAttack
 from advsecurenet.datasets.targeted_adv_dataset import AdversarialDataset
 from advsecurenet.models.base_model import BaseModel
 from advsecurenet.shared.types.configs.defense_configs.adversarial_training_config import (

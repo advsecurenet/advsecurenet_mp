@@ -5,7 +5,7 @@ from unittest.mock import Mock
 import pytest
 import torch
 
-from advsecurenet.attacks.gradient_based.fgsm import FGSM
+from advsecurenet.computer_vision.image_classification.attacks.gradient_based.fgsm import FGSM
 from advsecurenet.models.base_model import BaseModel
 from advsecurenet.models.model_factory import ModelFactory
 from advsecurenet.shared.types.configs.attack_configs.fgsm_attack_config import (

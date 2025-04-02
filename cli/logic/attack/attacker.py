@@ -5,8 +5,8 @@ import click
 import torch
 from torch.utils.data import Subset, random_split
 
-from advsecurenet.attacks.attacker import Attacker, AttackerConfig
-from advsecurenet.attacks.attacker.ddp_attacker import DDPAttacker
+from advsecurenet.computer_vision.image_classification.attacks.attacker import Attacker, AttackerConfig
+from advsecurenet.computer_vision.image_classification.attacks.attacker.ddp_attacker import DDPAttacker
 from advsecurenet.datasets.base_dataset import DatasetWrapper
 from advsecurenet.datasets.targeted_adv_dataset import AdversarialDataset
 from advsecurenet.distributed.ddp_coordinator import DDPCoordinator

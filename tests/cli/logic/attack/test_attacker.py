@@ -6,8 +6,8 @@ import pytest
 import torch
 from torch.utils.data import Subset
 
-from advsecurenet.attacks.attacker.ddp_attacker import DDPAttacker
-from advsecurenet.attacks.gradient_based.fgsm import FGSM
+from advsecurenet.computer_vision.image_classification.attacks.attacker.ddp_attacker import DDPAttacker
+from advsecurenet.computer_vision.image_classification.attacks.gradient_based.fgsm import FGSM
 from advsecurenet.datasets.targeted_adv_dataset import AdversarialDataset
 from advsecurenet.shared.types.attacks import AttackType
 from advsecurenet.shared.types.configs.attack_configs.attacker_config import (

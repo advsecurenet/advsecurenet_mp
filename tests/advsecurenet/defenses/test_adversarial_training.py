@@ -5,9 +5,9 @@ import torch
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 
-from advsecurenet.attacks import AdversarialAttack
+from advsecurenet.computer_vision.image_classification.attacks import AdversarialAttack
 from advsecurenet.datasets.targeted_adv_dataset import AdversarialDataset
-from advsecurenet.defenses.adversarial_training import AdversarialTraining
+from advsecurenet.computer_vision.image_classification.defenses.adversarial_training import AdversarialTraining
 from advsecurenet.models.base_model import BaseModel
 from advsecurenet.shared.types.configs.defense_configs.adversarial_training_config import (
     AdversarialTrainingConfig,
@@ -343,7 +343,7 @@ def test_pre_training_no_models(adversarial_training, mock_config):
 @pytest.mark.advsecurenet
 @pytest.mark.essential
 @patch(
-    "advsecurenet.defenses.adversarial_training.AdversarialTraining._perform_attack",
+    "advsecurenet.computer_vision.image_classification.defenses.adversarial_training.AdversarialTraining._perform_attack",
     return_value=torch.randn(5, 3, 32, 32),
 )
 def test_generate_adversarial_batch(mock_perform_attack, adversarial_training):
@@ -376,11 +376,11 @@ def test_move_to_device(adversarial_training):
 @pytest.mark.advsecurenet
 @pytest.mark.essential
 @patch(
-    "advsecurenet.defenses.adversarial_training.AdversarialTraining._perform_attack",
+    "advsecurenet.computer_vision.image_classification.defenses.adversarial_training.AdversarialTraining._perform_attack",
     return_value=torch.randn(3, 3, 32, 32),
 )
 @patch(
-    "advsecurenet.defenses.adversarial_training.AdversarialTraining._prepare_data",
+    "advsecurenet.computer_vision.image_classification.defenses.adversarial_training.AdversarialTraining._prepare_data",
     return_value=(torch.randn(3, 3, 32, 32), torch.tensor([0, 1, 2])),
 )
 def test_run_epoch(mock_perform_attack, adversarial_training):

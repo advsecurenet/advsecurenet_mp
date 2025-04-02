@@ -4,7 +4,7 @@ from typing import Optional, Union
 import torch
 from torch.utils.data import DataLoader
 
-from advsecurenet.attacks.base.adversarial_attack import AdversarialAttack
+from advsecurenet.computer_vision.image_classification.attacks.base.adversarial_attack import AdversarialAttack
 from advsecurenet.shared.types.configs.dataloader_config import DataLoaderConfig
 from advsecurenet.shared.types.configs.device_config import DeviceConfig
 

@@ -4,7 +4,7 @@ import pytest
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
-from advsecurenet.defenses.ddp_adversarial_training import DDPAdversarialTraining
+from advsecurenet.computer_vision.image_classification.defenses.ddp_adversarial_training import DDPAdversarialTraining
 from advsecurenet.shared.types.configs.defense_configs.adversarial_training_config import (
     AdversarialTrainingConfig,
 )
@@ -12,8 +12,8 @@ from advsecurenet.shared.types.configs.defense_configs.adversarial_training_conf
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
-@patch("advsecurenet.defenses.ddp_adversarial_training.DDPTrainer.__init__")
-@patch("advsecurenet.defenses.ddp_adversarial_training.AdversarialTraining.__init__")
+@patch("advsecurenet.computer_vision.image_classification.defenses.ddp_adversarial_training.DDPTrainer.__init__")
+@patch("advsecurenet.computer_vision.image_classification.defenses.ddp_adversarial_training.AdversarialTraining.__init__")
 def test_ddp_adversarial_training_init(
     mock_adversarial_training_init, mock_ddp_trainer_init
 ):
@@ -52,7 +52,7 @@ def test_get_train_loader(mock_ddp_adversarial_training_init):
     # Test the _get_train_loader method
     epoch = 1
     with patch(
-        "advsecurenet.defenses.ddp_adversarial_training.tqdm",
+        "advsecurenet.computer_vision.image_classification.defenses.ddp_adversarial_training.tqdm",
         return_value=mock_train_loader,
     ) as mock_tqdm:
         train_loader = ddp_adversarial_training_instance._get_train_loader(epoch)

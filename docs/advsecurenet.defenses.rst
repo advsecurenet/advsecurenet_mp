@@ -1,27 +1,27 @@
-advsecurenet.defenses package
+advsecurenet.computer_vision.image_classification.defenses package
 =============================
 
 ----------
 
-advsecurenet.defenses.adversarial\_training module
+advsecurenet.computer_vision.image_classification.defenses.adversarial\_training module
 --------------------------------------------------
 
-.. automodule:: advsecurenet.defenses.adversarial_training
+.. automodule:: advsecurenet.computer_vision.image_classification.defenses.adversarial_training
    :members:
    :undoc-members:
    :show-inheritance:
 
-advsecurenet.defenses.ddp\_adversarial\_training module
+advsecurenet.computer_vision.image_classification.defenses.ddp\_adversarial\_training module
 -------------------------------------------------------
 
-.. automodule:: advsecurenet.defenses.ddp_adversarial_training
+.. automodule:: advsecurenet.computer_vision.image_classification.defenses.ddp_adversarial_training
    :members:
    :undoc-members:
    :show-inheritance:
 
 ---------------
 
-.. automodule:: advsecurenet.defenses
+.. automodule:: advsecurenet.computer_vision.image_classification.defenses
    :members:
    :undoc-members:
    :show-inheritance:

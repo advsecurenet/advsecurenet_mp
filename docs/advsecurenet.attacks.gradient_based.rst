@@ -1,51 +1,51 @@
-advsecurenet.attacks.gradient\_based package
+advsecurenet.computer_vision.image_classification.attacks.gradient\_based package
 ============================================
 
 ----------
 
-advsecurenet.attacks.gradient\_based.cw module
+advsecurenet.computer_vision.image_classification.attacks.gradient\_based.cw module
 ----------------------------------------------
 
-.. automodule:: advsecurenet.attacks.gradient_based.cw
+.. automodule:: advsecurenet.computer_vision.image_classification.attacks.gradient_based.cw
    :members:
    :undoc-members:
    :show-inheritance:
 
-advsecurenet.attacks.gradient\_based.deepfool module
+advsecurenet.computer_vision.image_classification.attacks.gradient\_based.deepfool module
 ----------------------------------------------------
 
-.. automodule:: advsecurenet.attacks.gradient_based.deepfool
+.. automodule:: advsecurenet.computer_vision.image_classification.attacks.gradient_based.deepfool
    :members:
    :undoc-members:
    :show-inheritance:
 
-advsecurenet.attacks.gradient\_based.fgsm module
+advsecurenet.computer_vision.image_classification.attacks.gradient\_based.fgsm module
 ------------------------------------------------
 
-.. automodule:: advsecurenet.attacks.gradient_based.fgsm
+.. automodule:: advsecurenet.computer_vision.image_classification.attacks.gradient_based.fgsm
    :members:
    :undoc-members:
    :show-inheritance:
 
-advsecurenet.attacks.gradient\_based.lots module
+advsecurenet.computer_vision.image_classification.attacks.gradient\_based.lots module
 ------------------------------------------------
 
-.. automodule:: advsecurenet.attacks.gradient_based.lots
+.. automodule:: advsecurenet.computer_vision.image_classification.attacks.gradient_based.lots
    :members:
    :undoc-members:
    :show-inheritance:
 
-advsecurenet.attacks.gradient\_based.pgd module
+advsecurenet.computer_vision.image_classification.attacks.gradient\_based.pgd module
 -----------------------------------------------
 
-.. automodule:: advsecurenet.attacks.gradient_based.pgd
+.. automodule:: advsecurenet.computer_vision.image_classification.attacks.gradient_based.pgd
    :members:
    :undoc-members:
    :show-inheritance:
 
 ---------------
 
-.. automodule:: advsecurenet.attacks.gradient_based
+.. automodule:: advsecurenet.computer_vision.image_classification.attacks.gradient_based
    :members:
    :undoc-members:
    :show-inheritance:

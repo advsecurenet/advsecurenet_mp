@@ -36,6 +36,7 @@ class Attacker:
         """
         Setup the device.
         """
+
         if self._config.device.processor:
             device = torch.device(self._config.device.processor)
         else:

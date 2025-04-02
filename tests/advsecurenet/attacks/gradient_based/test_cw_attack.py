@@ -5,7 +5,7 @@ from unittest.mock import patch
 import pytest
 import torch
 
-from advsecurenet.attacks.gradient_based.cw import CWAttack
+from advsecurenet.computer_vision.image_classification.attacks.gradient_based.cw import CWAttack
 from advsecurenet.models.model_factory import ModelFactory
 from advsecurenet.shared.types.configs.attack_configs import CWAttackConfig
 from advsecurenet.shared.types.configs.device_config import DeviceConfig
@@ -72,11 +72,11 @@ def test_cw_attack_init(mock_config):
 @pytest.mark.advsecurenet
 @pytest.mark.comprehensive
 @patch(
-    "advsecurenet.attacks.gradient_based.cw.CWAttack._run_attack",
+    "advsecurenet.computer_vision.image_classification.attacks.gradient_based.cw.CWAttack._run_attack",
     return_value=torch.randn((1, 3, 32, 32), dtype=torch.float32),
 )
 @patch(
-    "advsecurenet.attacks.gradient_based.cw.CWAttack._is_successful",
+    "advsecurenet.computer_vision.image_classification.attacks.gradient_based.cw.CWAttack._is_successful",
     return_value=torch.tensor([True], dtype=torch.bool),
 )
 def test_attack(

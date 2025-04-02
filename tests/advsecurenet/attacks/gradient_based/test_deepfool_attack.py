@@ -2,7 +2,7 @@ import pytest
 import torch
 from torch import nn
 
-from advsecurenet.attacks import DeepFool
+from advsecurenet.computer_vision.image_classification.attacks import DeepFool
 from advsecurenet.shared.types.configs.attack_configs import DeepFoolAttackConfig
 from advsecurenet.shared.types.configs.device_config import DeviceConfig
 

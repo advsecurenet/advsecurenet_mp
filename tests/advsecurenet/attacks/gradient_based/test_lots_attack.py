@@ -4,7 +4,7 @@ import pytest
 import torch
 from torch import optim
 
-from advsecurenet.attacks.gradient_based.lots import LOTS
+from advsecurenet.computer_vision.image_classification.attacks.gradient_based.lots import LOTS
 from advsecurenet.models.model_factory import ModelFactory
 from advsecurenet.shared.types.configs.attack_configs import (
     LotsAttackConfig,
@@ -78,7 +78,7 @@ def test_lots_init(mock_config):
 @pytest.mark.advsecurenet
 @pytest.mark.comprehensive
 @patch(
-    "advsecurenet.attacks.gradient_based.lots.LOTS._lots_iterative",
+    "advsecurenet.computer_vision.image_classification.attacks.gradient_based.lots.LOTS._lots_iterative",
     return_value=torch.randn((1, 3, 32, 32)),
 )
 def test_attack_iterative(mock_lots_iterative, mock_config, mock_model, mock_tensors):
@@ -94,7 +94,7 @@ def test_attack_iterative(mock_lots_iterative, mock_config, mock_model, mock_ten
 @pytest.mark.advsecurenet
 @pytest.mark.comprehensive
 @patch(
-    "advsecurenet.attacks.gradient_based.lots.LOTS._lots_single",
+    "advsecurenet.computer_vision.image_classification.attacks.gradient_based.lots.LOTS._lots_single",
     return_value=torch.randn((1, 3, 32, 32)),
 )
 def test_attack_single(mock_lots_single, mock_config, mock_model, mock_tensors):
@@ -111,11 +111,11 @@ def test_attack_single(mock_lots_single, mock_config, mock_model, mock_tensors):
 @pytest.mark.advsecurenet
 @pytest.mark.essential
 @patch(
-    "advsecurenet.attacks.gradient_based.lots.LOTS._lots_single",
+    "advsecurenet.computer_vision.image_classification.attacks.gradient_based.lots.LOTS._lots_single",
     return_value=torch.randn((1, 3, 32, 32)),
 )
 @patch(
-    "advsecurenet.attacks.gradient_based.lots.LOTS._validate_config", return_value=None
+    "advsecurenet.computer_vision.image_classification.attacks.gradient_based.lots.LOTS._validate_config", return_value=None
 )
 def test_attack_invalid(
     mock_validate_config, mock_lots_single, mock_config, mock_model, mock_tensors
@@ -130,7 +130,7 @@ def test_attack_invalid(
 @pytest.mark.advsecurenet
 @pytest.mark.comprehensive
 @patch(
-    "advsecurenet.attacks.gradient_based.lots.LOTS._lots_single",
+    "advsecurenet.computer_vision.image_classification.attacks.gradient_based.lots.LOTS._lots_single",
     return_value=torch.randn((1, 3, 32, 32)),
 )
 def test_attack_single_distributed(
