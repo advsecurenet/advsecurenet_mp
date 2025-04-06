@@ -8,11 +8,13 @@ from advsecurenet.models.base_model import BaseModel
 from advsecurenet.models.custom_model import CustomModel
 from advsecurenet.models.external_model import ExternalModel
 from advsecurenet.models.standard_model import StandardModel
+from advsecurenet.models.huggingface_model import HuggingFaceModel
 from advsecurenet.shared.types.configs.model_config import (
     CreateModelConfig,
     CustomModelConfig,
     ExternalModelConfig,
     StandardModelConfig,
+    HuggingFaceModelConfig,
 )
 from advsecurenet.shared.types.model import ModelType
 from advsecurenet.utils.reproducibility_utils import set_seed
@@ -28,32 +30,37 @@ class ModelFactory:
     @staticmethod
     def infer_model_type(model_name: str) -> ModelType:
         """
-        This function infers the model type based on the model_name.
+        Infer the model type from the model name.
 
-        Parameters
-        ----------
-        model_name: str
-            The name of the model to be loaded. For example, 'resnet18' or 'CustomMnistModel'.
+        Args:
+            model_name (str): Name of the model.
 
-        Returns
-        -------
-        ModelType
-            The model type of the model_name.
+        Raises:
+            ValueError: If the model type cannot be inferred.
 
-        Raises
-        ------
-        ValueError
-            If the model_name is not supported by torchvision or is not a custom model.
+        Returns:
+            ModelType: The inferred model type.
         """
-        if model_name in StandardModel.models():
+        # Check if model_name is a Hugging Face URL
+        if HuggingFaceModel.is_huggingface_url(model_name):
+            return ModelType.HUGGINGFACE
+
+        # Try to infer from standard models
+        try:
+            StandardModel.get_model_class(model_name)
             return ModelType.STANDARD
+        except ValueError:
+            pass
 
-        if model_name in CustomModel.models():
+        # Try to infer from custom models
+        try:
+            CustomModel.get_model_class(model_name)
             return ModelType.CUSTOM
+        except ValueError:
+            pass
 
-        raise ValueError(
-            "Unsupported model. If you are trying to load an external model, please set is_external=True in the CreateModelConfig."
-        )
+        # If we can't infer the model type, raise an error
+        raise ValueError(f"Could not infer model type for {model_name}")
 
     @staticmethod
     def create_model(config: Optional[CreateModelConfig] = None, **kwargs) -> BaseModel:

@@ -19,3 +19,16 @@ class PreprocessConfig:
     """
 
     steps: Optional[list[PreprocessStep]] = None
+
+@dataclass
+class HuggingFaceDatasetConfig:
+    """
+    Configuration for Hugging Face datasets.
+    """
+
+    dataset_id: str
+    subset: Optional[str] = None
+    split: Optional[str] = None
+    revision: Optional[str] = None
+    cache_dir: Optional[str] = None
+    trust_remote_code: bool = False

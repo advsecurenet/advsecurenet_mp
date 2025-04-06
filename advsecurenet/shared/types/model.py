@@ -8,8 +8,10 @@ class ModelType(Enum):
     - STANDARD: The model is a standard model from torchvision.models.
     - CUSTOM: The model is a custom model provided by the package that is not present in torchvision.models. These models can be used for research purposes.
     - EXTERNAL: The model is an external model that is not provided by the package. These models are loaded from external Python files.
+    - HUGGINGFACE: The model is a Hugging Face model. These models are loaded from the Hugging Face Hub.
     """
 
     STANDARD = "standard"
     CUSTOM = "custom"
     EXTERNAL = "external"
+    HUGGINGFACE = "huggingface"
