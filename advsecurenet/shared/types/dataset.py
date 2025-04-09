@@ -12,6 +12,8 @@ class DatasetType(Enum):
     FASHION_MNIST = "FASHION_MNIST"
     IMAGENET = "IMAGENET"
     MNIST = "MNIST"
+    PASCAL_VOC = "PASCAL_VOC"
+    COCO = "COCO"
     CUSTOM = "CUSTOM"
 
 
