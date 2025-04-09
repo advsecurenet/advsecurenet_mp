@@ -17,8 +17,12 @@ from advsecurenet.shared.types.configs.attack_configs.lots_attack_config import 
 from advsecurenet.shared.types.configs.attack_configs.pgd_attack_config import (
     PgdAttackConfig,
 )
+from advsecurenet.shared.types.configs.attack_configs.dpatch_attack_config import (
+    DPatchAttackConfig,
+)
 
 __all__ = [
+    # image classification
     "CWAttackConfig",
     "DeepFoolAttackConfig",
     "FgsmAttackConfig",
@@ -26,6 +30,8 @@ __all__ = [
     "LotsAttackMode",
     "PgdAttackConfig",
     "DecisionBoundaryAttackConfig",
+    # object detection
+    "DPatchAttackConfig",
 ]
 
 __iter__ = __all__.__iter__
