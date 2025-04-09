@@ -59,3 +59,56 @@ def layers(model_name: str, normalization: bool):
     from cli.logic.utils.model import cli_model_layers
 
     cli_model_layers(model_name, normalization)
+
+@models.command()
+@click.option(
+    "-m",
+    "--model-id",
+    required=True,
+    help="Hugging Face model ID or URL (e.g., 'bert-base-uncased' or 'https://huggingface.co/bert-base-uncased') .",
+)
+@click.option(
+    "-c",
+    "--num-classes",
+    type=int,
+    default=None,
+    help="Number of classes for the model. If not provided, will use the default from the model.",
+)
+@click.option(
+    "-p",
+    "--pretrained",
+    is_flag=True,
+    type=click.BOOL,
+    default=True,
+    help="Whether to use pretrained weights. Default is True.",
+)
+@click.option(
+    "-r",
+    "--revision",
+    default=None,
+    help="Specific model version to use (e.g., 'main', 'v1.0'). If not provided, will use the default.",
+)
+@click.option(
+    "-t",
+    "--trust-remote-code",
+    is_flag=True,
+    type=click.BOOL,
+    default=False,
+    help="Whether to trust remote code when loading the model. Default is False.",
+)
+def huggingface(model_id: str, num_classes: int, pretrained: bool, revision: str, trust_remote_code: bool):
+    """Command to load and inspect a Hugging Face model.
+
+    Args:
+        model_id (str): Hugging Face model ID or URL.
+        num_classes (int, optional): Number of classes for the model.
+        pretrained (bool): Whether to use pretrained weights.
+        revision (str, optional): Specific model version to use.
+        trust_remote_code (bool): Whether to trust remote code when loading the model.
+
+    Raises:
+        ValueError: If the model ID is not provided or is invalid.
+    """
+    from cli.logic.utils.model import cli_huggingface_model
+
+    cli_huggingface_model(model_id, num_classes, pretrained, revision, trust_remote_code)

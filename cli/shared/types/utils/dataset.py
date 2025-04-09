@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from advsecurenet.shared.types.configs.preprocess_config import PreprocessConfig
+from advsecurenet.shared.types.configs.preprocess_config import PreprocessConfig, HuggingFaceDatasetConfig
 
 
 @dataclass
@@ -31,3 +31,26 @@ class AttacksDatasetCliConfigType(DatasetCliConfigType):
 
     dataset_part: Optional[str] = "test"
     random_sample_size: Optional[int] = None
+
+@dataclass
+class HuggingFaceDatasetCliConfigType(DatasetCliConfigType):
+    """
+    This dataclass is used to store the configuration of the Hugging Face dataset CLI.
+    It extends the DatasetCliConfigType with Hugging Face specific attributes.
+
+    Attributes:
+        dataset_id (str): The Hugging Face dataset ID or URL.
+        subset (Optional[str]): The subset of the dataset to use.
+        split (Optional[str]): The split of the dataset to use.
+        revision (Optional[str]): The specific dataset version to use.
+        cache_dir (Optional[str]): The directory to store downloaded datasets.
+        trust_remote_code (Optional[bool]): Whether to trust remote code when loading the dataset.
+    """
+
+    dataset_id: str
+    subset: Optional[str] = None
+    split: Optional[str] = None
+    revision: Optional[str] = None
+    cache_dir: Optional[str] = None
+    trust_remote_code: Optional[bool] = False
+    huggingface_config: Optional[HuggingFaceDatasetConfig] = None

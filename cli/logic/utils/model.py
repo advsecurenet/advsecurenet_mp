@@ -7,6 +7,8 @@ from requests.exceptions import HTTPError
 
 from advsecurenet.models.model_factory import ModelFactory
 from advsecurenet.models.standard_model import StandardModel
+from advsecurenet.models.huggingface_model import HuggingFaceModel
+from advsecurenet.shared.types.configs.model_config import CreateModelConfig
 from advsecurenet.utils.model_utils import download_weights
 from advsecurenet.utils.normalization_layer import NormalizationLayer
 
@@ -75,6 +77,66 @@ def cli_model_layers(model_name: str, add_normalization: bool = False):
         layer_type = type(model.get_layer(layer_name)).__name__
         click.echo(f"{layer_name:<30}{layer_type:<30}")
 
+def cli_huggingface_model(model_id: str, num_classes: int, pretrained: bool, revision: str, trust_remote_code: bool):
+    """
+    Load and inspect a Hugging Face model.
+
+    Args:
+        model_id (str): Hugging Face model ID or URL.
+        num_classes (int, optional): Number of classes for the model.
+        pretrained (bool): Whether to use pretrained weights.
+        revision (str, optional): Specific model version to use.
+        trust_remote_code (bool): Whether to trust remote code when loading the model.
+
+    Raises:
+        ValueError: If the model ID is not provided or is invalid.
+    """
+    if not model_id:
+        raise click.ClickException("Model ID must be provided!")
+    
+    try:
+        # Check if model_id is a URL and extract the model ID if it is
+        if HuggingFaceModel.is_huggingface_url(model_id):
+            extracted_id = HuggingFaceModel.extract_model_id_from_url(model_id)
+            if extracted_id:
+                click.echo(f"Detected Hugging Face URL. Using model ID: {extracted_id}")
+                model_id_to_use = extracted_id
+            else:
+                raise click.ClickException(f"Could not extract model ID from URL: {model_id}")
+        else:
+            model_id_to_use = model_id
+
+        # Create model config
+        config = CreateModelConfig(
+            model_name=model_id,
+            model_id=model_id_to_use,
+            num_classes=num_classes if num_classes else 1000,
+            pretrained=pretrained,
+            revision=revision,
+            trust_remote_code=trust_remote_code,
+            is_huggingface=True
+        )
+
+        click.echo(f"Loading Hugging Face model: {model_id_to_use}")
+        if not pretrained:
+            click.echo("Note: Loading model without pretrained weights")
+        
+        model = ModelFactory.create_model(config)
+        
+        # Display model information
+        click.secho(f"Successfully loaded Hugging Face model: {model_id_to_use}", bold=True, fg="green")
+        click.echo(f"Number of classes: {config.num_classes}")
+        
+        # Display model layers
+        layer_names = model.get_layer_names()
+        click.secho("Model layers:", bold=True, fg="green")
+        click.echo(f"{'Layer Name':<30}{'Layer Type':<30}")
+        for layer_name in layer_names:
+            layer_type = type(model.get_layer(layer_name)).__name__
+            click.echo(f"{layer_name:<30}{layer_type:<30}")
+            
+    except Exception as e:
+        raise click.ClickException(f"Error loading Hugging Face model: {str(e)}")
 
 def cli_download_weights(
     model_name: str, dataset_name: str, filename: str, save_path: str
