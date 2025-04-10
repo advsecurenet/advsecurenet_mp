@@ -4,6 +4,8 @@ from torch.utils.data import Dataset as TorchDataset
 
 from advsecurenet.datasets import DatasetFactory
 from advsecurenet.shared.types.dataset import DatasetType
+from advsecurenet.datasets.HuggingFace import HuggingFaceDataset
+from advsecurenet.shared.types.configs.preprocess_config import HuggingFaceDatasetConfig
 from cli.shared.types.utils.dataset import (
     AttacksDatasetCliConfigType,
     DatasetCliConfigType,

@@ -32,7 +32,7 @@ class AttacksDatasetCliConfigType(DatasetCliConfigType):
     dataset_part: Optional[str] = "test"
     random_sample_size: Optional[int] = None
 
-@dataclass
+@dataclass(kw_only=True)
 class HuggingFaceDatasetCliConfigType(DatasetCliConfigType):
     """
     This dataclass is used to store the configuration of the Hugging Face dataset CLI.

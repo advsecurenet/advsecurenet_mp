@@ -30,37 +30,35 @@ class ModelFactory:
     @staticmethod
     def infer_model_type(model_name: str) -> ModelType:
         """
-        Infer the model type from the model name.
+        This function infers the model type based on the model_name.
 
-        Args:
-            model_name (str): Name of the model.
+        Parameters
+        ----------
+        model_name: str
+            The name of the model to be loaded. For example, 'resnet18' or 'CustomMnistModel'.
 
-        Raises:
-            ValueError: If the model type cannot be inferred.
+        Returns
+        -------
+        ModelType
+            The model type of the model_name.
 
-        Returns:
-            ModelType: The inferred model type.
+        Raises
+        ------
+        ValueError
+            If the model_name is not supported by torchvision or is not a custom model.
         """
-        # Check if model_name is a Hugging Face URL
+        if model_name in StandardModel.models():
+            return ModelType.STANDARD
+
+        if model_name in CustomModel.models():
+            return ModelType.CUSTOM
+        
         if HuggingFaceModel.is_huggingface_url(model_name):
             return ModelType.HUGGINGFACE
 
-        # Try to infer from standard models
-        try:
-            StandardModel.get_model_class(model_name)
-            return ModelType.STANDARD
-        except ValueError:
-            pass
-
-        # Try to infer from custom models
-        try:
-            CustomModel.get_model_class(model_name)
-            return ModelType.CUSTOM
-        except ValueError:
-            pass
-
-        # If we can't infer the model type, raise an error
-        raise ValueError(f"Could not infer model type for {model_name}")
+        raise ValueError(
+            "Unsupported model. If you are trying to load an external model, please set is_external=True in the CreateModelConfig."
+        )
 
     @staticmethod
     def create_model(config: Optional[CreateModelConfig] = None, **kwargs) -> BaseModel:
@@ -130,6 +128,21 @@ class ModelFactory:
                     pretrained=config.pretrained,
                 )
                 return CustomModel(cfg, **kwargs)
+            
+            if inferred_type == ModelType.HUGGINGFACE:
+                
+                cfg = HuggingFaceModelConfig(
+                    model_name=config.model_name,
+                    num_classes=config.num_classes,
+                    num_input_channels=config.num_input_channels,
+                    pretrained=config.pretrained,
+                    model_id = getattr(config, "model_id", None) or config.model_name,
+                    revision=getattr(config, "revision", None),
+                    cache_dir=getattr(config, "cache_dir", None),
+                    trust_remote_code=getattr(config, "trust_remote_code", False)
+                )
+                return HuggingFaceModel(cfg, **kwargs)
+
         except Exception as e:
             err = f"Error creating model. Please check the model_name and other arguments. Error: {str(e)}"
             logger.error(err)

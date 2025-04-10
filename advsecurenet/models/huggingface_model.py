@@ -1,8 +1,9 @@
 import re
 from typing import List, Optional, Any
 import warnings
+import torch
 
-from transformers import AutoModel, AutoConfig
+from transformers import AutoModel, AutoConfig, AutoModelForImageClassification
 
 from advsecurenet.models.base_model import BaseModel
 from advsecurenet.shared.types.configs.model_config import HuggingFaceModelConfig
@@ -24,9 +25,13 @@ class HuggingFaceModel(BaseModel):
         Args:
             config (HuggingFaceModelConfig): Configuration for the Hugging Face model.
         """
+        self._model_id = config.model_id
+        self._pretrained = config.pretrained
+        self._revision = config.revision
+        self._cache_dir = config.cache_dir
+        self._trust_remote_code = config.trust_remote_code
+        self._num_classes = config.num_classes
         super().__init__()
-        self.config = config
-        self.load_model()
         
     def load_model(self):
         """
@@ -39,33 +44,31 @@ class HuggingFaceModel(BaseModel):
         Raises:
             ValueError: If the model cannot be loaded or if there's a mismatch in the number of classes.
         """
-        try:
-            model_id = self.config.model_id
-            
-            # Load model configuration
-            model_config = AutoConfig.from_pretrained(
-                model_id,
-                revision=self.config.revision,
-                cache_dir=self.config.cache_dir,
-                trust_remote_code=self.config.trust_remote_code,
-            )
-            
+        try:     
             # Load model
-            if self.config.pretrained:
-                self.model = AutoModel.from_pretrained(
-                    model_id,
-                    revision=self.config.revision,
-                    cache_dir=self.config.cache_dir,
-                    trust_remote_code=self.config.trust_remote_code,
+            if self._pretrained:
+                self.model = AutoModelForImageClassification.from_pretrained(
+                    HuggingFaceModel.extract_model_id_from_url(self._model_id),
+                    revision=self._revision,
+                    cache_dir=self._cache_dir,
+                    trust_remote_code=self._trust_remote_code,
                 )
             else:
-                self.model = AutoModel.from_config(model_config)
+                # Load model configuration
+                model_config = AutoConfig.from_pretrained(
+                    HuggingFaceModel.extract_model_id_from_url(self._model_id),
+                    revision=self._revision,
+                    cache_dir=self._cache_dir,
+                    trust_remote_code=self._trust_remote_code,
+                )
+
+                self.model = AutoModelForImageClassification.from_config(model_config)
             
             # Check for classifier mismatch and raise error or warning
             if hasattr(self.model, 'classifier') and hasattr(self.model.classifier, 'out_features'):
-                if self.model.classifier.out_features != self.config.num_classes:
+                if self.model.classifier.out_features != self._num_classes:
                     error_msg = (f"Class mismatch: Model has {self.model.classifier.out_features} output classes "
-                                f"but config specifies {self.config.num_classes} classes. "
+                                f"but config specifies {self._num_classes} classes. "
                                 f"Please ensure the number of classes matches the model architecture.")
                     raise ValueError(error_msg)
             

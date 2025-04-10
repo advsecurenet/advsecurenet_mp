@@ -51,14 +51,12 @@ class CreateModelConfig(StandardModelConfig, CustomModelConfig, ExternalModelCon
     is_external: bool = False
     random_seed: Optional[int] = None
 
-@dataclass
+@dataclass(kw_only=True)
 class HuggingFaceModelConfig(BaseModelConfig):
     """
     Configuration for Hugging Face models.
     """
-
     model_id: str
-    pretrained: bool = True
     revision: Optional[str] = None
     cache_dir: Optional[str] = None
     trust_remote_code: bool = False
