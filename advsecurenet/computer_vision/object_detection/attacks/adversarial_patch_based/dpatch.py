@@ -10,6 +10,7 @@ from datasets import load_dataset
 import math
 import random
 import numpy as np
+from PIL import Image
 import typing
 import string
 from collections import deque
@@ -44,10 +45,6 @@ class DPatch(ObjectDetectionAttack):
         # TODO - potentially add clip_values variant (see ART):
         self._patch = np.zeros(shape=self.patch_shape, dtype=np.float32)
         self.target_label: int | np.ndarray | list[int] | None = []
-
-    def _load_dataset(self, dataset: string) -> None:
-        dataset = load_dataset("detection-datasets/coco")
-        return dataset
 
 
     def _initialise_object_detector(self, object_detector: string) -> None:
