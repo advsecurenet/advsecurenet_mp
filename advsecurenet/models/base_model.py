@@ -44,17 +44,30 @@ class BaseModel(ABC, nn.Module):
         """
 
     @check_model_loaded
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, *args, **kwargs) -> torch.Tensor:
         """
-        Forward pass of the model.
+        Default forward pass. Assumes self.model returns a logits tensor directly.
+        Subclasses handling complex output objects should override this method.
 
         Args:
-            x (torch.Tensor): The input tensor.
+            x (torch.Tensor): The primary input tensor to the model.
+            *args: Additional positional arguments to pass to the underlying model's forward method.
+            **kwargs: Additional keyword arguments to pass to the underlying model's forward method.
 
         Returns:
-            torch.Tensor: The output tensor.
+            torch.Tensor: The output logits tensor from the model.
+
+        Raises:
+            TypeError: If the underlying model's output is not a Tensor and this method hasn't been overridden by a subclass.
         """
-        return self.model(x)
+        output = self.model(x, *args, **kwargs)
+        if isinstance(output, torch.Tensor):
+            return output
+        else:
+            # Raise an error if the output isn't a tensor and this method wasn't overridden
+            raise TypeError(
+                f"BaseModel.forward expected a Tensor output from self.model, but got {type(output)}. "
+            )
 
     @check_model_loaded
     def predict(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:

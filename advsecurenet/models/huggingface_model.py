@@ -5,7 +5,7 @@ import torch
 
 from transformers import AutoModel, AutoConfig, AutoModelForImageClassification
 
-from advsecurenet.models.base_model import BaseModel
+from advsecurenet.models.base_model import BaseModel, check_model_loaded
 from advsecurenet.shared.types.configs.model_config import HuggingFaceModelConfig
 
 
@@ -114,3 +114,43 @@ class HuggingFaceModel(BaseModel):
             return match.group(4)
         
         return None
+    
+    @check_model_loaded # Use the decorator from BaseModel
+    def forward(self, x: torch.Tensor, *args, **kwargs) -> torch.Tensor:
+        """
+        Forward pass specific to Hugging Face models.
+
+        This method overrides the base forward pass to handle the specific output
+        format of Hugging Face models, which typically return an object containing
+        various outputs (like logits, hidden states, etc.). This method extracts
+        and returns only the logits tensor.
+
+        Args:
+            x (torch.Tensor): The primary input tensor to the model (e.g., pixel values).
+            *args: Additional positional arguments to pass to the underlying Hugging Face model's forward method.
+            **kwargs: Additional keyword arguments to pass to the underlying Hugging Face model's forward method
+                      (e.g., attention_mask).
+
+        Returns:
+            torch.Tensor: The output logits tensor from the Hugging Face model.
+
+        Raises:
+            TypeError: If the underlying Hugging Face model's output is neither a Tensor nor an object
+                       with a 'logits' attribute.
+            ValueError: If the model is not loaded (handled by the decorator).
+        """
+        # Call the underlying Hugging Face model
+        output = self.model(x, *args, **kwargs)
+
+        # Extract logits
+        if hasattr(output, 'logits') and isinstance(output.logits, torch.Tensor):
+            return output.logits
+        elif isinstance(output, torch.Tensor):
+            # Fallback if the HF model unexpectedly returned a raw tensor
+            warnings.warn("HuggingFace model returned a raw Tensor instead of an output object. Returning the tensor directly.")
+            return output
+        else:
+            # If the output is something else unexpected
+            raise TypeError(
+                f"HuggingFaceModel expected output with 'logits' attribute or a Tensor, but got {type(output)}."
+            )
