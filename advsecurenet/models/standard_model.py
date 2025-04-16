@@ -43,13 +43,16 @@ class StandardModel(BaseModel):
         model_fn = getattr(models, self._model_name)
         if self._pretrained:
             self.model = model_fn(weights=self._weights)
-            if (
-                self._num_classes != 1000
-            ):  # ImageNet has 1000 classes, pretrained models are trained on ImageNet
+            #Checks if the number of classes the config expects matches the number of classes the model outputs
+            if (self._num_classes is not None and self._num_classes != self.infer_num_classes()):
                 self.modify_model()
         else:
-            # if not pretrained, load the model without weights and with the specified number of classes
-            self.model = model_fn(num_classes=self._num_classes, weights=None)
+            # if not pretrained, load the model without weights
+            if self._num_classes is not None:
+                self.model = model_fn(num_classes=self._num_classes, weights=None)
+
+            else:
+                self.model = model_fn(weights=None)    
 
     def modify_model(self):
         """
