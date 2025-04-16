@@ -33,6 +33,8 @@ setup(
         "einops",
         "filetype",
         "requests",
+        "transformers",
+        "datasets",
     ],
     entry_points={
         "console_scripts": [

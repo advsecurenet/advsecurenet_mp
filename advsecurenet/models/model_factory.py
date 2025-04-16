@@ -69,7 +69,7 @@ class ModelFactory:
             config (Optional[CreateModelConfig]): The configuration for creating the model. If not provided, the model will be created with the passed keyword arguments.
             CreateModelConfig contains the following fields:
                 - model_name: str
-                - num_classes: Optional[int] = 1000
+                - num_classes: Optional[int]
                 - num_input_channels: Optional[int] = 3
                 - pretrained: Optional[bool] = True
                 - weights: Optional[str] = "IMAGENET1K_V1"
@@ -89,7 +89,6 @@ class ModelFactory:
             You can use your external model by setting is_external=True in the CreateModelConfig and providing the model_arch_path and model_weights_path.
         """
         try:
-
             if config is None or not isinstance(config, CreateModelConfig):
                 config = CreateModelConfig(**kwargs)
             if config.is_external:
@@ -102,7 +101,7 @@ class ModelFactory:
                 )
                 return ExternalModel(cfg, **kwargs)
 
-            inferred_type: ModelType = ModelFactory.infer_model_type(config.model_name)
+            inferred_type: ModelType = ModelFactory.infer_model_type(getattr(config, "model_url", None) or config.model_name)
 
             ModelFactory._validate_create_model_config(inferred_type, config)
 
@@ -115,6 +114,7 @@ class ModelFactory:
                     pretrained=config.pretrained,
                     weights=config.weights,
                 )
+                
                 return StandardModel(cfg, **kwargs)
 
             if inferred_type == ModelType.CUSTOM:
@@ -130,18 +130,32 @@ class ModelFactory:
                 return CustomModel(cfg, **kwargs)
             
             if inferred_type == ModelType.HUGGINGFACE:
+                if not getattr(config, "model_url", None):
+                    model_name = HuggingFaceModel.extract_model_id_from_url(config.model_name)
+                else:
+                    model_name = config.model_name
+
                 
                 cfg = HuggingFaceModelConfig(
-                    model_name=config.model_name,
-                    num_classes=config.num_classes,
+                    model_name=model_name,
                     num_input_channels=config.num_input_channels,
                     pretrained=config.pretrained,
-                    model_id = getattr(config, "model_id", None) or config.model_name,
+                    model_url = getattr(config, "model_url", None) or config.model_name,
                     revision=getattr(config, "revision", None),
                     cache_dir=getattr(config, "cache_dir", None),
                     trust_remote_code=getattr(config, "trust_remote_code", False)
                 )
-                return HuggingFaceModel(cfg, **kwargs)
+                model = HuggingFaceModel(cfg, **kwargs)
+
+                model_num_classes = model.infer_num_classes()
+
+                if hasattr(config, "num_classes") and model_num_classes != config.num_classes:
+                    error_msg = (f"Class mismatch: Model has {model_num_classes} output classes "
+                                f"but config specifies {config.num_classes} classes. "
+                                f"Please ensure the number of classes matches the model architecture.")
+                    raise ValueError(error_msg)
+
+                return model
 
         except Exception as e:
             err = f"Error creating model. Please check the model_name and other arguments. Error: {str(e)}"

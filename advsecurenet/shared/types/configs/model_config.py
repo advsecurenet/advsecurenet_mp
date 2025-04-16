@@ -2,14 +2,14 @@ from dataclasses import dataclass
 from typing import Optional
 
 
-@dataclass(kw_only=True)
+@dataclass
 class BaseModelConfig:
     """
     Base configuration class for different model configurations.
     """
 
     model_name: str
-    num_classes: Optional[int] = 1000
+    num_classes: Optional[int] = None
     num_input_channels: Optional[int] = 3
     pretrained: Optional[bool] = False
 
@@ -41,22 +41,22 @@ class ExternalModelConfig(BaseModelConfig):
     model_arch_path: Optional[str] = None
     model_weights_path: Optional[str] = None
 
+@dataclass
+class HuggingFaceModelConfig(BaseModelConfig):
+    """
+    Configuration for Hugging Face models.
+    """
+    model_url: str = None
+    revision: Optional[str] = None
+    cache_dir: Optional[str] = None
+    trust_remote_code: bool = False
+
 
 @dataclass
-class CreateModelConfig(StandardModelConfig, CustomModelConfig, ExternalModelConfig):
+class CreateModelConfig(StandardModelConfig, CustomModelConfig, ExternalModelConfig, HuggingFaceModelConfig):
     """
     Config parameters for creating a model in the model factory.
     """
 
     is_external: bool = False
     random_seed: Optional[int] = None
-
-@dataclass(kw_only=True)
-class HuggingFaceModelConfig(BaseModelConfig):
-    """
-    Configuration for Hugging Face models.
-    """
-    model_id: str
-    revision: Optional[str] = None
-    cache_dir: Optional[str] = None
-    trust_remote_code: bool = False

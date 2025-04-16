@@ -97,9 +97,13 @@ class BaseModel(ABC, nn.Module):
         """
         Return a list of layer names in the model.
         """
-
-        _, eval_nodes = get_graph_node_names(self.model)
-        return eval_nodes
+        try:
+            # Try the torch.fx-based method
+            _, eval_nodes = get_graph_node_names(self.model)
+            return eval_nodes
+        except torch.fx.proxy.TraceError:
+            # Fallback: use named_modules to get layer names
+            return [name for name, _ in self.model.named_modules() if name]
 
     @check_model_loaded
     def get_layer(self, layer_name: str) -> nn.Module:
@@ -178,3 +182,32 @@ class BaseModel(ABC, nn.Module):
             parent = self.model
             child_name = layer_name
         return parent, child_name
+    
+    @check_model_loaded
+    def infer_num_classes(self) -> Optional[int]:
+        """
+        Infers the number of output classes based on the model's architecture.
+    
+        Returns:
+            Optional[int]: The inferred number of classes, or None if it cannot be inferred.
+        """
+        # For Hugging Face models, try extracting from the configuration.
+        if hasattr(self.model, "config") and hasattr(self.model.config, "num_labels"):
+            return self.model.config.num_labels
+
+        # For models with a classifier attribute.
+        if hasattr(self.model, "classifier"):
+            # If classifier is a single linear layer.
+            if hasattr(self.model.classifier, "out_features"):
+                return self.model.classifier.out_features
+            # If classifier is a sequential container, try its last module.
+            elif isinstance(self.model.classifier, nn.Sequential):
+                last_layer = list(self.model.classifier.children())[-1]
+                if hasattr(last_layer, "out_features"):
+                    return last_layer.out_features
+
+        # For models with an fc attribute (common in ResNet-like architectures).
+        if hasattr(self.model, "fc") and hasattr(self.model.fc, "out_features"):
+            return self.model.fc.out_features
+
+        return None

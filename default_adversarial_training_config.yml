@@ -1,6 +1,6 @@
 training:
   model:
-    model_name: resnet18
+    model_name: https://huggingface.co/microsoft/resnet-18
     num_input_channels: 3
     num_classes: 10
     pretrained: true
@@ -48,12 +48,11 @@ training:
       pin_memory: true
       batch_size: 32
   device:
-    use_ddp: true
-    processor: cuda
+    use_ddp: false
+    processor: mps
     gpu_ids:
-      - 1
   training:
-    epochs: 1
+    epochs: 10
     learning_rate: 0.001
     optimizer: adam
     optimizer_kwargs:
