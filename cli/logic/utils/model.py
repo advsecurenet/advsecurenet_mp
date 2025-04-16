@@ -124,7 +124,6 @@ def cli_huggingface_model(model_url: str, num_classes: int, pretrained: bool, re
         
         # Display model information
         click.secho(f"Successfully loaded Hugging Face model: {model_name}", bold=True, fg="green")
-        click.echo(f"Number of classes: {config.num_classes}")
         
         # Display model layers
         layer_names = model.get_layer_names()

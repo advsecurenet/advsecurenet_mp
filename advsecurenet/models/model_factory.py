@@ -149,7 +149,7 @@ class ModelFactory:
 
                 model_num_classes = model.infer_num_classes()
 
-                if hasattr(config, "num_classes") and model_num_classes != config.num_classes:
+                if config.num_classes is not None and model_num_classes != config.num_classes:
                     error_msg = (f"Class mismatch: Model has {model_num_classes} output classes "
                                 f"but config specifies {config.num_classes} classes. "
                                 f"Please ensure the number of classes matches the model architecture.")
