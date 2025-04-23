@@ -74,8 +74,7 @@ class HuggingFaceModel(BaseModel):
         Returns:
             List[str]: A list of available model names.
         """
-        # Hugging Face Hub has too many models to list, so we return an empty list
-        return []
+        raise NotImplementedError("This method is not applicable for huggingface models.")
     
     @staticmethod
     def is_huggingface_url(url: str) -> bool:
