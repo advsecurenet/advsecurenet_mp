@@ -1,6 +1,7 @@
 """
 CLI command functions related to models.
 """
+from typing import Optional, Dict
 
 import click
 from requests.exceptions import HTTPError
@@ -77,7 +78,7 @@ def cli_model_layers(model_name: str, add_normalization: bool = False):
         layer_type = type(model.get_layer(layer_name)).__name__
         click.echo(f"{layer_name:<30}{layer_type:<30}")
 
-def cli_huggingface_model(model_url: str, architecture: dict, pretrained: bool, revision: str, trust_remote_code: bool):
+def cli_huggingface_model(model_url: str, pretrained: bool, revision: str, trust_remote_code: bool, architecture: Optional[Dict] = None):
     """
     Load and inspect a Hugging Face model.
 

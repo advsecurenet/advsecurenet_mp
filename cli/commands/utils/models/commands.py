@@ -68,13 +68,6 @@ def layers(model_name: str, normalization: bool):
     help="Hugging Face model URL (e.g., 'https://huggingface.co/bert-base-uncased') .",
 )
 @click.option(
-    "-c",
-    "--num-classes",
-    type=int,
-    default=None,
-    help="Number of classes for the model. If not provided, will use the default from the model.",
-)
-@click.option(
     "-p",
     "--pretrained",
     is_flag=True,
@@ -110,4 +103,4 @@ def huggingface(model_url: str, pretrained: bool, revision: str, trust_remote_co
     """
     from cli.logic.utils.model import cli_huggingface_model
 
-    cli_huggingface_model(model_url, pretrained, revision, trust_remote_code)
+    cli_huggingface_model(model_url=model_url, pretrained=pretrained, revision=revision, trust_remote_code=trust_remote_code)

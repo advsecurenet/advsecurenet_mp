@@ -31,6 +31,10 @@ class CustomModelConfig(BaseModelConfig):
     custom_models_path: Optional[str] = "CustomModels"
 
     def __post_init__(self):
+        # Check if architecture is None and initialize if necessary
+        if self.architecture is None:
+            self.architecture = {}
+        # Now it's safe to call setdefault
         self.architecture.setdefault("num_input_channels", 3)
 
 
@@ -44,6 +48,10 @@ class ExternalModelConfig(BaseModelConfig):
     model_weights_path: Optional[str] = None
 
     def __post_init__(self):
+        # Check if architecture is None and initialize if necessary
+        if self.architecture is None:
+            self.architecture = {}
+        # Now it's safe to call setdefault
         self.architecture.setdefault("num_input_channels", 3)
 
 @dataclass
