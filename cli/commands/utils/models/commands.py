@@ -89,7 +89,13 @@ def layers(model_name: str, normalization: bool):
     default=False,
     help="Whether to trust remote code when loading the model. Default is False.",
 )
-def huggingface(model_url: str, pretrained: bool, revision: str, trust_remote_code: bool):
+@click.option(
+    "--model-class-name",
+    default=None,
+    type=str,
+    help="Manually specify the Hugging Face model class name (e.g., 'ViTForImageClassification'). Overrides automatic inference.",
+)
+def huggingface(model_url: str, pretrained: bool, revision: str, trust_remote_code: bool, model_class_name: str):
     """Command to load and inspect a Hugging Face model.
 
     Args:
@@ -103,4 +109,4 @@ def huggingface(model_url: str, pretrained: bool, revision: str, trust_remote_co
     """
     from cli.logic.utils.model import cli_huggingface_model
 
-    cli_huggingface_model(model_url=model_url, pretrained=pretrained, revision=revision, trust_remote_code=trust_remote_code)
+    cli_huggingface_model(model_url=model_url, pretrained=pretrained, revision=revision, trust_remote_code=trust_remote_code, model_class_name=model_class_name)

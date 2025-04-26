@@ -189,7 +189,8 @@ class ModelFactory:
                     model_url = getattr(resolved_config, "model_url", None) or resolved_config.model_name,
                     revision=getattr(resolved_config, "revision", None),
                     cache_dir=getattr(resolved_config, "cache_dir", None),
-                    trust_remote_code=getattr(resolved_config, "trust_remote_code", False)
+                    trust_remote_code=getattr(resolved_config, "trust_remote_code", False),
+                    model_class_name=resolved_config.model_class_name
                 )
                 return HuggingFaceModel(cfg)
 

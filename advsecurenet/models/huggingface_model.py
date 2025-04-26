@@ -3,7 +3,8 @@ from typing import List, Optional, Any
 import warnings
 import torch
 
-from transformers import AutoModel, AutoConfig, AutoModelForImageClassification
+import transformers
+from transformers import AutoModel, AutoConfig
 
 from advsecurenet.models.base_model import BaseModel, check_model_loaded
 from advsecurenet.shared.types.configs.model_config import HuggingFaceModelConfig
@@ -30,42 +31,108 @@ class HuggingFaceModel(BaseModel):
         self._revision = config.revision
         self._cache_dir = config.cache_dir
         self._trust_remote_code = config.trust_remote_code
+        self._architecture_overrides = config.architecture if config.architecture is not None else {}
+        self._model_class_name_override = config.model_class_name
         super().__init__()
         
     def load_model(self):
         """
         Load a model from the Hugging Face Hub.
-        
-        This method loads a model from the Hugging Face Hub based on the configuration.
-        If pretrained is True, it loads the pretrained weights, otherwise it initializes
-        the model with random weights.
-        
+
+        Prioritizes manual 'model_class_name' from config if provided.
+        Otherwise, attempts to infer the class from the model's config on the Hub.
+        Falls back to AutoModel if inference fails or is not possible.
+
         Raises:
-            ValueError: If the model cannot be loaded or if there's a mismatch in the number of classes.
+            ValueError: If the model ID cannot be extracted, the specified manual class
+                        is invalid, or loading fails.
         """
-        try:     
-            # Load model
-            if self._pretrained:
-                self.model = AutoModelForImageClassification.from_pretrained(
-                    HuggingFaceModel.extract_model_id_from_url(self._model_url),
-                    revision=self._revision,
-                    cache_dir=self._cache_dir,
-                    trust_remote_code=self._trust_remote_code,
-                )
-            else:
-                # Load model configuration
-                model_config = AutoConfig.from_pretrained(
-                    HuggingFaceModel.extract_model_id_from_url(self._model_url),
+        try:
+            model_id = HuggingFaceModel.extract_model_id_from_url(self._model_url)
+            if not model_id:
+                raise ValueError(f"Could not extract model ID from URL: {self._model_url}")
+
+            ModelClass = None
+            determined_class_name = "Undetermined"
+
+            # --- Step 1: Determine Model Class ---
+
+            # Priority 1: Manual Override
+            if self._model_class_name_override:
+                try:
+                    ManualModelClass = getattr(transformers, self._model_class_name_override, None)
+                    if ManualModelClass is not None and issubclass(ManualModelClass, torch.nn.Module):
+                        ModelClass = ManualModelClass
+                        determined_class_name = f"{self._model_class_name_override} (Manual)"
+                    else:
+                        # Raise error if manually specified class is invalid
+                        raise ValueError(f"Manually specified model_class_name '{self._model_class_name_override}' not found or invalid in transformers.")
+                except Exception as e:
+                    raise ValueError(f"Error loading manually specified class '{self._model_class_name_override}': {e}") from e
+
+            # Priority 2: Inference from Hub Config (if manual override not used)
+            if ModelClass is None:
+                config = AutoConfig.from_pretrained(
+                    model_id,
                     revision=self._revision,
                     cache_dir=self._cache_dir,
                     trust_remote_code=self._trust_remote_code,
                 )
 
-                self.model = AutoModelForImageClassification.from_config(model_config)
-            
+                # Default to AutoModel if inference fails
+                ModelClass = AutoModel
+                determined_class_name = "AutoModel (Base - Fallback)"
+
+                if config.architectures and isinstance(config.architectures, (list, tuple)) and len(config.architectures) > 0:
+                    arch_name = config.architectures[0]
+                    try:
+                        InferredModelClass = getattr(transformers, arch_name, None)
+                        if InferredModelClass is not None and issubclass(InferredModelClass, torch.nn.Module):
+                            ModelClass = InferredModelClass
+                            determined_class_name = f"{arch_name} (Inferred)"
+                        else:
+                            warnings.warn(f"Architecture '{arch_name}' specified in config not found/invalid. Falling back to AutoModel.")
+                    except Exception as e:
+                        warnings.warn(f"Error trying to load inferred class '{arch_name}': {e}. Falling back to AutoModel.")
+
+            print(f"AdvSecureNet: Determined model class: {determined_class_name}")
+
+            # --- Step 2: Load Model using Determined Class ---
+            common_args = {
+                "revision": self._revision,
+                "cache_dir": self._cache_dir,
+                "trust_remote_code": self._trust_remote_code,
+            }
+
+            if self._pretrained:
+                load_args = common_args.copy()
+                if self._architecture_overrides:
+                    warnings.warn("Architecture arguments are applied via config for non-pretrained models. Ignoring for pretrained loading.")
+                self.model = ModelClass.from_pretrained(model_id, **load_args)
+            else:
+                # Load config again if not already loaded (only needed if manual override was used)
+                if 'config' not in locals():
+                     config = AutoConfig.from_pretrained(
+                         model_id,
+                         revision=self._revision,
+                         cache_dir=self._cache_dir,
+                         trust_remote_code=self._trust_remote_code,
+                     )
+
+                # Apply architecture overrides to the config object
+                if self._architecture_overrides:
+                    for key, value in self._architecture_overrides.items():
+                        if hasattr(config, key):
+                            setattr(config, key, value)
+                        else:
+                            warnings.warn(f"Architecture override arg '{key}' not found in model config, ignoring.")
+
+                self.model = ModelClass.from_config(config)
+
         except Exception as e:
-            raise ValueError(f"Error loading Hugging Face model: {str(e)}")
-    
+            # Add more context to the final error message
+            raise ValueError(f"Error loading Hugging Face model '{model_id}' using class '{determined_class_name}': {str(e)}") from e
+        
     @classmethod
     def models(cls) -> List[str]:
         """

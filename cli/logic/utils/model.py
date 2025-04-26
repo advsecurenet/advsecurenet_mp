@@ -78,7 +78,7 @@ def cli_model_layers(model_name: str, add_normalization: bool = False):
         layer_type = type(model.get_layer(layer_name)).__name__
         click.echo(f"{layer_name:<30}{layer_type:<30}")
 
-def cli_huggingface_model(model_url: str, pretrained: bool, revision: str, trust_remote_code: bool, architecture: Optional[Dict] = None):
+def cli_huggingface_model(model_url: str, pretrained: bool, revision: str, trust_remote_code: bool, model_class_name: Optional[str], architecture: Optional[Dict] = None):
     """
     Load and inspect a Hugging Face model.
 
@@ -115,6 +115,7 @@ def cli_huggingface_model(model_url: str, pretrained: bool, revision: str, trust
             pretrained=pretrained,
             revision=revision,
             trust_remote_code=trust_remote_code,
+            model_class_name=model_class_name
         )
 
         click.echo(f"Loading Hugging Face model: {model_name}")

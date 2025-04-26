@@ -60,11 +60,12 @@ class HuggingFaceModelConfig(BaseModelConfig):
     Configuration for Hugging Face models.
     """
     pretrained: Optional[bool] = True
-
     model_url: str = None
     revision: Optional[str] = None
     cache_dir: Optional[str] = None
     trust_remote_code: bool = False
+    model_class_name: str = None
+
 
 
 @dataclass
