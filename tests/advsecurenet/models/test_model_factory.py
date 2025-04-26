@@ -23,7 +23,7 @@ from advsecurenet.utils.reproducibility_utils import set_seed
 def create_model_config():
     return CreateModelConfig(
         model_name="resnet18",
-        num_classes=10,
+        architecture={"num_classes": 10},
         pretrained=True,
         weights="IMAGENET1K_V1",
         random_seed=42,
@@ -62,7 +62,7 @@ def test_infer_model_type_invalid():
 @patch("advsecurenet.models.StandardModel")
 def test_create_model_standard(mock_standard_model, create_model_config):
     cfg = CreateModelConfig(
-        model_name="resnet18", num_classes=10, pretrained=True, weights="IMAGENET1K_V1"
+        model_name="resnet18", architecture={"num_classes": 10}, pretrained=True, weights="IMAGENET1K_V1"
     )
     model = ModelFactory.create_model(config=cfg)
     assert isinstance(model, BaseModel)
@@ -83,7 +83,7 @@ def test_create_model_external(
 ):
     config = CreateModelConfig(
         model_name="MockExternalModel",
-        num_classes=10,
+        architecture={"num_classes": 10},
         model_arch_path="/path/to/mock_model.py",
         pretrained=False,
         is_external=True,
@@ -119,8 +119,7 @@ def test_create_model_external(
 def test_create_model_custom(mock_custom_model, mock_models):
     config = CreateModelConfig(
         model_name="CustomMnistModel",
-        num_classes=10,
-        num_input_channels=1,
+        architecture={"num_classes": 10, "num_input_channels": 1},
         pretrained=False,
     )
     model = CustomMnistModel()
@@ -135,7 +134,7 @@ def test_create_model_custom(mock_custom_model, mock_models):
 @pytest.mark.essential
 def test_validate_create_model_config():
     config = CreateModelConfig(
-        model_name="resnet18", num_classes=10, pretrained=True, random_seed=42
+        model_name="resnet18", architecture={"num_classes": 10}, pretrained=True, random_seed=42
     )
     with pytest.raises(
         ValueError, match="Pretrained standard models do not support random seed"
@@ -143,7 +142,7 @@ def test_validate_create_model_config():
         ModelFactory._validate_create_model_config(ModelType.STANDARD, config)
 
     config = CreateModelConfig(
-        model_name="CustomMnistModel", num_classes=10, pretrained=True
+        model_name="CustomMnistModel", architecture={"num_classes": 10}, pretrained=True
     )
     with pytest.raises(
         ValueError, match="Custom models do not support pretrained weights"

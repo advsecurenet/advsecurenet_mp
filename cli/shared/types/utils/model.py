@@ -30,8 +30,7 @@ class ModelCliConfigType:
     """
 
     model_name: str
-    num_input_channels: int
-    num_classes: int
+    architecture: Optional[dict]
     pretrained: bool
     weights: Optional[str]
     is_external: bool

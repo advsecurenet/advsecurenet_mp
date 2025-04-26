@@ -1,7 +1,8 @@
 model:
   model_name: resnet18
-  num_input_channels: 3
-  num_classes: 10
+  architecture:
+    num_input_channels: 3
+    num_classes: 10
   pretrained: true
   weights: IMAGENET1K_V1
   is_external: false
@@ -41,9 +42,10 @@ dataloader:
     pin_memory: true
     batch_size: 32
 device:
-  use_ddp: false
-  processor: cpu
+  use_ddp: true
+  processor: cuda
   gpu_ids:
+  - 1
 testing:
   criterion: cross_entropy
   topk: 1

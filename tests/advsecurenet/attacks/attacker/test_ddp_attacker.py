@@ -36,8 +36,7 @@ def attacker_config(processor):
         model=ModelFactory.create_model(
             CreateModelConfig(
                 model_name="CustomMnistModel",
-                num_classes=10,
-                num_input_channels=1,
+                architecture={"num_classes": 10, "num_input_channels": 1},
                 pretrained=False,
             )
         ),

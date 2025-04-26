@@ -1,5 +1,6 @@
 import importlib
 import os
+import inspect
 
 from advsecurenet.models.base_model import BaseModel
 from advsecurenet.shared.types.configs.model_config import CustomModelConfig
@@ -10,12 +11,10 @@ class CustomModel(BaseModel):
     This class is used to load a custom model. It is a subclass of BaseModel.
     """
 
-    def __init__(self, config: CustomModelConfig, **kwargs):
+    def __init__(self, config: CustomModelConfig):
         self._custom_models_path = config.custom_models_path
         self._model_name = config.model_name
-        self._num_classes = config.num_classes
-        self._num_input_channels = config.num_input_channels
-        self._kwargs = kwargs
+        self._architecture = config.architecture
 
         # Initialize the BaseModel
         super().__init__()
@@ -46,11 +45,8 @@ class CustomModel(BaseModel):
 
         model_class = getattr(custom_module, self._model_name)
 
-        self.model = model_class(
-            num_classes=self._num_classes,
-            num_input_channels=self._num_input_channels,
-            **self._kwargs,
-        )
+        filtered_architecture = self._filter_architecture_params(model_class, self._architecture, self._model_name)
+        self.model = model_class(**filtered_architecture)
 
         # Perform necessary modifications after model load
         self.modify_model()

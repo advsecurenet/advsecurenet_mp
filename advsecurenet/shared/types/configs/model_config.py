@@ -1,5 +1,5 @@
-from dataclasses import dataclass
-from typing import Optional
+from dataclasses import dataclass, field
+from typing import Optional, Dict, Any
 
 
 @dataclass
@@ -9,9 +9,8 @@ class BaseModelConfig:
     """
 
     model_name: str
-    num_classes: Optional[int] = None
-    num_input_channels: Optional[int] = 3
     pretrained: Optional[bool] = False
+    architecture: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -31,6 +30,9 @@ class CustomModelConfig(BaseModelConfig):
 
     custom_models_path: Optional[str] = "CustomModels"
 
+    def __post_init__(self):
+        self.architecture.setdefault("num_input_channels", 3)
+
 
 @dataclass
 class ExternalModelConfig(BaseModelConfig):
@@ -40,6 +42,9 @@ class ExternalModelConfig(BaseModelConfig):
 
     model_arch_path: Optional[str] = None
     model_weights_path: Optional[str] = None
+
+    def __post_init__(self):
+        self.architecture.setdefault("num_input_channels", 3)
 
 @dataclass
 class HuggingFaceModelConfig(BaseModelConfig):

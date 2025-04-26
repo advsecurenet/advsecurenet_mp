@@ -117,8 +117,7 @@ class ModelFactory:
             config (Optional[CreateModelConfig]): The configuration for creating the model. If not provided, the model will be created with the passed keyword arguments.
             CreateModelConfig contains the following fields:
                 - model_name: str
-                - num_classes: Optional[int]
-                - num_input_channels: Optional[int] = 3
+                - architecture: dict
                 - pretrained: Optional[bool] = True
                 - weights: Optional[str] = "IMAGENET1K_V1"
                 - custom_models_path: Optional[str] = "CustomModels"
@@ -142,10 +141,10 @@ class ModelFactory:
             if resolved_config.is_external:
                 cfg = ExternalModelConfig(
                     model_name=resolved_config.model_name,
-                    num_classes=resolved_config.num_classes,
                     model_arch_path=resolved_config.model_arch_path,
                     pretrained=resolved_config.pretrained,
                     model_weights_path=resolved_config.model_weights_path,
+                    architecture=resolved_config.architecture
                 )
                 return ExternalModel(cfg)
 
@@ -158,9 +157,9 @@ class ModelFactory:
             if inferred_type == ModelType.STANDARD:
                 cfg = StandardModelConfig(
                     model_name=resolved_config.model_name,
-                    num_classes=resolved_config.num_classes,
                     pretrained=resolved_config.pretrained,
                     weights=resolved_config.weights,
+                    architecture=resolved_config.architecture
                 )
                 
                 return StandardModel(cfg)
@@ -170,10 +169,9 @@ class ModelFactory:
                 # For example: 'MnistModel' for 'CustomMnistModel.py'. Adjust as necessary.
                 cfg = CustomModelConfig(
                     model_name=resolved_config.model_name,
-                    num_classes=resolved_config.num_classes,
-                    num_input_channels=resolved_config.num_input_channels,
                     custom_models_path=resolved_config.custom_models_path,
                     pretrained=resolved_config.pretrained,
+                    architecture=resolved_config.architecture
                 )
                 return CustomModel(cfg)
             
@@ -186,24 +184,14 @@ class ModelFactory:
                 
                 cfg = HuggingFaceModelConfig(
                     model_name=model_name,
-                    num_input_channels=resolved_config.num_input_channels,
+                    architecture=resolved_config.architecture,
                     pretrained=resolved_config.pretrained,
                     model_url = getattr(resolved_config, "model_url", None) or resolved_config.model_name,
                     revision=getattr(resolved_config, "revision", None),
                     cache_dir=getattr(resolved_config, "cache_dir", None),
                     trust_remote_code=getattr(resolved_config, "trust_remote_code", False)
                 )
-                model = HuggingFaceModel(cfg)
-
-                model_num_classes = model.infer_num_classes()
-
-                if resolved_config.num_classes is not None and model_num_classes != resolved_config.num_classes:
-                    error_msg = (f"Class mismatch: Model has {model_num_classes} output classes "
-                                f"but config specifies {resolved_config.num_classes} classes. "
-                                f"Please ensure the number of classes matches the model architecture.")
-                    raise ValueError(error_msg)
-
-                return model
+                return HuggingFaceModel(cfg)
 
         except Exception as e:
             err = f"Error creating model. Please check the model_name and other arguments. Error: {str(e)}"

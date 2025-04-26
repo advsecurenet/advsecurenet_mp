@@ -23,7 +23,7 @@ def device(request):
 
 @pytest.fixture
 def train_config(device):
-    model = ModelFactory.create_model(model_name="CustomCifar10Model", pretrained=False, num_classes=1000)
+    model = ModelFactory.create_model(model_name="CustomCifar10Model", pretrained=False, architecture={"num_classes": 1000}) 
 
     dataset = TensorDataset(torch.randn(100, 3, 32, 32), torch.randint(0, 10, (100,)))
     train_loader = DataLoader(dataset, batch_size=10)

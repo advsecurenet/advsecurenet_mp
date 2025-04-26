@@ -96,12 +96,11 @@ def layers(model_name: str, normalization: bool):
     default=False,
     help="Whether to trust remote code when loading the model. Default is False.",
 )
-def huggingface(model_url: str, num_classes: int, pretrained: bool, revision: str, trust_remote_code: bool):
+def huggingface(model_url: str, pretrained: bool, revision: str, trust_remote_code: bool):
     """Command to load and inspect a Hugging Face model.
 
     Args:
         model_url (str): Hugging Face model ID or URL.
-        num_classes (int, optional): Number of classes for the model.
         pretrained (bool): Whether to use pretrained weights.
         revision (str, optional): Specific model version to use.
         trust_remote_code (bool): Whether to trust remote code when loading the model.
@@ -111,4 +110,4 @@ def huggingface(model_url: str, num_classes: int, pretrained: bool, revision: st
     """
     from cli.logic.utils.model import cli_huggingface_model
 
-    cli_huggingface_model(model_url, num_classes, pretrained, revision, trust_remote_code)
+    cli_huggingface_model(model_url, pretrained, revision, trust_remote_code)

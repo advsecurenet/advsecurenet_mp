@@ -18,13 +18,12 @@ class StandardModel(BaseModel):
 
     """
 
-    def __init__(self, config: StandardModelConfig, **kwargs):
+    def __init__(self, config: StandardModelConfig):
 
         self._model_name = config.model_name
         self._pretrained = config.pretrained
         self._weights = config.weights
-        self._num_classes = config.num_classes
-        self._kwargs = kwargs
+        self._architecture = config.architecture
 
         # Initialize the BaseModel
         super().__init__()
@@ -44,15 +43,13 @@ class StandardModel(BaseModel):
         if self._pretrained:
             self.model = model_fn(weights=self._weights)
             #Checks if the number of classes the config expects matches the number of classes the model outputs
-            if (self._num_classes is not None and self._num_classes != self.infer_num_classes()):
+            if (self._architecture is not None and 
+                self._architecture.get("num_classes") is not None and 
+                self._architecture["num_classes"] != self.infer_num_classes()):
                 self.modify_model()
         else:
-            # if not pretrained, load the model without weights
-            if self._num_classes is not None:
-                self.model = model_fn(num_classes=self._num_classes, weights=None)
-
-            else:
-                self.model = model_fn(weights=None)    
+            filtered_architecture = self._filter_architecture_params(model_fn, self._architecture, self._model_name)
+            self.model = model_fn(**filtered_architecture)
 
     def modify_model(self):
         """
@@ -63,7 +60,7 @@ class StandardModel(BaseModel):
         for name, module in reversed(named_children_list):
             if isinstance(module, nn.Linear):
                 setattr(
-                    self.model, name, nn.Linear(module.in_features, self._num_classes)
+                    self.model, name, nn.Linear(module.in_features, self._architecture["num_classes"])
                 )
                 break
 

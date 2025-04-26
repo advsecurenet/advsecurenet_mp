@@ -77,13 +77,13 @@ def cli_model_layers(model_name: str, add_normalization: bool = False):
         layer_type = type(model.get_layer(layer_name)).__name__
         click.echo(f"{layer_name:<30}{layer_type:<30}")
 
-def cli_huggingface_model(model_url: str, num_classes: int, pretrained: bool, revision: str, trust_remote_code: bool):
+def cli_huggingface_model(model_url: str, architecture: dict, pretrained: bool, revision: str, trust_remote_code: bool):
     """
     Load and inspect a Hugging Face model.
 
     Args:
         model_url (str): Hugging Face model URL.
-        num_classes (int, optional): Number of classes for the model.
+        architecture(Dict, optional): Architecture specification of model
         pretrained (bool): Whether to use pretrained weights.
         revision (str, optional): Specific model version to use.
         trust_remote_code (bool): Whether to trust remote code when loading the model.
@@ -110,7 +110,7 @@ def cli_huggingface_model(model_url: str, num_classes: int, pretrained: bool, re
         config = CreateModelConfig(
             model_name=model_name,
             model_url=model_url,
-            num_classes=num_classes,
+            architecture=architecture,
             pretrained=pretrained,
             revision=revision,
             trust_remote_code=trust_remote_code,

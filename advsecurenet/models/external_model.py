@@ -13,13 +13,13 @@ class ExternalModel(BaseModel):
     This class is used to load external models that are not provided by the package. These models are loaded from external Python files.
     """
 
-    def __init__(self, config: ExternalModelConfig, **kwargs):
+    def __init__(self, config: ExternalModelConfig):
 
         self._model_name = config.model_name
         self._model_arch_path = config.model_arch_path
         self._pretrained = config.pretrained
         self._model_weights_path = config.model_weights_path
-        self._kwargs = kwargs
+        self._architecture = config.architecture
 
         self.model = None
         super().__init__()
@@ -45,7 +45,9 @@ class ExternalModel(BaseModel):
 
         model_class = getattr(custom_module, self._model_name)
 
-        self.model = model_class()
+        filtered_architecture = self._filter_architecture_params(model_class, self._architecture, self._model_name)
+
+        self.model = model_class(**filtered_architecture)
         if self._pretrained:
             try:
                 self.model.load_state_dict(torch.load(self._model_weights_path))

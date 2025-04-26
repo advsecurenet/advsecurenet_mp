@@ -31,7 +31,7 @@ def processor(request):
 def train_config(processor):
 
     model = ModelFactory.create_model(
-        model_name="resnet18", num_classes=10, pretrained=False
+        model_name="resnet18", architecture={"num_classes": 10}, pretrained=False
     )
     dataset = DatasetFactory.create_dataset(dataset_type="cifar10")
     test_data = dataset.load_dataset(train=False)
