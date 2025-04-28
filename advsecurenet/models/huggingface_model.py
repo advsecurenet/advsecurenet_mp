@@ -95,8 +95,6 @@ class HuggingFaceModel(BaseModel):
                     except Exception as e:
                         warnings.warn(f"Error trying to load inferred class '{arch_name}': {e}. Falling back to AutoModel.")
 
-            print(f"AdvSecureNet: Determined model class: {determined_class_name}")
-
             # --- Step 2: Load Model using Determined Class ---
             common_args = {
                 "revision": self._revision,
