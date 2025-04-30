@@ -101,7 +101,7 @@ class ModelFactory:
         if model_name in CustomModel.models():
             return ModelType.CUSTOM
         
-        if HuggingFaceModel.is_huggingface_url(model_name):
+        if HuggingFaceModel.verify_hf_identifier_exists(model_name):
             return ModelType.HUGGINGFACE
 
         raise ValueError(
@@ -148,7 +148,7 @@ class ModelFactory:
                 )
                 return ExternalModel(cfg)
 
-            inferred_type: ModelType = ModelFactory.infer_model_type(getattr(resolved_config, "model_url", None) or resolved_config.model_name)
+            inferred_type: ModelType = ModelFactory.infer_model_type(getattr(resolved_config, "model_identifier", None) or resolved_config.model_name)
 
             ModelFactory._validate_create_model_config(inferred_type, resolved_config)
 
@@ -176,17 +176,13 @@ class ModelFactory:
                 return CustomModel(cfg)
             
             if inferred_type == ModelType.HUGGINGFACE:
-                if not getattr(resolved_config, "model_url", None):
-                    model_name = HuggingFaceModel.extract_model_id_from_url(resolved_config.model_name)
-                else:
-                    model_name = resolved_config.model_name
-
+                model_id, model_name= HuggingFaceModel.resolve_hf_identifiers(resolved_config)
                 
                 cfg = HuggingFaceModelConfig(
                     model_name=model_name,
                     architecture=resolved_config.architecture,
                     pretrained=resolved_config.pretrained,
-                    model_url = getattr(resolved_config, "model_url", None) or resolved_config.model_name,
+                    model_id = model_id,
                     revision=getattr(resolved_config, "revision", None),
                     cache_dir=getattr(resolved_config, "cache_dir", None),
                     trust_remote_code=getattr(resolved_config, "trust_remote_code", False),

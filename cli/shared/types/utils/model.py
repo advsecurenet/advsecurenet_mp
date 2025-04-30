@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, Any, Dict
 
 
 @dataclass
@@ -30,10 +30,10 @@ class ModelCliConfigType:
     """
 
     model_name: str
-    architecture: Optional[dict]
     pretrained: bool
     weights: Optional[str]
     is_external: bool
     path_configs: ModelPathConfig
     norm_config: ModelNormConfig
     random_seed: Optional[int]
+    architecture: Optional[Dict[str, Any]] = None 

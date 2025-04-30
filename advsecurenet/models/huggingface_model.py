@@ -1,10 +1,13 @@
 import re
-from typing import List, Optional, Any
+from typing import List, Optional, Tuple
 import warnings
 import torch
 
 import transformers
 from transformers import AutoModel, AutoConfig
+
+from huggingface_hub import model_info
+from huggingface_hub.utils import RepositoryNotFoundError 
 
 from advsecurenet.models.base_model import BaseModel, check_model_loaded
 from advsecurenet.shared.types.configs.model_config import HuggingFaceModelConfig
@@ -26,7 +29,7 @@ class HuggingFaceModel(BaseModel):
         Args:
             config (HuggingFaceModelConfig): Configuration for the Hugging Face model.
         """
-        self._model_url = config.model_url
+        self._model_id = config.model_id
         self._pretrained = config.pretrained
         self._revision = config.revision
         self._cache_dir = config.cache_dir
@@ -48,10 +51,6 @@ class HuggingFaceModel(BaseModel):
                         is invalid, or loading fails.
         """
         try:
-            model_id = HuggingFaceModel.extract_model_id_from_url(self._model_url)
-            if not model_id:
-                raise ValueError(f"Could not extract model ID from URL: {self._model_url}")
-
             ModelClass = None
             determined_class_name = "Undetermined"
 
@@ -73,7 +72,7 @@ class HuggingFaceModel(BaseModel):
             # Priority 2: Inference from Hub Config (if manual override not used)
             if ModelClass is None:
                 config = AutoConfig.from_pretrained(
-                    model_id,
+                    self._model_id,
                     revision=self._revision,
                     cache_dir=self._cache_dir,
                     trust_remote_code=self._trust_remote_code,
@@ -106,12 +105,12 @@ class HuggingFaceModel(BaseModel):
                 load_args = common_args.copy()
                 if self._architecture_overrides:
                     warnings.warn("Architecture arguments are applied via config for non-pretrained models. Ignoring for pretrained loading.")
-                self.model = ModelClass.from_pretrained(model_id, **load_args)
+                self.model = ModelClass.from_pretrained(self._model_id, **load_args)
             else:
                 # Load config again if not already loaded (only needed if manual override was used)
                 if 'config' not in locals():
                      config = AutoConfig.from_pretrained(
-                         model_id,
+                         self._model_id,
                          revision=self._revision,
                          cache_dir=self._cache_dir,
                          trust_remote_code=self._trust_remote_code,
@@ -129,7 +128,7 @@ class HuggingFaceModel(BaseModel):
 
         except Exception as e:
             # Add more context to the final error message
-            raise ValueError(f"Error loading Hugging Face model '{model_id}' using class '{determined_class_name}': {str(e)}") from e
+            raise ValueError(f"Error loading Hugging Face model '{self._model_id}' using class '{determined_class_name}': {str(e)}") from e
         
     @classmethod
     def models(cls) -> List[str]:
@@ -159,25 +158,132 @@ class HuggingFaceModel(BaseModel):
         return bool(re.match(pattern, url))
     
     @staticmethod
-    def extract_model_id_from_url(url: str) -> Optional[str]:
+    def is_huggingface_id(identifier: str) -> bool:
         """
-        Extract the model ID from a Hugging Face URL.
-        
-        Args:
-            url (str): The URL to extract the model ID from.
-            
+        Checks if a string matches the typical Hugging Face model ID format (e.g., 'user/repo').
+        Uses regex for basic format validation, does not check Hub existence.
+        """
+        if not identifier:
+            return False
+        # Regex: Starts with allowed chars, has '/', ends with allowed chars.
+        # Allowed chars: letters, numbers, dot, underscore, hyphen.
+        pattern = r"^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+$"
+        return bool(re.match(pattern, identifier))
+    
+    @staticmethod
+    def _check_hub_for_id(model_id: str) -> bool:
+        """
+        Internal helper: Checks if a specific model ID exists on the Hub.
+        Assumes model_id is already validated for the correct format (e.g., "user/repo").
+
         Returns:
-            Optional[str]: The model ID if the URL is a valid Hugging Face URL, None otherwise.
+            bool: True if the model exists, False if specifically not found.
+        Raises:
+            Exception: Propagates exceptions (network errors, etc.) from model_info.
         """
-        if not HuggingFaceModel.is_huggingface_url(url):
-            return None
-        
-        pattern = r'^(https?://) ?(www\.)?(huggingface\.co|hf\.co)/([^/]+/[^/]+).*$'
-        match = re.match(pattern, url)
-        if match:
-            return match.group(4)
-        
-        return None
+        # REMOVED: Initial format check (if not model_id or '/' not in model_id:)
+        try:
+            model_info(model_id)
+            return True
+        except RepositoryNotFoundError:
+            # Model ID specifically not found on the Hub
+            return False
+    
+    @staticmethod
+    def verify_hf_identifier_exists(identifier: str) -> bool:
+        """
+        Verifies if a Hugging Face identifier (URL or model ID) corresponds
+        to an existing model on the Hub. Validates format before checking.
+
+        Args:
+            identifier (str): The model identifier (e.g., "user/repo" or "https://huggingface.co/user/repo").
+
+        Returns:
+            bool: True if the identifier points to an existing model on the Hub, False otherwise.
+                  Returns False also if network errors occur during the check.
+        """
+        if not identifier:
+            return False
+
+        model_id_to_check: Optional[str] = None
+
+        if HuggingFaceModel.is_huggingface_url(identifier):
+            extracted_id = HuggingFaceModel.extract_model_id_from_url(identifier)
+            if extracted_id:
+                # Extracted ID should already be in the correct format
+                model_id_to_check = extracted_id
+            else:
+                # Invalid URL format or failed extraction
+                return False # Cannot proceed
+        elif HuggingFaceModel.is_huggingface_id(identifier):
+            # Identifier matches the ID format
+            model_id_to_check = identifier
+        else:
+            # Identifier is neither a valid URL nor a valid ID format
+            return False
+
+        # If we have a valid ID format, perform the actual check on the Hub
+        try:
+            return HuggingFaceModel._check_hub_for_id(model_id_to_check)
+        except Exception as e:
+            # Treat Hub check errors (network, etc.) as "doesn't exist" for inference purposes
+            warnings.warn(f"Could not verify Hugging Face identifier '{identifier}' due to Hub check error: {e}")
+            return False
+    
+    @staticmethod
+    def resolve_hf_identifiers(config: HuggingFaceModelConfig) -> Tuple[str, str]:
+        """
+        Determines the canonical Hugging Face model ID and model name from the config.
+
+        Handles cases where model_id is provided vs. not provided, and whether
+        the identifiers are URLs or plain IDs.
+
+        Args:
+            config (CreateModelConfig): The resolved configuration object potentially
+                                        containing model_name and model_id.
+
+        Returns:
+            Tuple[str, str]: A tuple containing (canonical_model_id, canonical_model_name).
+
+        Raises:
+            ValueError: If a URL is provided but the ID cannot be extracted.
+        """
+        provided_model_identifier = getattr(config, "model_identifier", None)
+        provided_model_name = config.model_name # Assumed to be always present
+
+        final_model_id: str
+        final_model_name: str
+
+        if not provided_model_identifier:
+            # Case 1: model_id field was NOT provided in config
+            identifier = provided_model_name
+            if HuggingFaceModel.is_huggingface_url(identifier):
+                extracted_id = HuggingFaceModel.extract_model_id_from_url(identifier)
+                if not extracted_id:
+                    raise ValueError(f"Could not extract model ID from URL in model_name: {identifier}")
+                # If only model_name (as URL) was given, use extracted ID for both
+                final_model_id = extracted_id
+                final_model_name = extracted_id 
+            else:
+                # Assume model_name is the ID
+                final_model_id = identifier
+                final_model_name = identifier
+        else:
+            # Case 2: model_id field WAS provided in config
+            final_model_name = provided_model_name # Use the required model_name directly
+
+            identifier_for_id = provided_model_identifier
+            if HuggingFaceModel.is_huggingface_url(identifier_for_id):
+                extracted_id = HuggingFaceModel.extract_model_id_from_url(identifier_for_id)
+                if not extracted_id:
+                    raise ValueError(f"Could not extract model ID from URL in model_id field: {identifier_for_id}")
+                final_model_id = extracted_id
+            else:
+                # Assume provided model_id is the ID
+                final_model_id = identifier_for_id
+
+        return final_model_id, final_model_name
+
     
     @check_model_loaded # Use the decorator from BaseModel
     def forward(self, x: torch.Tensor, *args, **kwargs) -> torch.Tensor:

@@ -78,12 +78,12 @@ def cli_model_layers(model_name: str, add_normalization: bool = False):
         layer_type = type(model.get_layer(layer_name)).__name__
         click.echo(f"{layer_name:<30}{layer_type:<30}")
 
-def cli_huggingface_model(model_url: str, pretrained: bool, revision: str, trust_remote_code: bool, model_class_name: Optional[str], architecture: Optional[Dict] = None):
+def cli_huggingface_model(model_identifier: str, pretrained: bool, revision: str, trust_remote_code: bool, model_class_name: Optional[str], architecture: Optional[Dict] = None):
     """
     Load and inspect a Hugging Face model.
 
     Args:
-        model_url (str): Hugging Face model URL.
+        model_identifier (str): Hugging Face model URL.
         architecture(Dict, optional): Architecture specification of model
         pretrained (bool): Whether to use pretrained weights.
         revision (str, optional): Specific model version to use.
@@ -92,25 +92,13 @@ def cli_huggingface_model(model_url: str, pretrained: bool, revision: str, trust
     Raises:
         ValueError: If the model ID is not provided or is invalid.
     """
-    if not model_url:
+    if not model_identifier:
         raise click.ClickException("Model ID must be provided!")
     
     try:
-        # Check if model_url is a URL and extract the model ID if it is
-        if HuggingFaceModel.is_huggingface_url(model_url):
-            extracted_id = HuggingFaceModel.extract_model_id_from_url(model_url)
-            if extracted_id:
-                click.echo(f"Detected Hugging Face URL. Using model ID: {extracted_id}")
-                model_name = extracted_id
-            else:
-                raise click.ClickException(f"Could not extract model ID from URL: {model_url}")
-        else:
-            raise click.ClickException(f"The given argument({model_url}) is not a Huggingface URL")
-
-        # Create model config
         config = CreateModelConfig(
-            model_name=model_name,
-            model_url=model_url,
+            model_name=model_identifier,
+            model_identifier=model_identifier,
             architecture=architecture,
             pretrained=pretrained,
             revision=revision,
@@ -118,14 +106,14 @@ def cli_huggingface_model(model_url: str, pretrained: bool, revision: str, trust
             model_class_name=model_class_name
         )
 
-        click.echo(f"Loading Hugging Face model: {model_name}")
+        click.echo(f"Loading Hugging Face model: {model_identifier}")
         if not pretrained:
             click.echo("Note: Loading model without pretrained weights")
         
         model = ModelFactory.create_model(config)
         
         # Display model information
-        click.secho(f"Successfully loaded Hugging Face model: {model_name}", bold=True, fg="green")
+        click.secho(f"Successfully loaded Hugging Face model: {model_identifier}", bold=True, fg="green")
         
         # Display model layers
         layer_names = model.get_layer_names()

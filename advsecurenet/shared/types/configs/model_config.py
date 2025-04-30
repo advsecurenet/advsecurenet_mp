@@ -30,13 +30,6 @@ class CustomModelConfig(BaseModelConfig):
 
     custom_models_path: Optional[str] = "CustomModels"
 
-    def __post_init__(self):
-        # Check if architecture is None and initialize if necessary
-        if self.architecture is None:
-            self.architecture = {}
-        # Now it's safe to call setdefault
-        self.architecture.setdefault("num_input_channels", 3)
-
 
 @dataclass
 class ExternalModelConfig(BaseModelConfig):
@@ -47,24 +40,17 @@ class ExternalModelConfig(BaseModelConfig):
     model_arch_path: Optional[str] = None
     model_weights_path: Optional[str] = None
 
-    def __post_init__(self):
-        # Check if architecture is None and initialize if necessary
-        if self.architecture is None:
-            self.architecture = {}
-        # Now it's safe to call setdefault
-        self.architecture.setdefault("num_input_channels", 3)
-
 @dataclass
 class HuggingFaceModelConfig(BaseModelConfig):
     """
     Configuration for Hugging Face models.
     """
     pretrained: Optional[bool] = True
-    model_url: str = None
     revision: Optional[str] = None
     cache_dir: Optional[str] = None
     trust_remote_code: bool = False
     model_class_name: str = None
+    model_id: str = None
 
 
 
@@ -76,3 +62,4 @@ class CreateModelConfig(StandardModelConfig, CustomModelConfig, ExternalModelCon
 
     is_external: bool = False
     random_seed: Optional[int] = None
+    model_identifier: str = None
