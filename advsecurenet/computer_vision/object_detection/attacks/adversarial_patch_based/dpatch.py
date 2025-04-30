@@ -287,6 +287,7 @@ class DPatch(ObjectDetectionAttack):
                 self._patch = self._patch + np.sign(patch_gradients) * self.learning_rate
 
             #TODO - add value clipping if necessary (see ART)
+            self._patch = np.clip(self._patch, 0, 255)
 
             patched_images, _ = self._augment_images_with_patch(
                 x,
@@ -297,7 +298,7 @@ class DPatch(ObjectDetectionAttack):
                 transforms=transforms,
             )
 
-        return np.clip(self._patch, 0, 1)
+        return self._patch
     
 
     @staticmethod
