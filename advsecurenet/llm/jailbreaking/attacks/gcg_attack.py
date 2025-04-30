@@ -5,8 +5,8 @@ import torch
 import torch.nn as nn
 from tqdm.auto import tqdm
 
-from base import AttackPrompt, MultiPromptAttack, PromptManager
-from base import get_embedding_matrix, get_embeddings
+from core import AttackPrompt, MultiPromptAttack, PromptManager
+from core import get_embedding_matrix, get_embeddings
 
 
 def token_gradients(model, input_ids, input_slice, target_slice, loss_slice):
