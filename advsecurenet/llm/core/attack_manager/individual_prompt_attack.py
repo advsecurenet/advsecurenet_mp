@@ -19,7 +19,6 @@ from transformers import (AutoModelForCausalLM, AutoTokenizer, GPT2LMHeadModel,
 
 
 
-
 class IndividualPromptAttack(object):
     """ A class used to manage attacks for each target string / behavior."""
     def __init__(self, 
