@@ -1,6 +1,7 @@
 from enum import Enum
 
 from advsecurenet.computer_vision.image_classification.attacks import FGSM, LOTS, PGD, CWAttack, DecisionBoundary, DeepFool
+from advsecurenet.computer_vision.object_detection.attacks import DPatch
 
 
 class AttackType(Enum):
@@ -14,3 +15,4 @@ class AttackType(Enum):
     CW = CWAttack
     DEEPFOOL = DeepFool
     DECISION_BOUNDARY = DecisionBoundary
+    DPATCH = DPatch
