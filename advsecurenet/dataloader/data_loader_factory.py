@@ -3,7 +3,7 @@ This module contains the DataLoaderFactory class that creates a DataLoader for t
 """
 
 from dataclasses import asdict, is_dataclass
-from typing import Optional
+from typing import Optional, Callable
 
 from torch.utils.data import DataLoader as TorchDataLoader
 from torch.utils.data import Dataset as TorchDataset
@@ -39,7 +39,11 @@ class DataLoaderFactory:
 
     @staticmethod
     def create_dataloader(
-        config: Optional[DataLoaderConfig] = None, **kwargs
+        config: Optional[DataLoaderConfig] = None,
+        *,
+        collate_fn: Callable | None = None,
+        **kwargs
+        #config: Optional[DataLoaderConfig] = None, **kwargs
     ) -> TorchDataLoader:
         """
         A static method that creates a DataLoader for the given dataset with the given parameters.
@@ -79,6 +83,8 @@ class DataLoaderFactory:
         config_dict = dataclass_to_dict(config)
         # merge the config and kwargs
         params = {**config_dict, **kwargs}
+        if collate_fn is not None:
+            params["collate_fn"] = collate_fn
         dataloader = TorchDataLoader(**params)
 
         return dataloader
