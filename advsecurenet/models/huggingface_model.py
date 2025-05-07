@@ -10,7 +10,7 @@ from huggingface_hub import model_info
 from huggingface_hub.utils import RepositoryNotFoundError 
 
 from advsecurenet.models.base_model import BaseModel, check_model_loaded
-from advsecurenet.shared.types.configs.model_config import HuggingFaceModelConfig
+from advsecurenet.shared.types.configs.model_config import HuggingFaceResolvedConfig, CreateModelConfig, determine_identifier_and_soruce
 
 
 class HuggingFaceModel(BaseModel):
@@ -22,12 +22,12 @@ class HuggingFaceModel(BaseModel):
     any model available on the Hugging Face Hub.
     """
 
-    def __init__(self, config: HuggingFaceModelConfig):
+    def __init__(self, config: HuggingFaceResolvedConfig):
         """
         Initialize a HuggingFaceModel.
         
         Args:
-            config (HuggingFaceModelConfig): Configuration for the Hugging Face model.
+            config (HuggingFaceResolvedConfig): Configuration for the Hugging Face model.
         """
         self._model_id = config.model_id
         self._pretrained = config.pretrained
@@ -205,84 +205,78 @@ class HuggingFaceModel(BaseModel):
         if not identifier:
             return False
 
-        model_id_to_check: Optional[str] = None
+        model_id_to_check = HuggingFaceModel.process_hf_identifier(identifier)
 
-        if HuggingFaceModel.is_huggingface_url(identifier):
-            extracted_id = HuggingFaceModel.extract_model_id_from_url(identifier)
-            if extracted_id:
-                # Extracted ID should already be in the correct format
-                model_id_to_check = extracted_id
-            else:
-                # Invalid URL format or failed extraction
-                return False # Cannot proceed
-        elif HuggingFaceModel.is_huggingface_id(identifier):
-            # Identifier matches the ID format
-            model_id_to_check = identifier
-        else:
-            # Identifier is neither a valid URL nor a valid ID format
+        if not HuggingFaceModel.is_huggingface_id(model_id_to_check):
             return False
 
-        # If we have a valid ID format, perform the actual check on the Hub
         try:
             return HuggingFaceModel._check_hub_for_id(model_id_to_check)
         except Exception as e:
             # Treat Hub check errors (network, etc.) as "doesn't exist" for inference purposes
             warnings.warn(f"Could not verify Hugging Face identifier '{identifier}' due to Hub check error: {e}")
             return False
+        
+    @staticmethod
+    def process_hf_identifier(identifier):
+        # Process the chosen identifier
+        if HuggingFaceModel.is_huggingface_url(identifier):
+            extracted_id = HuggingFaceModel.extract_model_id_from_url(identifier)
+            # If extraction fails, extracted_id will be None or empty, so return it directl
+            return extracted_id
+        else:
+            # Assume it's a direct ID
+            return identifier
+        
+    @staticmethod
+    def extract_model_id_from_url(url: str) -> Optional[str]:
+        """
+        Extract the model ID from a Hugging Face URL.
+        
+        Args:
+            url (str): The URL to extract the model ID from.
+            
+        Returns:
+            Optional[str]: The model ID if the URL is a valid Hugging Face URL, None otherwise.
+        """
+        if not HuggingFaceModel.is_huggingface_url(url):
+            return None
+
+        pattern = r'^(https?://) ?(www\.)?(huggingface\.co|hf\.co)/([^/]+/[^/]+).*$'
+        match = re.match(pattern, url)
+        if match:
+            return match.group(4)
+
+        return None
     
     @staticmethod
-    def resolve_hf_identifiers(config: HuggingFaceModelConfig) -> Tuple[str, str]:
+    def resolve_hf_identifiers(config: CreateModelConfig) -> Tuple[str, str]:
         """
         Determines the canonical Hugging Face model ID and model name from the config.
 
-        Handles cases where model_id is provided vs. not provided, and whether
-        the identifiers are URLs or plain IDs.
+        Prioritizes `config.model_identifier`. If not present, uses `config.model_name`.
+        Handles cases where identifiers are URLs or plain IDs.
 
         Args:
-            config (CreateModelConfig): The resolved configuration object potentially
-                                        containing model_name and model_id.
+            config (CreateModelConfig): The configuration object.
 
         Returns:
-            Tuple[str, str]: A tuple containing (canonical_model_id, canonical_model_name).
+            Str: A string containing the resolved identifier.
 
         Raises:
-            ValueError: If a URL is provided but the ID cannot be extracted.
+            ValueError: If an identifier is required but not found, or if a URL is provided but the ID cannot be extracted.
         """
-        provided_model_identifier = getattr(config, "model_identifier", None)
-        provided_model_name = config.model_name # Assumed to be always present
+        identifier_to_process, identifier_source_field_name = determine_identifier_and_soruce(config)
 
-        final_model_id: str
-        final_model_name: str
+        final_model_id = HuggingFaceModel.process_hf_identifier(identifier_to_process)
 
-        if not provided_model_identifier:
-            # Case 1: model_id field was NOT provided in config
-            identifier = provided_model_name
-            if HuggingFaceModel.is_huggingface_url(identifier):
-                extracted_id = HuggingFaceModel.extract_model_id_from_url(identifier)
-                if not extracted_id:
-                    raise ValueError(f"Could not extract model ID from URL in model_name: {identifier}")
-                # If only model_name (as URL) was given, use extracted ID for both
-                final_model_id = extracted_id
-                final_model_name = extracted_id 
-            else:
-                # Assume model_name is the ID
-                final_model_id = identifier
-                final_model_name = identifier
-        else:
-            # Case 2: model_id field WAS provided in config
-            final_model_name = provided_model_name # Use the required model_name directly
+        if final_model_id is None:
+            # This means process_hf_identifier failed (likely due to URL extraction)
+            raise ValueError(
+                f"Could not extract model ID from URL in '{identifier_source_field_name.name.lower()}': {identifier_to_process}"
+            )
 
-            identifier_for_id = provided_model_identifier
-            if HuggingFaceModel.is_huggingface_url(identifier_for_id):
-                extracted_id = HuggingFaceModel.extract_model_id_from_url(identifier_for_id)
-                if not extracted_id:
-                    raise ValueError(f"Could not extract model ID from URL in model_id field: {identifier_for_id}")
-                final_model_id = extracted_id
-            else:
-                # Assume provided model_id is the ID
-                final_model_id = identifier_for_id
-
-        return final_model_id, final_model_name
+        return final_model_id
 
     
     @check_model_loaded # Use the decorator from BaseModel

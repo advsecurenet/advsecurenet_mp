@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Optional, Dict, Any
+from enum import Enum, auto
 
 
 @dataclass
@@ -41,21 +42,29 @@ class ExternalModelConfig(BaseModelConfig):
     model_weights_path: Optional[str] = None
 
 @dataclass
-class HuggingFaceModelConfig(BaseModelConfig):
+class HuggingFaceInputConfig(BaseModelConfig):
     """
-    Configuration for Hugging Face models.
+    User-provided configuration parameters for Hugging Face models,
+    used prior to the resolution of the specific model_id.
+    This config is typically part of the broader CreateModelConfig.
     """
     pretrained: Optional[bool] = True
     revision: Optional[str] = None
     cache_dir: Optional[str] = None
     trust_remote_code: bool = False
     model_class_name: str = None
+
+@dataclass
+class HuggingFaceResolvedConfig(HuggingFaceInputConfig):
+    """
+    Fully resolved configuration for Hugging Face models, including the model_id.
+    This is the config type expected by HuggingFaceModel.__init__.
+    """
     model_id: str = None
 
 
-
 @dataclass
-class CreateModelConfig(StandardModelConfig, CustomModelConfig, ExternalModelConfig, HuggingFaceModelConfig):
+class CreateModelConfig(StandardModelConfig, CustomModelConfig, ExternalModelConfig, HuggingFaceInputConfig):
     """
     Config parameters for creating a model in the model factory.
     """
@@ -63,3 +72,17 @@ class CreateModelConfig(StandardModelConfig, CustomModelConfig, ExternalModelCon
     is_external: bool = False
     random_seed: Optional[int] = None
     model_identifier: str = None
+
+class IdentifierSource(Enum):
+    MODEL_IDENTIFIER = auto()
+    MODEL_NAME = auto()
+
+@staticmethod
+def determine_identifier_and_soruce(config: CreateModelConfig):
+    if config.model_identifier:
+        identifier = config.model_identifier
+        source = IdentifierSource.MODEL_IDENTIFIER
+    else:
+        identifier = config.model_name
+        source = IdentifierSource.MODEL_NAME
+    return identifier, source

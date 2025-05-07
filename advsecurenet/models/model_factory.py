@@ -15,7 +15,8 @@ from advsecurenet.shared.types.configs.model_config import (
     CustomModelConfig,
     ExternalModelConfig,
     StandardModelConfig,
-    HuggingFaceModelConfig,
+    HuggingFaceResolvedConfig,
+    determine_identifier_and_soruce,
 )
 from advsecurenet.shared.types.model import ModelType
 from advsecurenet.utils.reproducibility_utils import set_seed
@@ -42,10 +43,14 @@ class ModelFactory:
         """
         if config is None or not isinstance(config, CreateModelConfig):
             # Case 1: No valid config provided, create purely from kwargs
-            logger.debug("No valid config provided, creating from kwargs.")
+            logger.debug("No valid model config provided, creating from kwargs.")
             return CreateModelConfig(**kwargs)
+        elif not kwargs:
+            # Case 2: Valid config provided, and kwargs is empty. Use the provided config directly.
+            logger.debug("Valid CreateModelConfig provided and kwargs is empty. Using provided config directly.")
+            return config
         else:
-            # Case 2: Config WAS provided. Check for overlap and merge kwargs.
+            # Case 3: Config and kwargs are provided. Check for overlap and merge config and kwargs.
             overlapping_keys = []
             config_field_names = {f.name for f in dataclasses.fields(CreateModelConfig)}
             kwargs_to_merge = {} # Only store kwargs that are actual config fields
@@ -147,13 +152,16 @@ class ModelFactory:
                     architecture=resolved_config.architecture
                 )
                 return ExternalModel(cfg)
+            
+            identifier, _ = determine_identifier_and_soruce(resolved_config)
 
-            inferred_type: ModelType = ModelFactory.infer_model_type(getattr(resolved_config, "model_identifier", None) or resolved_config.model_name)
+            inferred_type: ModelType = ModelFactory.infer_model_type(identifier)
 
             ModelFactory._validate_create_model_config(inferred_type, resolved_config)
 
             if resolved_config.random_seed is not None:
                 set_seed(resolved_config.random_seed)
+
             if inferred_type == ModelType.STANDARD:
                 cfg = StandardModelConfig(
                     model_name=resolved_config.model_name,
@@ -161,7 +169,6 @@ class ModelFactory:
                     weights=resolved_config.weights,
                     architecture=resolved_config.architecture
                 )
-                
                 return StandardModel(cfg)
 
             if inferred_type == ModelType.CUSTOM:
@@ -176,16 +183,16 @@ class ModelFactory:
                 return CustomModel(cfg)
             
             if inferred_type == ModelType.HUGGINGFACE:
-                model_id, model_name= HuggingFaceModel.resolve_hf_identifiers(resolved_config)
+                model_id = HuggingFaceModel.process_hf_identifier(identifier)
                 
-                cfg = HuggingFaceModelConfig(
-                    model_name=model_name,
+                cfg = HuggingFaceResolvedConfig(
+                    model_name=config.model_name,
                     architecture=resolved_config.architecture,
                     pretrained=resolved_config.pretrained,
                     model_id = model_id,
-                    revision=getattr(resolved_config, "revision", None),
-                    cache_dir=getattr(resolved_config, "cache_dir", None),
-                    trust_remote_code=getattr(resolved_config, "trust_remote_code", False),
+                    revision=resolved_config.revision,
+                    cache_dir=resolved_config.cache_dir,
+                    trust_remote_code=resolved_config.trust_remote_code,
                     model_class_name=resolved_config.model_class_name
                 )
                 return HuggingFaceModel(cfg)
