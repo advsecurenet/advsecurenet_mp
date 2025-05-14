@@ -6,7 +6,7 @@ import torch.multiprocessing as mp
 from absl import app
 from ml_collections import config_flags
 
-from base.attack_manager import get_goals_and_targets, get_workers
+from core.attack_manager import get_goals_and_targets, get_workers
 
 _CONFIG = config_flags.DEFINE_config_file('config')
 

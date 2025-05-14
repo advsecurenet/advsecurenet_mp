@@ -17,6 +17,7 @@ from transformers import (AutoModelForCausalLM, AutoTokenizer, GPT2LMHeadModel,
                           GPTJForCausalLM, GPTNeoXForCausalLM,
                           LlamaForCausalLM)
 from individual_prompt_attack import IndividualPromptAttack
+from core.model_manager.model_manager import ModelWorker
 
 
 class EvaluateAttack(object):
