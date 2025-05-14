@@ -1,13 +1,14 @@
 import torch
 import yolov5
 from yolov5.utils.loss import ComputeLoss
+from yolov5.models.common import AutoShape
 
 class MyYolo(torch.nn.Module):
         def __init__(self, model_weights_path="/home/user/arutkiewicz/advsecurenet/code/advsecurenet_mp/yolov5s.pt"):
             super().__init__()
-            self._detector = yolov5.load(model_weights_path)
-            self._model = self._detector.model
-            self._detector.hyp.update({'box': 0.05,
+            det = yolov5.load(model_weights_path, autoshape=False)
+            self._model = det.model
+            self._model.hyp.update({'box': 0.05,
                             'obj': 1.0,
                             'cls': 0.5,
                             'anchor_t': 4.0,
@@ -15,7 +16,8 @@ class MyYolo(torch.nn.Module):
                             'obj_pw': 1.0,
                             'fl_gamma': 0.0
                             })
-            self.compute_loss = ComputeLoss(self._detector)
+            self.compute_loss = ComputeLoss(self._model)
+            self._detector = AutoShape(self._model)
 
         def forward(self, x, targets=None):
             if self.training:

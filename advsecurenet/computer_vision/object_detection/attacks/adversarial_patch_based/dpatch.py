@@ -34,8 +34,7 @@ class DPatch(ObjectDetectionAttack):
 
     def __init__(self, config: DPatchAttackConfig) -> None:
         super().__init__(config)
-        self.object_detector = config.object_detector#self._initialise_object_detector(config.object_detector)
-        #self.dataset = self._load_dataset("coco")
+        self.object_detector = config.object_detector
         self.patch_shape = config.patch_shape
         self.learning_rate = config.learning_rate
         self.max_iterations = config.max_iter
@@ -43,28 +42,47 @@ class DPatch(ObjectDetectionAttack):
         self.verbose = config.verbose
 
         # TODO - potentially add clip_values variant (see ART):
-        _patch_np = np.zeros(shape=self.patch_shape, dtype=np.float32)
-        self._patch = torch.from_numpy(_patch_np).to(config.device.processor)
-        #self._patch = np.zeros(shape=self.patch_shape, dtype=np.float32)
-        self.target_label: int | np.ndarray | list[int] | None = []
+        self._patch = torch.zeros(self.patch_shape, dtype=torch.float32, device=config.device.processor)
+
+        # must match the order of COCO_INSTANCE_CATEGORY_NAMES
+        COCO_INSTANCE_CATEGORY_IDS = [
+            1,2,3,4,5,6,7,8,9,10,
+            11,13,14,15,16,17,18,19,20,21,
+            22,23,24,25,27,28,31,32,33,34,
+            35,36,37,38,39,40,41,42,43,44,
+            46,47,48,49,50,51,52,53,54,55,
+            56,57,58,59,60,61,62,63,64,65,
+            67,70,72,73,74,75,76,77,78,79,
+            80,81,82,84,85,86,87,88,89,90
+        ]
+        self.id2yolo = { raw_id: idx
+                         for idx, raw_id in enumerate(COCO_INSTANCE_CATEGORY_IDS) }
 
 
-    # def _initialise_object_detector(self, object_detector: string) -> None:
-    #     """
-    #     Initialises the object detector.
+    def filter_detection_boxes(self, predictions, conf_thresh):
+        dictionary = {}
 
-    #     Args:
-    #         object_detector (string): The object detector's name to be used.
-    #     """
-    #     # Load a YOLOv5 model (options: yolov5n, yolov5s, yolov5m, yolov5l, yolov5x)
-    #     object_detector = torch.hub.load("ultralytics/yolov5", "yolov5s", pretrained=True)  # Default: yolov5s
-    #     #self.object_detector = object_detector #TODO: implement this method
-    #     return object_detector
+        boxes_list = []
+        scores_list = []
+        labels_list = []
 
+        for i in range(len(predictions["boxes"])):
+            score = predictions["scores"][i]
+            if score >= conf_thresh:
+                boxes_list.append(predictions["boxes"][i])
+                scores_list.append(predictions["scores"][[i]])
+                labels_list.append(predictions["labels"][[i]])
+
+        if len(boxes_list)>0 and len(scores_list)>0 and len(labels_list)>0:
+            dictionary["boxes"] = np.vstack(boxes_list)
+            dictionary["scores"] = np.hstack(scores_list)
+            dictionary["labels"] = np.hstack(labels_list)
+
+        y = dictionary
+        return y
 
     def attack(
             self,
-            model: BaseModel,
             x: torch.tensor,  # (batch_size, channels, height, width)
             y: torch.tensor,  # (batch_size, num_boxes, 4) (x1, y1, x2, y2)
             target_label: torch.tensor,
@@ -82,124 +100,161 @@ class DPatch(ObjectDetectionAttack):
         Returns:
             torch.tensor: The adversarial example tensor.
         """
-        model.eval()
+
+        if target_label is not None and y is not None:
+            raise ValueError("Both target_label and y cannot be provided at the same time.")
+
+        self.object_detector.model.eval()
 
         if isinstance(x, np.ndarray):
             x = torch.tensor(x)
         elif isinstance(x, list) and isinstance(x[0], np.ndarray):
             x = torch.tensor(np.stack(x))  # Convert list of numpy arrays to tensor
-
-        # if isinstance(y, np.ndarray):
-        #     y = torch.from_numpy(y)
-        # elif isinstance(y, list) and y and isinstance(y[0], np.ndarray): # Check if list is not empty
-        #     y = torch.from_numpy(np.stack(y))  # Convert list of numpy arrays to tensor
-        # elif isinstance(y, list):# and y and isinstance(y[0], torch.Tensor): # Check if list is not empty
-        #     y = torch.stack(y) # Convert list of tensors to tensor
            
         x = self.device_manager.to_device(x)
-        print(x)
-        print(type(x))
-        #y = self.device_manager.to_device(y)
         mask = mask.copy() if mask is not None else None
 
+        initial_patch_for_target_determination = self._patch.clone()
+
         channel_index = x.ndim - 1 # assuming self.estimator.channels_first is False
-        patched_images, transforms = self._augment_images_with_patch(
+        patched_images_initial, transforms_initial = self._augment_images_with_patch(
                     x,
-                    self._patch,
-                    random_location=True,
+                    initial_patch_for_target_determination,
+                    random_location=False,#True,
                     #channels_first=False,
                     mask=mask,
                     transforms=None,
         )       
-        patched_images = patched_images.clone().detach().requires_grad_(True)
+        transforms = transforms_initial.copy()  # Copy the transforms for later use
+        patched_images = patched_images_initial.clone().detach().requires_grad_(True)
         patch_target: list[dict[str, np.ndarray]] = []
 
-        if self.target_label and y is None:
+        # —— Adapter for ODAttacker’s dict{"boxes":[...],"labels":[...]} format ——
+        # if isinstance(y, dict) and "boxes" in y and "labels" in y:
+        #     boxes_list  = y["boxes"]
+        #     labels_list = y["labels"]
+        #     # if no explicit scores, assume 1.0 for each GT
+        #     scores_list = y.get(
+        #         "scores",
+        #         [torch.ones(len(lbl), device=boxes_list[i].device) for i, lbl in enumerate(labels_list)]
+        #     )
+        #     for b_t, l_t, s_t in zip(boxes_list, labels_list, scores_list):
+        #         raw = l_t.detach().cpu().numpy().astype(int)
+        #         mapped = np.array([self.id2yolo[c] for c in raw], dtype=int)
+        #         patch_target.append({
+        #             "boxes":  b_t.detach().cpu().numpy(),
+        #             "labels": mapped,
+        #             "scores": s_t.detach().cpu().numpy().astype(float),
+        #         })
+        if False:
+            return
+        else:
+            if (target_label is not None) and (y is None): # targetted attack
+                print(f"[DPATCH] targetted attack - target_label: {target_label}")
+                for i_image in range(patched_images.shape[0]):
+                    if isinstance(target_label, int):
+                        t_l = target_label
+                    else:
+                        t_l = target_label[i_image]
 
-            for i_image in range(patched_images.shape[0]):
-                if isinstance(self.target_label, int):
-                    t_l = self.target_label
-                else:
-                    t_l = self.target_label[i_image]
+                    i_x_1 = transforms[i_image]["i_x_1"]
+                    i_x_2 = transforms[i_image]["i_x_2"]
+                    i_y_1 = transforms[i_image]["i_y_1"]
+                    i_y_2 = transforms[i_image]["i_y_2"]
 
-                i_x_1 = transforms[i_image]["i_x_1"]
-                i_x_2 = transforms[i_image]["i_x_2"]
-                i_y_1 = transforms[i_image]["i_y_1"]
-                i_y_2 = transforms[i_image]["i_y_2"]
+                    target_dict = {}
+                    target_dict["boxes"] = np.asarray([[i_x_1, i_y_1, i_x_2, i_y_2]])
+                    raw = np.asarray([t_l], dtype=int)
+                    mapped = np.array([self.id2yolo[c] for c in raw], dtype=int)
+                    target_dict["labels"] = mapped #(np.asarray([t_l], dtype=int) - 1)
+                    target_dict["scores"] = np.asarray(
+                        [
+                            1.0,
+                        ]
+                    )
+                    patch_target.append(target_dict)
 
-                target_dict = {}
-                target_dict["boxes"] = np.asarray([[i_x_1, i_y_1, i_x_2, i_y_2]])
-                target_dict["labels"] = np.asarray(
-                    [
-                        t_l,
-                    ]
-                )
-                target_dict["scores"] = np.asarray(
-                    [
-                        1.0,
-                    ]
-                )
+            elif target_label is None: # untargetted attack
+                predictions = None
+                if y is not None:
+                    print(f"[DPATCH] untargetted attack - true labels provided")
+                    predictions = y
+                else: # untargetted attack where no true labels are provided
+                    print(f"[DPATCH] untargetted attack - no true labels provided")
+                    targets = []
+                    patched_images_np = patched_images.detach().cpu().numpy()
+                    res = self.object_detector.predict(patched_images_np)
+                    res = [self.filter_detection_boxes(t, 0.8) for t in res]
+                    for preds_dict in res:  # Iterate over each image in the batch
+                        boxes = preds_dict["boxes"]  # Bounding boxes (x1, y1, x2, y2)
+                        labels = preds_dict["labels"]  # Class labels
+                        scores = preds_dict["scores"]  # Confidence scores
+                        
+                        target = {
+                            "boxes": boxes,
+                            "labels": labels,
+                            "scores": scores,
+                        }
+                        targets.append(target)
+                    predictions = targets
 
-                patch_target.append(target_dict)
+                for i_image in range(patched_images.shape[0]):
+                    target_dict = {}
+                    target_dict["boxes"] = predictions[i_image]["boxes"]
+                    target_dict["labels"] = predictions[i_image]["labels"]
+                    target_dict["scores"] = predictions[i_image]["scores"]
 
-        else: 
-            if y is not None:
-                predictions = y
-            else: # if untargetted attack + no true labels are provided
-                targets = []
-                res = self.object_detector(patched_images)
-                for i in range(len(res.xyxy)):  # Iterate over each image in the batch
-                    boxes = res.xyxy[i][:, :4].cpu().numpy()  # Bounding boxes (x1, y1, x2, y2)
-                    labels = res.xyxy[i][:, 5].cpu().numpy().astype(int)  # Class labels
-                    scores = res.xyxy[i][:, 4].cpu().numpy()  # Confidence scores
-                    
-                    target = {
-                        "boxes": boxes,
-                        "labels": labels,
-                        "scores": scores,
-                    }
-                    targets.append(target)
-                predictions = targets
+                    patch_target.append(target_dict)
 
-            for i_image in range(patched_images.shape[0]):
-                target_dict = {}
-                target_dict["boxes"] = predictions[i_image]["boxes"]
-                target_dict["labels"] = predictions[i_image]["labels"]
-                target_dict["scores"] = predictions[i_image]["scores"]
-
-                patch_target.append(target_dict)
-
+        # Flag to determine if the untargeted attack started with no detections
+        # and should therefore aim to suppress any new detections.
+        _untargeted_attack_should_suppress_from_empty_initial = False
+        if not target_label and y is None:
+            # This condition means patch_target was derived from self.object_detector(patched_images)
+            # where patched_images were based on the initial_patch_for_target_determination.
+            all_initial_targets_empty = True
+            for pt_entry in patch_target:
+                # Check if the 'labels' key exists and has entries
+                if pt_entry.get("labels") is not None and len(pt_entry["labels"]) > 0:
+                    all_initial_targets_empty = False
+                    break
+            if all_initial_targets_empty:
+                _untargeted_attack_should_suppress_from_empty_initial = True
+                if self.verbose:
+                    print("[DPATCH] Untargeted attack mode: Initial state (image + initial patch) had no detections. The attack will aim to keep it that way (suppress new detections).")     
+        
         CELoss = nn.CrossEntropyLoss()
         BBoxLoss = nn.BCEWithLogitsLoss()
 
-        #TODO - replace 1000 with an actual self.max_iterations value
-        for i_step in trange(1000, desc="DPatch iteration", disable=not self.verbose):
+        for i_step in trange(self.max_iterations, desc="DPatch iteration", disable=not self.verbose):
             if i_step == 0 or (i_step + 1) % 100 == 0:
                 print("Training Step: %i", i_step + 1)
 
+            # Generate patched images for the current optimization step
+            # using the original images 'x' and the current state of 'self._patch'.
+            #current_step_patched_images, current_step_transforms = self._augment_images_with_patch(
+            current_step_patched_images, _ = self._augment_images_with_patch(
+                x,                       # Original clean images
+                self._patch,             # Current adversarial patch
+                random_location=False,#True,   # Assuming fixed location based on initial transforms
+                mask=mask,               # Original mask
+                transforms=transforms,#None    # Transforms derived from transforms_initial
+            )
+
             num_batches = math.ceil(x.shape[0] / self.batch_size)
-            patch_gradients = np.zeros_like(self._patch)
+            patch_gradients = torch.zeros_like(self._patch)
 
             for i_batch in range(num_batches):
                 i_batch_start = i_batch * self.batch_size
                 i_batch_end = min((i_batch + 1) * self.batch_size, patched_images.shape[0])
-
-                # targets_list = []
-                # target_boxes = [target["boxes"] for target in targets_list]  # List of bounding boxes for each image
-                # target_labels = [target["labels"] for target in targets_list]  # List of labels for each image
-                
-                # y_list=patch_target[i_batch_start:i_batch_end]
-                # pred_boxes = [y["boxes"] for y in y_list]
-                # pred_labels = [y["labels"] for y in y_list]
 
                 # Use patch_target for targets
                 y_list = patch_target[i_batch_start:i_batch_end]
                 target_boxes = [torch.tensor(target["boxes"], device=patched_images.device) for target in y_list]
                 target_labels = [torch.tensor(target["labels"], device=patched_images.device) for target in y_list]
 
-                # Predictions from the patched images
-                #res = self.object_detector.predict(patched_images[i_batch_start:i_batch_end])
-                input_batch_np = patched_images[i_batch_start:i_batch_end].detach().cpu().numpy()
+                img_batch = current_step_patched_images[i_batch_start:i_batch_end].detach().cpu().numpy()
+                input_batch_np = img_batch.astype(np.float32)
                 res = self.object_detector.predict(input_batch_np)
                 pred_boxes = []
                 pred_labels = []
@@ -214,9 +269,6 @@ class DPatch(ObjectDetectionAttack):
                         pred_boxes.append(torch.empty((0, 4), device=patched_images.device, dtype=torch.float32))
                         pred_labels.append(torch.empty((0,), device=patched_images.device, dtype=torch.float32))
 
-                #pred_boxes = [torch.tensor(res.xyxy[i][:, :4].cpu().numpy(), device=patched_images.device) for i in range(len(res.xyxy))]
-                #pred_labels = [torch.tensor(res.xyxy[i][:, 5].cpu().numpy().astype(int), device=patched_images.device) for i in range(len(res.xyxy))]
-
                 # Extract predicted class logits or confidence scores (not just class indices)
                 pred_logits = []
                 for result in res:
@@ -228,7 +280,6 @@ class DPatch(ObjectDetectionAttack):
                         logits = torch.zeros((len(labels), num_classes), device=patched_images.device)
 
                         for idx, label in enumerate(labels):
-                            #logits[idx, label] = scores[idx]  # Assign scores to corresponding class index
                             logits[idx, label] = float(scores[idx])
 
                         pred_logits.append(logits)
@@ -257,7 +308,16 @@ class DPatch(ObjectDetectionAttack):
 
                 # total_loss.backward()
                 # gradients = patched_images.grad.clone().detach()
-                input_batch_np = patched_images[i_batch_start:i_batch_end].detach().cpu().numpy()
+                #input_batch_np = patched_images[i_batch_start:i_batch_end].detach().cpu().numpy()
+                # right before calling loss_gradient:
+                all_labels = np.concatenate([t["labels"] for t in patch_target])
+                invalid_mask = (all_labels < 0) | (all_labels >= num_classes)
+                if invalid_mask.any():
+                    bad = all_labels[invalid_mask]
+                    print("⚠️ Invalid labels detected:", bad, "unique:", np.unique(bad))
+                    raise ValueError("Found out-of-range labels in patch_target; see above.")
+
+
                 gradients = self.object_detector.loss_gradient(
                     x=input_batch_np,#patched_images[i_batch_start:i_batch_end],
                     y=patch_target[i_batch_start:i_batch_end],
@@ -265,6 +325,11 @@ class DPatch(ObjectDetectionAttack):
                 )
 
                 for i_image in range(gradients.shape[0]):
+
+                    # i_x_1 = current_step_transforms[i_batch_start + i_image]["i_x_1"]
+                    # i_x_2 = current_step_transforms[i_batch_start + i_image]["i_x_2"]
+                    # i_y_1 = current_step_transforms[i_batch_start + i_image]["i_y_1"]
+                    # i_y_2 = current_step_transforms[i_batch_start + i_image]["i_y_2"]
 
                     i_x_1 = transforms[i_batch_start + i_image]["i_x_1"]
                     i_x_2 = transforms[i_batch_start + i_image]["i_x_2"]
@@ -280,22 +345,30 @@ class DPatch(ObjectDetectionAttack):
                         i_y_1:i_y_2        # width slice
                     ]
                     patch_gradients += patch_gradients_i  # now both are (C, patch_h, patch_w)
+            patch_gradients /= x.shape[0]
 
-            if self.target_label:
-                self._patch = self._patch - np.sign(patch_gradients) * self.learning_rate
+            if target_label is not None:
+                self._patch = self._patch - self.learning_rate * torch.sign(patch_gradients)
             else:
-                self._patch = self._patch + np.sign(patch_gradients) * self.learning_rate
+                if _untargeted_attack_should_suppress_from_empty_initial:
+                    # In this specific case, patch_target was "no objects".
+                    # The loss_gradient indicates how to *increase* detections (increase loss against "no objects").
+                    # To suppress detections, we need to *minimize* this loss, so perform gradient descent.
+                    self._patch = self._patch - self.learning_rate * torch.sign(patch_gradients)
+                else:
+                    # Standard untargeted attack: patch_target had some objects (from y_true or non-empty initial predictions).
+                    # Maximize loss to move away from these targets (gradient ascent).
+                    self._patch = self._patch + self.learning_rate * torch.sign(patch_gradients)
 
-            #TODO - add value clipping if necessary (see ART)
-            self._patch = np.clip(self._patch, 0, 255)
+            self._patch = self._patch.clamp(0.0, 255.0)
 
-            patched_images, _ = self._augment_images_with_patch(
+            patched_images, transforms_initial = self._augment_images_with_patch(
                 x,
                 self._patch,
-                random_location=False,
+                random_location=False,#True,
                 #channels_first=False,#self.estimator.channels_first,
                 mask=None,
-                transforms=transforms,
+                transforms=None,
             )
 
         return self._patch
@@ -336,18 +409,12 @@ class DPatch(ObjectDetectionAttack):
         if isinstance(patch, np.ndarray):
              patch = torch.from_numpy(patch)
 
-        # Ensure tensors are on the same device if possible (optional, depends on overall design)
-        # if x.device != patch.device:
-        #    patch = patch.to(x.device) # Or handle device mismatch appropriately
-
         x_copy = x.clone()
         patch_copy = patch.clone()
 
         # Assuming NCHW format for image and CHW for patch
         img_channels, img_height, img_width = x_copy.shape[1], x_copy.shape[2], x_copy.shape[3]
         patch_channels, patch_height, patch_width = patch_copy.shape[0], patch_copy.shape[1], patch_copy.shape[2]
-        # print(f"DEBUG: Image shape: {x_copy.shape}")
-        # print(f"DEBUG: Patch shape: {patch_copy.shape}")
 
         if img_channels != patch_channels:
             raise ValueError(f"Image channels ({img_channels}) and patch channels ({patch_channels}) must match.")
@@ -465,11 +532,7 @@ class DPatch(ObjectDetectionAttack):
 
             # Apply patch using channels-first indexing (N, C, H, W)
             try:
-                # print(f"DEBUG: Applying patch to x_copy[{i_image}, :, {i_x_1}:{i_x_2}, {i_y_1}:{i_y_2}]")
-                # print(f"DEBUG: Slice shape should be: ({img_channels}, {patch_height}, {patch_width})")
-                # print(f"DEBUG: Patch shape is: {patch_copy.shape}")
                 target_slice = x_copy[i_image, :, i_x_1:i_x_2, i_y_1:i_y_2]
-                # print(f"DEBUG: Actual target_slice shape: {target_slice.shape}")
                 if target_slice.shape != patch_copy.shape:
                      raise RuntimeError(f"Shape mismatch before assignment: Slice shape {target_slice.shape}, Patch shape {patch_copy.shape}")
 
