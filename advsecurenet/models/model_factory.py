@@ -184,9 +184,9 @@ class ModelFactory:
             
             if inferred_type == ModelType.HUGGINGFACE:
                 model_id = HuggingFaceModel.process_hf_identifier(identifier)
-                
+    
                 cfg = HuggingFaceResolvedConfig(
-                    model_name=config.model_name,
+                    model_name=resolved_config.model_name,
                     architecture=resolved_config.architecture,
                     pretrained=resolved_config.pretrained,
                     model_id = model_id,
