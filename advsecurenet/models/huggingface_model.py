@@ -50,85 +50,117 @@ class HuggingFaceModel(BaseModel):
             ValueError: If the model ID cannot be extracted, the specified manual class
                         is invalid, or loading fails.
         """
+        final_determined_class_name = "Undetermined" # Default for the final error message wrapper
         try:
-            ModelClass = None
-            determined_class_name = "Undetermined"
-
-            # --- Step 1: Determine Model Class ---
-
-            # Priority 1: Manual Override
-            if self._model_class_name_override:
-                try:
-                    ManualModelClass = getattr(transformers, self._model_class_name_override, None)
-                    if ManualModelClass is not None and issubclass(ManualModelClass, torch.nn.Module):
-                        ModelClass = ManualModelClass
-                        determined_class_name = f"{self._model_class_name_override} (Manual)"
-                    else:
-                        # Raise error if manually specified class is invalid
-                        raise ValueError(f"Manually specified model_class_name '{self._model_class_name_override}' not found or invalid in transformers.")
-                except Exception as e:
-                    raise ValueError(f"Error loading manually specified class '{self._model_class_name_override}': {e}") from e
-
-            # Priority 2: Inference from Hub Config (if manual override not used)
-            if ModelClass is None:
-                config = AutoConfig.from_pretrained(
-                    self._model_id,
-                    revision=self._revision,
-                    cache_dir=self._cache_dir,
-                    trust_remote_code=self._trust_remote_code,
-                )
-
-                # Default to AutoModel if inference fails
-                ModelClass = AutoModel
-                determined_class_name = "AutoModel (Base - Fallback)"
-
-                if config.architectures and isinstance(config.architectures, (list, tuple)) and len(config.architectures) > 0:
-                    arch_name = config.architectures[0]
-                    try:
-                        InferredModelClass = getattr(transformers, arch_name, None)
-                        if InferredModelClass is not None and issubclass(InferredModelClass, torch.nn.Module):
-                            ModelClass = InferredModelClass
-                            determined_class_name = f"{arch_name} (Inferred)"
-                        else:
-                            warnings.warn(f"Architecture '{arch_name}' specified in config not found/invalid. Falling back to AutoModel.")
-                    except Exception as e:
-                        warnings.warn(f"Error trying to load inferred class '{arch_name}': {e}. Falling back to AutoModel.")
-
-            # --- Step 2: Load Model using Determined Class ---
-            common_args = {
-                "revision": self._revision,
-                "cache_dir": self._cache_dir,
-                "trust_remote_code": self._trust_remote_code,
-            }
-
-            if self._pretrained:
-                load_args = common_args.copy()
-                if self._architecture_overrides:
-                    warnings.warn("Architecture arguments are applied via config for non-pretrained models. Ignoring for pretrained loading.")
-                self.model = ModelClass.from_pretrained(self._model_id, **load_args)
-            else:
-                # Load config again if not already loaded (only needed if manual override was used)
-                if 'config' not in locals():
-                     config = AutoConfig.from_pretrained(
-                         self._model_id,
-                         revision=self._revision,
-                         cache_dir=self._cache_dir,
-                         trust_remote_code=self._trust_remote_code,
-                     )
-
-                # Apply architecture overrides to the config object
-                if self._architecture_overrides:
-                    for key, value in self._architecture_overrides.items():
-                        if hasattr(config, key):
-                            setattr(config, key, value)
-                        else:
-                            warnings.warn(f"Architecture override arg '{key}' not found in model config, ignoring.")
-
-                self.model = ModelClass.from_config(config)
+            ModelClass, final_determined_class_name, config_object = self._determine_model_class_and_config()
+            self.model = self._instantiate_model(ModelClass, config_object)
 
         except Exception as e:
-            # Add more context to the final error message
-            raise ValueError(f"Error loading Hugging Face model '{self._model_id}' using class '{determined_class_name}': {str(e)}") from e
+            # Re-raise specific ValueErrors from manual override if they match the pattern
+            if isinstance(e, ValueError) and (
+                (self._model_class_name_override and f"Manually specified model_class_name '{self._model_class_name_override}'" in str(e)) or
+                (self._model_class_name_override and f"Error loading manually specified class '{self._model_class_name_override}'" in str(e))
+            ):
+                raise e # Re-raise the more specific error from manual override handling
+            
+            # For all other errors, wrap with the generic message using the determined class name
+            raise ValueError(f"Error loading Hugging Face model '{self._model_id}' using class '{final_determined_class_name}': {str(e)}") from e
+        
+    
+    @staticmethod
+    def _resolve_manual_class_override(model_class_name_override: Optional[str]) -> Tuple[Optional[type], str]:
+        """
+        Attempts to resolve the model class using manual override.
+        Returns (ModelClass, determined_class_name) or (None, "Undetermined") if no override.
+        Raises ValueError if manual override is specified but invalid/not found.
+        """
+        if not model_class_name_override:
+            return None, "Undetermined"
+
+        try:
+            ManualModelClass = getattr(transformers, model_class_name_override, None)
+            if ManualModelClass is not None and issubclass(ManualModelClass, torch.nn.Module):
+                return ManualModelClass, f"{model_class_name_override} (Manual)"
+            else:
+                raise ValueError(f"Manually specified model_class_name '{model_class_name_override}' not found or invalid in transformers.")
+        except Exception as e:
+            # Catch broader exceptions during getattr/issubclass for manual override
+            if isinstance(e, ValueError) and f"Manually specified model_class_name '{model_class_name_override}'" in str(e):
+                raise # Re-raise the specific ValueError
+            raise ValueError(f"Error loading manually specified class '{model_class_name_override}': {e}") from e
+        
+    def _resolve_inferred_class_from_hub(self) -> Tuple[type, str, AutoConfig]:
+        """
+        Infers model class from Hub configuration. Loads AutoConfig.
+        Returns (ModelClass, determined_class_name, config_object).
+        """
+        config = AutoConfig.from_pretrained(
+            self._model_id,
+            revision=self._revision,
+            cache_dir=self._cache_dir,
+            trust_remote_code=self._trust_remote_code,
+        )
+
+        ModelClass = AutoModel  # Default
+        determined_class_name = "AutoModel (Base - Fallback)"
+
+        if config.architectures and isinstance(config.architectures, (list, tuple)) and len(config.architectures) > 0:
+            arch_name = config.architectures[0]
+            try:
+                InferredModelClass = getattr(transformers, arch_name, None)
+                if InferredModelClass is not None and issubclass(InferredModelClass, torch.nn.Module):
+                    ModelClass = InferredModelClass
+                    determined_class_name = f"{arch_name} (Inferred)"
+                else:
+                    warnings.warn(f"Architecture '{arch_name}' specified in config not found/invalid. Falling back to AutoModel.")
+            except Exception as e:
+                warnings.warn(f"Error trying to load inferred class '{arch_name}': {e}. Falling back to AutoModel.")
+        
+        return ModelClass, determined_class_name, config
+    
+    def _determine_model_class_and_config(self) -> Tuple[type, str, Optional[AutoConfig]]:
+        """
+        Determines the ModelClass, its descriptive name, and an optional AutoConfig object.
+        Handles manual override first, then inference.
+        """
+        ModelClass, determined_class_name = self._resolve_manual_class_override(self._model_class_name_override)
+
+        if ModelClass:  # Manual override successful
+            return ModelClass, determined_class_name, None # No config loaded yet
+
+        # No successful manual override, proceed to inference
+        return self._resolve_inferred_class_from_hub()
+    
+    def _instantiate_model(self, ModelClass: type, config_from_resolution: Optional[AutoConfig]) -> torch.nn.Module:
+        """
+        Instantiates the model using the determined ModelClass and config.
+        """
+        common_args = {
+            "revision": self._revision,
+            "cache_dir": self._cache_dir,
+            "trust_remote_code": self._trust_remote_code,
+        }
+
+        if self._pretrained:
+            load_args = common_args.copy()
+            if self._architecture_overrides:
+                warnings.warn("Architecture arguments are applied via config for non-pretrained models. Ignoring for pretrained loading.")
+            return ModelClass.from_pretrained(self._model_id, **load_args)
+        else:
+            config_to_use = config_from_resolution
+            if config_to_use is None: # Manual override was used, config not loaded in resolution step
+                 config_to_use = AutoConfig.from_pretrained(
+                     self._model_id,
+                     **common_args # revision, cache_dir, trust_remote_code
+                 )
+
+            if self._architecture_overrides:
+                for key, value in self._architecture_overrides.items():
+                    if hasattr(config_to_use, key):
+                        setattr(config_to_use, key, value)
+                    else:
+                        warnings.warn(f"Architecture override arg '{key}' not found in model config, ignoring.")
+            return ModelClass.from_config(config_to_use)
         
     @classmethod
     def models(cls) -> List[str]:
