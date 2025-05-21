@@ -310,9 +310,9 @@ def mock_hf_dependencies():
          patch("advsecurenet.models.model_factory.ModelFactory.infer_model_type", return_value=ModelType.HUGGINGFACE) as mock_infer_type, \
          patch("advsecurenet.models.model_factory.ModelFactory._validate_create_model_config") as mock_validate, \
          patch("advsecurenet.models.model_factory.set_seed") as mock_set_seed, \
-         patch("advsecurenet.models.model_factory.HuggingFaceModel.process_hf_identifier", return_value="user/hf-model-processed") as mock_proc_id, \
+         patch("advsecurenet.utils.huggingface_utils.huggingface_general_utils.process_hf_identifier", return_value="user/hf-model-processed") as mock_proc_id, \
          patch("advsecurenet.models.model_factory.HuggingFaceModel", return_value=MOCK_HF_MODEL_INSTANCE) as mock_hf_model_ctor, \
-         patch("advsecurenet.models.huggingface_model.HuggingFaceModel.verify_hf_identifier_exists", return_value=True) as mock_verify_exists:
+         patch("advsecurenet.utils.huggingface_utils.huggingface_model_utils.huggingface_model_hub_utils.verify_hf_model_identifier_exists", return_value=True) as mock_verify_exists:
         yield {
             "determine_identifier_and_soruce": mock_det_id_src,
             "infer_model_type": mock_infer_type,
@@ -320,7 +320,7 @@ def mock_hf_dependencies():
             "set_seed": mock_set_seed,
             "process_hf_identifier": mock_proc_id,
             "HuggingFaceModel_ctor": mock_hf_model_ctor, 
-            "verify_hf_identifier_exists": mock_verify_exists
+            "verify_hf_model_identifier_exists": mock_verify_exists
         }
 
 
@@ -427,19 +427,17 @@ def test_create_model_huggingface_from_kwargs(mock_hf_dependencies):
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
-@patch("advsecurenet.models.model_factory.HuggingFaceModel.process_hf_identifier", side_effect=ValueError("Failed to process identifier"))
-@patch("advsecurenet.models.huggingface_model.HuggingFaceModel.verify_hf_identifier_exists", return_value=True)
+@patch("advsecurenet.utils.huggingface_utils.huggingface_general_utils.process_hf_identifier", side_effect=ValueError("Failed to process identifier"))
+@patch("advsecurenet.utils.huggingface_utils.huggingface_model_utils.huggingface_model_hub_utils.verify_hf_model_identifier_exists", return_value=True)
 @patch("advsecurenet.models.model_factory.ModelFactory._validate_create_model_config")
-@patch("advsecurenet.models.model_factory.ModelFactory.infer_model_type", return_value=ModelType.HUGGINGFACE)
 @patch("advsecurenet.models.model_factory.determine_identifier_and_soruce", return_value=("bad-hf-url", MagicMock(name="MODEL_IDENTIFIER")))
 def test_create_model_huggingface_processing_error(
     mock_determine_id, 
     mock_infer_type, 
-    mock_validate_config, 
-    mock_verify_exists, 
+    mock_validate_config,  
     mock_process_hf_id
 ): 
-    """Test error handling when HuggingFaceModel.process_hf_identifier fails."""
+    """Test error handling when process_hf_identifier fails."""
     hf_config = CreateModelConfig(model_name="bad-hf-url-name", model_identifier="bad-hf-url") # ADDED model_name
     
     with pytest.raises(ValueError, match="Error creating model. Please check the model_name and other arguments. Error: Failed to process identifier"):

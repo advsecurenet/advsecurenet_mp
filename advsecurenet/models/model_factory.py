@@ -20,6 +20,7 @@ from advsecurenet.shared.types.configs.model_config import (
 )
 from advsecurenet.shared.types.model import ModelType
 from advsecurenet.utils.reproducibility_utils import set_seed
+from advsecurenet.utils.huggingface_utils import huggingface_model_utils, huggingface_general_utils
 
 logger = logging.getLogger(__name__)
 
@@ -106,7 +107,7 @@ class ModelFactory:
         if model_name in CustomModel.models():
             return ModelType.CUSTOM
         
-        if HuggingFaceModel.verify_hf_identifier_exists(model_name):
+        if huggingface_model_utils.verify_hf_model_identifier_exists(model_name):
             return ModelType.HUGGINGFACE
 
         raise ValueError(
@@ -183,7 +184,7 @@ class ModelFactory:
                 return CustomModel(cfg)
             
             if inferred_type == ModelType.HUGGINGFACE:
-                model_id = HuggingFaceModel.process_hf_identifier(identifier)
+                model_id = huggingface_general_utils.process_hf_identifier(identifier)
     
                 cfg = HuggingFaceResolvedConfig(
                     model_name=resolved_config.model_name,

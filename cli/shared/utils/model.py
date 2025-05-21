@@ -27,7 +27,7 @@ def create_model(config: ModelCliConfigType) -> BaseModel:
     model = ModelFactory.create_model(create_model_config)
 
     # if we are using a normalization layer, add it to the model
-    if config.norm_config.add_norm_layer:
+    if config.norm_config and config.norm_config.add_norm_layer:
         _validate_norm_layer(config)
 
         norm_layer = NormalizationLayer(
@@ -38,7 +38,8 @@ def create_model(config: ModelCliConfigType) -> BaseModel:
         model.add_layer(new_layer=norm_layer, position=0, inplace=True)
 
     if (
-        not config.is_external
+        config.path_configs
+        and not config.is_external
         and config.path_configs.model_weights_path is not None
         and config.pretrained
     ):

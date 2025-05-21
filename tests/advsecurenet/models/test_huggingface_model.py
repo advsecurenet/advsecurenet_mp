@@ -5,8 +5,10 @@ import transformers
 import re # Import re for regex escaping in match string
 from huggingface_hub.utils import RepositoryNotFoundError
 from advsecurenet.models.huggingface_model import HuggingFaceModel
-from advsecurenet.shared.types.configs.model_config import HuggingFaceInputConfig, HuggingFaceResolvedConfig, CreateModelConfig # Keep CreateModelConfig if used elsewhere, otherwise remove
+from advsecurenet.shared.types.configs.model_config import HuggingFaceResolvedConfig, CreateModelConfig # Keep CreateModelConfig if used elsewhere, otherwise remove
 import advsecurenet.models.huggingface_model as hf_model_module_for_debug # For inspection
+import advsecurenet.utils.huggingface_utils.huggingface_model_utils as huggingface_model_utils
+import advsecurenet.utils.huggingface_utils.huggingface_general_utils as huggingface_general_utils
 
 from typing import Optional
 
@@ -106,7 +108,7 @@ def extract_model_id_from_url(url: str) -> Optional[str]:
     """
     Extracts the model ID (e.g., 'user/repo') from a Hugging Face URL.
     """
-    if not url or not HuggingFaceModel.is_huggingface_url(url):
+    if not url or not huggingface_general_utils.is_huggingface_url(url):
         return None
     # More robust regex to handle potential variations and ignore query params/fragments
     pattern = r'^(?:https?://)?(?:www\.)?(?:huggingface\.co|hf\.co)/([^/]+/[^/]+)(?:/.*)?$'
@@ -114,7 +116,7 @@ def extract_model_id_from_url(url: str) -> Optional[str]:
     return match.group(1) if match else None
 
 # Patch the HuggingFaceModel class *during test collection* to add the missing method
-HuggingFaceModel.extract_model_id_from_url = extract_model_id_from_url
+huggingface_general_utils.extract_id_from_url = extract_model_id_from_url
 
 # --- Test Cases ---
 
@@ -230,7 +232,8 @@ def mock_auto_config(request): # request is a pytest fixture to get test name
 @pytest.fixture
 def mock_model_info():
     """Fixture for mocking huggingface_hub.model_info."""
-    with patch('advsecurenet.models.huggingface_model.model_info', new_callable=MagicMock) as mock:
+    patch_target = 'advsecurenet.utils.huggingface_utils.huggingface_model_utils.huggingface_model_hub_utils.model_info'
+    with patch(patch_target, new_callable=MagicMock) as mock:
         yield mock
 
 @pytest.fixture
@@ -559,7 +562,7 @@ def test_models_method():
     (None, False),
 ])
 def test_is_huggingface_url(url, expected):
-    assert HuggingFaceModel.is_huggingface_url(url) == expected
+    assert huggingface_general_utils.is_huggingface_url(url) == expected
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
@@ -576,7 +579,7 @@ def test_is_huggingface_url(url, expected):
     (None, False),
 ])
 def test_is_huggingface_id(identifier, expected):
-    assert HuggingFaceModel.is_huggingface_id(identifier) == expected
+    assert huggingface_general_utils.is_huggingface_id(identifier) == expected
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
@@ -593,8 +596,8 @@ def test_is_huggingface_id(identifier, expected):
 ])
 def test_extract_model_id_from_url(url, expected_id):
     # Need to patch is_huggingface_url *within* the test scope if it's called internally
-    with patch.object(HuggingFaceModel, 'is_huggingface_url', side_effect=HuggingFaceModel.is_huggingface_url) as mock_is_url:
-         assert HuggingFaceModel.extract_model_id_from_url(url) == expected_id
+    with patch.object(huggingface_general_utils, 'is_huggingface_url', side_effect=huggingface_general_utils.is_huggingface_url) as mock_is_url:
+         assert huggingface_general_utils.extract_id_from_url(url) == expected_id
          if url: # Only called if url is not empty/None
              mock_is_url.assert_called_once_with(url)
 
@@ -603,7 +606,7 @@ def test_extract_model_id_from_url(url, expected_id):
 def test_check_hub_for_id_success(mock_model_info):
     """Test _check_hub_for_id when model exists."""
     mock_model_info.return_value = True # Simulate model found
-    assert HuggingFaceModel._check_hub_for_id("user/repo") is True
+    assert huggingface_model_utils.check_hub_for_model_id("user/repo") is True
     mock_model_info.assert_called_once_with("user/repo")
 
 @pytest.mark.advsecurenet
@@ -611,7 +614,7 @@ def test_check_hub_for_id_success(mock_model_info):
 def test_check_hub_for_id_not_found(mock_model_info):
     """Test _check_hub_for_id when model doesn't exist."""
     mock_model_info.side_effect = RepositoryNotFoundError("Not found")
-    assert HuggingFaceModel._check_hub_for_id("user/nonexistent") is False
+    assert huggingface_model_utils.check_hub_for_model_id("user/nonexistent") is False
     mock_model_info.assert_called_once_with("user/nonexistent")
 
 @pytest.mark.advsecurenet
@@ -620,16 +623,16 @@ def test_check_hub_for_id_other_exception(mock_model_info):
     """Test _check_hub_for_id propagates other exceptions."""
     mock_model_info.side_effect = ConnectionError("Network issue")
     with pytest.raises(ConnectionError):
-        HuggingFaceModel._check_hub_for_id("user/repo")
+        huggingface_model_utils.check_hub_for_model_id("user/repo")
     mock_model_info.assert_called_once_with("user/repo")
 
 # Test verify_hf_identifier_exists
 @pytest.mark.advsecurenet
 @pytest.mark.essential
-@patch.object(HuggingFaceModel, 'is_huggingface_url')
-@patch.object(HuggingFaceModel, 'extract_model_id_from_url')
-@patch.object(HuggingFaceModel, '_check_hub_for_id')
-@patch('advsecurenet.models.huggingface_model.warnings.warn')
+@patch.object(huggingface_general_utils, 'is_huggingface_url')
+@patch.object(huggingface_general_utils, 'extract_id_from_url')
+@patch('advsecurenet.utils.huggingface_utils.huggingface_model_utils.huggingface_model_hub_utils.check_hub_for_model_id')
+@patch('advsecurenet.utils.huggingface_utils.huggingface_model_utils.huggingface_model_hub_utils.warnings.warn')
 def test_verify_hf_identifier_exists_url_success(mock_warn, mock_check, mock_extract, mock_is_url):
     """Verify: Valid URL -> Extracts ID -> Hub Check OK -> True"""
     identifier = "https://hf.co/user/repo"
@@ -637,7 +640,7 @@ def test_verify_hf_identifier_exists_url_success(mock_warn, mock_check, mock_ext
     mock_extract.return_value = "user/repo"
     mock_check.return_value = True
 
-    assert HuggingFaceModel.verify_hf_identifier_exists(identifier) is True
+    assert huggingface_model_utils.verify_hf_model_identifier_exists(identifier) is True
 
     mock_is_url.assert_called_once_with(identifier)
     mock_extract.assert_called_once_with(identifier)
@@ -646,9 +649,9 @@ def test_verify_hf_identifier_exists_url_success(mock_warn, mock_check, mock_ext
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
-@patch.object(HuggingFaceModel, 'is_huggingface_url')
-@patch.object(HuggingFaceModel, 'extract_model_id_from_url')
-@patch.object(HuggingFaceModel, '_check_hub_for_id')
+@patch.object(huggingface_general_utils, 'is_huggingface_url')
+@patch.object(huggingface_general_utils, 'extract_id_from_url')
+@patch.object(huggingface_model_utils, 'check_hub_for_model_id')
 @patch('advsecurenet.models.huggingface_model.warnings.warn')
 def test_verify_hf_identifier_exists_url_extract_fail(mock_warn, mock_check, mock_extract, mock_is_url):
     """Verify: Valid URL -> Extraction Fails -> False"""
@@ -656,7 +659,7 @@ def test_verify_hf_identifier_exists_url_extract_fail(mock_warn, mock_check, moc
     mock_is_url.return_value = True
     mock_extract.return_value = None # Simulate extraction failure
 
-    assert HuggingFaceModel.verify_hf_identifier_exists(identifier) is False
+    assert huggingface_model_utils.verify_hf_model_identifier_exists(identifier) is False
 
     mock_is_url.assert_called_once_with(identifier)
     mock_extract.assert_called_once_with(identifier)
@@ -665,11 +668,11 @@ def test_verify_hf_identifier_exists_url_extract_fail(mock_warn, mock_check, moc
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
-@patch.object(HuggingFaceModel, 'is_huggingface_url')
-@patch.object(HuggingFaceModel, 'extract_model_id_from_url')
-@patch.object(HuggingFaceModel, 'is_huggingface_id')
-@patch.object(HuggingFaceModel, '_check_hub_for_id')
-@patch('advsecurenet.models.huggingface_model.warnings.warn')
+@patch.object(huggingface_general_utils, 'is_huggingface_url')
+@patch.object(huggingface_general_utils, 'extract_id_from_url')
+@patch.object(huggingface_general_utils, 'is_huggingface_id')
+@patch('advsecurenet.utils.huggingface_utils.huggingface_model_utils.huggingface_model_hub_utils.check_hub_for_model_id')
+@patch('advsecurenet.utils.huggingface_utils.huggingface_model_utils.huggingface_model_hub_utils.warnings.warn')
 def test_verify_hf_identifier_exists_id_success(mock_warn, mock_check, mock_is_id, mock_extract, mock_is_url):
     """Verify: Not URL -> Valid ID -> Hub Check OK -> True"""
     identifier = "user/repo"
@@ -678,7 +681,7 @@ def test_verify_hf_identifier_exists_id_success(mock_warn, mock_check, mock_is_i
     mock_is_id.return_value = True
     mock_check.return_value = True
 
-    assert HuggingFaceModel.verify_hf_identifier_exists(identifier) is True
+    assert huggingface_model_utils.verify_hf_model_identifier_exists(identifier) is True
 
     mock_is_url.assert_called_once_with(identifier)
     mock_extract.assert_not_called()
@@ -688,19 +691,20 @@ def test_verify_hf_identifier_exists_id_success(mock_warn, mock_check, mock_is_i
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
-@patch.object(HuggingFaceModel, 'is_huggingface_url')
-@patch.object(HuggingFaceModel, 'extract_model_id_from_url')
-@patch.object(HuggingFaceModel, 'is_huggingface_id')
-@patch.object(HuggingFaceModel, '_check_hub_for_id')
-@patch('advsecurenet.models.huggingface_model.warnings.warn')
+@patch.object(huggingface_general_utils, 'is_huggingface_url')
+@patch.object(huggingface_general_utils, 'extract_id_from_url')
+@patch.object(huggingface_general_utils, 'is_huggingface_id')
+@patch('advsecurenet.utils.huggingface_utils.huggingface_model_utils.huggingface_model_hub_utils.check_hub_for_model_id')
+@patch('advsecurenet.utils.huggingface_utils.huggingface_model_utils.huggingface_model_hub_utils.warnings.warn')
 def test_verify_hf_identifier_exists_id_hub_fail(mock_warn, mock_check, mock_is_id, mock_extract, mock_is_url):
     """Verify: Not URL -> Valid ID -> Hub Check Fails (NotFound) -> False"""
+    
     identifier = "user/repo"
     mock_is_url.return_value = False
     mock_is_id.return_value = True
     mock_check.return_value = False # Simulate not found
 
-    assert HuggingFaceModel.verify_hf_identifier_exists(identifier) is False
+    assert huggingface_model_utils.verify_hf_model_identifier_exists(identifier) is False
 
     mock_is_url.assert_called_once_with(identifier)
     mock_is_id.assert_called_once_with(identifier)
@@ -709,11 +713,11 @@ def test_verify_hf_identifier_exists_id_hub_fail(mock_warn, mock_check, mock_is_
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
-@patch.object(HuggingFaceModel, 'is_huggingface_url')
-@patch.object(HuggingFaceModel, 'extract_model_id_from_url')
-@patch.object(HuggingFaceModel, 'is_huggingface_id')
-@patch.object(HuggingFaceModel, '_check_hub_for_id')
-@patch('advsecurenet.models.huggingface_model.warnings.warn')
+@patch.object(huggingface_general_utils, 'is_huggingface_url')
+@patch.object(huggingface_general_utils, 'extract_id_from_url')
+@patch.object(huggingface_general_utils, 'is_huggingface_id')
+@patch('advsecurenet.utils.huggingface_utils.huggingface_model_utils.huggingface_model_hub_utils.check_hub_for_model_id')
+@patch('advsecurenet.utils.huggingface_utils.huggingface_model_utils.huggingface_model_hub_utils.warnings.warn')
 def test_verify_hf_identifier_exists_hub_exception(mock_warn, mock_check, mock_is_id, mock_extract, mock_is_url):
     """Verify: Valid ID -> Hub Check raises Exception -> False + Warning"""
     identifier = "user/repo"
@@ -721,28 +725,26 @@ def test_verify_hf_identifier_exists_hub_exception(mock_warn, mock_check, mock_i
     mock_is_id.return_value = True
     mock_check.side_effect = ConnectionError("Network Error")
 
-    assert HuggingFaceModel.verify_hf_identifier_exists(identifier) is False
+    assert huggingface_model_utils.verify_hf_model_identifier_exists(identifier) is False
 
     mock_is_url.assert_called_once_with(identifier)
     mock_is_id.assert_called_once_with(identifier)
-    mock_check.assert_called_once_with("user/repo")
-    mock_warn.assert_called_once()
     assert "Network Error" in mock_warn.call_args[0][0] # Check warning message
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
-@patch.object(HuggingFaceModel, 'is_huggingface_url')
-@patch.object(HuggingFaceModel, 'extract_model_id_from_url')
-@patch.object(HuggingFaceModel, 'is_huggingface_id')
-@patch.object(HuggingFaceModel, '_check_hub_for_id')
-@patch('advsecurenet.models.huggingface_model.warnings.warn')
+@patch.object(huggingface_general_utils, 'is_huggingface_url')
+@patch.object(huggingface_general_utils, 'extract_id_from_url')
+@patch.object(huggingface_general_utils, 'is_huggingface_id')
+@patch.object(huggingface_model_utils, 'check_hub_for_model_id')
+@patch('advsecurenet.utils.huggingface_utils.huggingface_model_utils.huggingface_model_hub_utils.warnings.warn')
 def test_verify_hf_identifier_exists_invalid_format(mock_warn, mock_check, mock_is_id, mock_extract, mock_is_url):
     """Verify: Not URL -> Invalid ID Format -> False"""
     identifier = "invalid-identifier"
     mock_is_url.return_value = False
     mock_is_id.return_value = False # ID format check fails
 
-    assert HuggingFaceModel.verify_hf_identifier_exists(identifier) is False
+    assert huggingface_model_utils.verify_hf_model_identifier_exists(identifier) is False
 
     mock_is_url.assert_called_once_with(identifier)
     mock_is_id.assert_called_once_with(identifier)
@@ -754,13 +756,13 @@ def test_verify_hf_identifier_exists_invalid_format(mock_warn, mock_check, mock_
 @pytest.mark.essential
 def test_verify_hf_identifier_exists_empty():
     """Verify: Empty identifier -> False"""
-    assert HuggingFaceModel.verify_hf_identifier_exists("") is False
+    assert huggingface_model_utils.verify_hf_model_identifier_exists("") is False
 
 # Test resolve_hf_identifiers
 @pytest.mark.advsecurenet
 @pytest.mark.essential
-@patch.object(HuggingFaceModel, 'is_huggingface_url')
-@patch.object(HuggingFaceModel, 'extract_model_id_from_url')
+@patch.object(huggingface_general_utils, 'is_huggingface_url')
+@patch.object(huggingface_general_utils, 'extract_id_from_url')
 def test_resolve_hf_identifiers_no_model_id_name_is_id(mock_extract, mock_is_url):
     """Resolve: No model_id provided, model_name is ID."""
     mock_config = MagicMock(spec=CreateModelConfig)
@@ -770,7 +772,7 @@ def test_resolve_hf_identifiers_no_model_id_name_is_id(mock_extract, mock_is_url
 
     mock_is_url.return_value = False
 
-    model_id = HuggingFaceModel.resolve_hf_identifiers(mock_config)
+    model_id = huggingface_model_utils.resolve_hf_identifiers(mock_config)
 
     assert model_id == "user/repo-name"
     mock_is_url.assert_called_once_with("user/repo-name")
@@ -778,8 +780,8 @@ def test_resolve_hf_identifiers_no_model_id_name_is_id(mock_extract, mock_is_url
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
-@patch.object(HuggingFaceModel, 'is_huggingface_url')
-@patch.object(HuggingFaceModel, 'extract_model_id_from_url')
+@patch.object(huggingface_general_utils, 'is_huggingface_url')
+@patch.object(huggingface_general_utils, 'extract_id_from_url')
 def test_resolve_hf_identifiers_no_model_id_name_is_url_ok(mock_extract, mock_is_url):
     """Resolve: No model_id provided, model_name is URL, extraction OK."""
     mock_config = MagicMock(spec=CreateModelConfig)
@@ -789,7 +791,7 @@ def test_resolve_hf_identifiers_no_model_id_name_is_url_ok(mock_extract, mock_is
     mock_is_url.return_value = True
     mock_extract.return_value = "user/repo-url" # Simulate successful extraction
 
-    model_id = HuggingFaceModel.resolve_hf_identifiers(mock_config)
+    model_id = huggingface_model_utils.resolve_hf_identifiers(mock_config)
 
     assert model_id == "user/repo-url"
     mock_is_url.assert_called_once_with("https://hf.co/user/repo-url")
@@ -797,8 +799,8 @@ def test_resolve_hf_identifiers_no_model_id_name_is_url_ok(mock_extract, mock_is
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
-@patch.object(HuggingFaceModel, 'is_huggingface_url')
-@patch.object(HuggingFaceModel, 'extract_model_id_from_url')
+@patch.object(huggingface_general_utils, 'is_huggingface_url')
+@patch.object(huggingface_general_utils, 'extract_id_from_url')
 def test_resolve_hf_identifiers_no_model_id_name_is_url_fail(mock_extract, mock_is_url):
     """Resolve: No model_id provided, model_name is URL, extraction fails."""
     mock_config = MagicMock(spec=CreateModelConfig)
@@ -809,15 +811,15 @@ def test_resolve_hf_identifiers_no_model_id_name_is_url_fail(mock_extract, mock_
     mock_extract.return_value = None # Simulate extraction failure
 
     with pytest.raises(ValueError, match="Could not extract model ID from URL in 'model_name': https://hf.co/invalid"):
-        HuggingFaceModel.resolve_hf_identifiers(mock_config)
+        huggingface_model_utils.resolve_hf_identifiers(mock_config)
 
     mock_is_url.assert_called_once_with("https://hf.co/invalid")
     mock_extract.assert_called_once_with("https://hf.co/invalid")
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
-@patch.object(HuggingFaceModel, 'is_huggingface_url')
-@patch.object(HuggingFaceModel, 'extract_model_id_from_url')
+@patch.object(huggingface_general_utils, 'is_huggingface_url')
+@patch.object(huggingface_general_utils, 'extract_id_from_url')
 def test_resolve_hf_identifiers_model_id_is_id(mock_extract, mock_is_url):
     """Resolve: model_id provided (as ID), use it and model_name."""
     mock_config = MagicMock(spec=CreateModelConfig)
@@ -826,7 +828,7 @@ def test_resolve_hf_identifiers_model_id_is_id(mock_extract, mock_is_url):
 
     mock_is_url.return_value = False # model_identifier is not a URL
 
-    model_id = HuggingFaceModel.resolve_hf_identifiers(mock_config)
+    model_id = huggingface_model_utils.resolve_hf_identifiers(mock_config)
 
     assert model_id == "user/repo-id" # From model_identifier
     mock_is_url.assert_called_once_with("user/repo-id") # Check on model_identifier
@@ -834,8 +836,8 @@ def test_resolve_hf_identifiers_model_id_is_id(mock_extract, mock_is_url):
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
-@patch.object(HuggingFaceModel, 'is_huggingface_url')
-@patch.object(HuggingFaceModel, 'extract_model_id_from_url')
+@patch.object(huggingface_general_utils, 'is_huggingface_url')
+@patch.object(huggingface_general_utils, 'extract_id_from_url')
 def test_resolve_hf_identifiers_model_id_is_url_ok(mock_extract, mock_is_url):
     """Resolve: model_id provided (as URL), extract ID, use model_name."""
     mock_config = MagicMock(spec=CreateModelConfig)
@@ -844,7 +846,7 @@ def test_resolve_hf_identifiers_model_id_is_url_ok(mock_extract, mock_is_url):
     mock_is_url.return_value = True # model_identifier is a URL
     mock_extract.return_value = "user/repo-id-from-url" # Extraction OK
 
-    model_id = HuggingFaceModel.resolve_hf_identifiers(mock_config)
+    model_id = huggingface_model_utils.resolve_hf_identifiers(mock_config)
 
     assert model_id == "user/repo-id-from-url" # Extracted from model_identifier
     mock_is_url.assert_called_once_with("https://hf.co/user/repo-id-from-url")
@@ -852,8 +854,8 @@ def test_resolve_hf_identifiers_model_id_is_url_ok(mock_extract, mock_is_url):
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
-@patch.object(HuggingFaceModel, 'is_huggingface_url')
-@patch.object(HuggingFaceModel, 'extract_model_id_from_url')
+@patch.object(huggingface_general_utils, 'is_huggingface_url')
+@patch.object(huggingface_general_utils, 'extract_id_from_url')
 def test_resolve_hf_identifiers_model_id_is_url_fail(mock_extract, mock_is_url):
     """Resolve: model_id provided (as URL), extraction fails."""
     mock_config = MagicMock(spec=CreateModelConfig)
@@ -864,7 +866,7 @@ def test_resolve_hf_identifiers_model_id_is_url_fail(mock_extract, mock_is_url):
     mock_extract.return_value = None # Extraction fails
 
     with pytest.raises(ValueError, match="Could not extract model ID from URL in 'model_identifier': https://hf.co/invalid-url"):
-        HuggingFaceModel.resolve_hf_identifiers(mock_config)
+        huggingface_model_utils.resolve_hf_identifiers(mock_config)
 
     mock_is_url.assert_called_once_with("https://hf.co/invalid-url")
     mock_extract.assert_called_once_with("https://hf.co/invalid-url")

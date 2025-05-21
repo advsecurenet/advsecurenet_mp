@@ -6,6 +6,7 @@ from advsecurenet.datasets.Custom import CustomDataset
 from advsecurenet.datasets.ImageNet import ImageNetDataset
 from advsecurenet.datasets.MNIST import FashionMNISTDataset, MNISTDataset
 from advsecurenet.datasets.svhn import SVHNDataset
+from advsecurenet.datasets.HuggingFace import HuggingFaceDataset
 from advsecurenet.shared.types import DatasetType
 from advsecurenet.shared.types.configs.preprocess_config import PreprocessConfig
 
@@ -17,6 +18,7 @@ DATASET_MAP = {
     DatasetType.CIFAR100: CIFAR100Dataset,
     DatasetType.SVHN: SVHNDataset,
     DatasetType.CUSTOM: CustomDataset,
+    DatasetType.HUGGINGFACE: HuggingFaceDataset
 }
 
 

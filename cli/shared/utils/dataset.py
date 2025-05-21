@@ -4,12 +4,10 @@ from torch.utils.data import Dataset as TorchDataset
 
 from advsecurenet.datasets import DatasetFactory
 from advsecurenet.shared.types.dataset import DatasetType
-from advsecurenet.datasets.HuggingFace import HuggingFaceDataset
-from advsecurenet.shared.types.configs.preprocess_config import HuggingFaceDatasetConfig
+from advsecurenet.datasets.HuggingFace import HuggingFaceDataset 
 from cli.shared.types.utils.dataset import (
     AttacksDatasetCliConfigType,
     DatasetCliConfigType,
-    HuggingFaceDatasetCliConfigType,
 )
 
 
@@ -28,8 +26,8 @@ def get_datasets(
         and the testing dataset (if requested).
     """
     # Handle HuggingFace datasets
-    if isinstance(config, HuggingFaceDatasetCliConfigType):
-        return _get_huggingface_datasets(config, **kwargs)
+    """if isinstance(config, HuggingFaceDatasetCliConfigType):
+        return _get_huggingface_datasets(config, **kwargs)"""
 
     dataset_name = _validate_dataset_name(config.dataset_name)
     dataset_type = DatasetType(dataset_name)
@@ -64,9 +62,13 @@ def get_datasets(
 
     return train_data, test_data
 
-def _get_huggingface_datasets(
-    config: HuggingFaceDatasetCliConfigType, **kwargs
-) -> Tuple[Optional[TorchDataset], Optional[TorchDataset]]:
+def infer_dataset_type(dataset_identifier: str) -> DatasetType:
+    return NotImplementedError()
+
+def get_huggingface_datasets():
+    #config, **kwargs 
+    #-> Tuple[Optional[TorchDataset], Optional[TorchDataset]]:
+    NotImplementedError()
     """
     Load datasets from Hugging Face Hub.
 
@@ -79,7 +81,7 @@ def _get_huggingface_datasets(
         and the testing dataset (if requested).
     """
     # Check if dataset_id is a URL and extract the dataset ID if it is
-    dataset_id = config.dataset_id
+    """dataset_id = config.dataset_id
     if HuggingFaceDataset.is_huggingface_url(dataset_id):
         extracted_id = HuggingFaceDataset.extract_dataset_id_from_url(dataset_id)
         if extracted_id:
@@ -129,7 +131,7 @@ def _get_huggingface_datasets(
     except Exception as e:
         print(f"Warning: Could not load test dataset: {str(e)}")
     
-    return train_data, test_data
+    return train_data, test_data"""
 
 
 def _validate_dataset_name(dataset_name: str) -> str:
