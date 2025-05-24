@@ -2,4 +2,5 @@ from advsecurenet.computer_vision.object_detection.attacks.adversarial_patch_bas
 
 __all__ = [
     "DPatch",
+    "TOG",
 ]

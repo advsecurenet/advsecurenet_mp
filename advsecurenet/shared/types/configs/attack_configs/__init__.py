@@ -20,6 +20,9 @@ from advsecurenet.shared.types.configs.attack_configs.pgd_attack_config import (
 from advsecurenet.shared.types.configs.attack_configs.dpatch_attack_config import (
     DPatchAttackConfig,
 )
+from advsecurenet.shared.types.configs.attack_configs.tog_attack_config import (
+    TOGAttackConfig,
+)
 
 __all__ = [
     # image classification
@@ -32,6 +35,7 @@ __all__ = [
     "DecisionBoundaryAttackConfig",
     # object detection
     "DPatchAttackConfig",
+    "TOGAttackConfig",
 ]
 
 __iter__ = __all__.__iter__

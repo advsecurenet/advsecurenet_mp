@@ -8,6 +8,7 @@ from advsecurenet.shared.types.configs.attack_configs import (
     LotsAttackConfig,
     PgdAttackConfig,
     DPatchAttackConfig,
+    TOGAttackConfig,
 )
 from cli.shared.types.attack.attacks import (
     CwAttackCLIConfigType,
