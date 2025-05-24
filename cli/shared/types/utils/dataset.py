@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import Optional
+from enum import Enum, auto
 
 from advsecurenet.shared.types.configs.preprocess_config import PreprocessConfig
 

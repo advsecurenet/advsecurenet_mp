@@ -4,11 +4,14 @@ from torch.utils.data import Dataset as TorchDataset
 
 from advsecurenet.datasets import DatasetFactory
 from advsecurenet.shared.types.dataset import DatasetType
+
 from advsecurenet.datasets.HuggingFace import HuggingFaceDataset 
 from cli.shared.types.utils.dataset import (
     AttacksDatasetCliConfigType,
     DatasetCliConfigType,
 )
+
+import advsecurenet.utils.huggingface_utils.huggingface_dataset_utils as huggingface_dataset_utils
 
 
 def get_datasets(
@@ -25,10 +28,6 @@ def get_datasets(
         Tuple[Optional[TorchDataset], Optional[TorchDataset]]: Tuple containing the training dataset (if requested)
         and the testing dataset (if requested).
     """
-    # Handle HuggingFace datasets
-    """if isinstance(config, HuggingFaceDatasetCliConfigType):
-        return _get_huggingface_datasets(config, **kwargs)"""
-
     dataset_name = _validate_dataset_name(config.dataset_name)
     dataset_type = DatasetType(dataset_name)
     dataset_obj = DatasetFactory.create_dataset(
@@ -144,13 +143,15 @@ def _validate_dataset_name(dataset_name: str) -> str:
     Raises:
         ValueError: If the dataset name is not supported.
     """
-    dataset_name = dataset_name.upper()
+    if huggingface_dataset_utils.verify_hf_dataset_identifier_exists(dataset_name):
+        dataset_type = "HUGGINGFACE"
+    else:
+        dataset_type = dataset_name.upper()
+
     try:
-        DatasetType(dataset_name)
+        DatasetType(dataset_type)
     except ValueError as e:
         raise ValueError(
-            "Unsupported dataset name! Choose from: "
-            + ", ".join([e.value for e in DatasetType])
-        ) from e
+            f"Unsupported dataset type! Entered dataset name: {dataset_name}. ")
 
-    return dataset_name
+    return dataset_type

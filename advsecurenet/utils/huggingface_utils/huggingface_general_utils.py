@@ -44,7 +44,7 @@ def extract_id_from_url(url: str) -> Optional[str]:
     if not is_huggingface_url(url):
         return None
 
-    pattern = r'^(https?://) ?(www\.)?(huggingface\.co|hf\.co)/([^/]+/[^/]+).*$'
+    pattern = r'^(https?://)?(www\.)?(huggingface\.co|hf\.co)/(?:datasets/)?([^/]+/[^/]+)(?:[/?#].*)?$'
     match = re.match(pattern, url)
     if match:
         return match.group(4)
