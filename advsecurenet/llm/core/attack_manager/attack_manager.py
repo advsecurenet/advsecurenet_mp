@@ -16,8 +16,8 @@ from fastchat.model import get_conversation_template
 from transformers import (AutoModelForCausalLM, AutoTokenizer, GPT2LMHeadModel,
                           GPTJForCausalLM, GPTNeoXForCausalLM,
                           LlamaForCausalLM)
-from individual_prompt_attack import IndividualPromptAttack
-from core.model_manager.model_manager import ModelWorker
+from advsecurenet.llm.core.attack_manager.individual_prompt_attack import IndividualPromptAttack
+from advsecurenet.llm.core.model_manager.model_manager import ModelWorker
 
 
 class EvaluateAttack(object):

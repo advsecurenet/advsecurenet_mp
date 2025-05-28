@@ -28,7 +28,7 @@ def get_config():
     config.model_paths=['/data/vicuna/vicuna-7b-v1.3']
     config.model_kwargs=[{"low_cpu_mem_usage": True, "use_cache": False}]
     config.conversation_templates=['vicuna']
-    config.devices=['cuda:0']
+    config.devices=['cpu']
 
     # data
     config.train_data = ''
