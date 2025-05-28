@@ -9,14 +9,14 @@ class BaseODWrapper:
         self.model=model
         self.conf_thresh=conf_thresh
 
-    def filter_boxes(self, predictions):
+    def filter_boxes(self, predictions, conf_thresh):
         dictionary = {}
         boxes_list = []
         scores_list = []
         labels_list = []
         for i in range(len(predictions["boxes"])):
             score = predictions["scores"][i]
-            if score >= self.conf_thresh:
+            if score >= conf_thresh:
                 boxes_list.append(predictions["boxes"][i])
                 scores_list.append(predictions["scores"][[i]])
                 labels_list.append(predictions["labels"][[i]])

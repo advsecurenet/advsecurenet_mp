@@ -21,16 +21,19 @@ class ODAttacker:
         self._eval_model   = config.model.to(self._device).eval()
         self._dataloader   = self._create_dataloader()
 
+
     def _setup_device(self):
         if self._config.device.processor:
             return torch.device(self._config.device.processor)
         return torch.device("cuda" if torch.cuda.is_available() else "cpu") # replace with setup device utility function - TODO
+
 
     def _create_dataloader(self):
         dl = self._config.dataloader
         if isinstance(dl, torch.utils.data.DataLoader):
             return dl
         return DataLoaderFactory.create_dataloader(dl)
+
 
     def execute(self):
         adversarial_images = []
@@ -54,7 +57,7 @@ class ODAttacker:
                 targets = []
                 for b, l in zip(boxes, labels):
                     raw = l.detach().cpu().numpy().astype(int)      # e.g. [1, 3, 18, …]
-                    mapped = np.array([self._config.attack.id2yolo[c] for c in raw], dtype=int)
+                    mapped = np.array(raw, dtype=int)
                     targets.append({
                         "boxes":  b.detach().cpu().numpy(),
                         "labels": mapped,
@@ -62,17 +65,17 @@ class ODAttacker:
                     })
                 learned_patch = self._config.attack.attack(
                     x            = images_np_for_dpatch,
-                    y            = targets,#{"boxes": boxes, "labels": labels},
-                    target_label = my_target_label,#getattr(self._config.attack, "target_label", None),
+                    y            = targets,
+                    target_label = my_target_label,
                     mask         = getattr(self._config.attack, "mask", None),
                 )
                 # 2) APPLY the patch to *this* batch of images
                 patched_np = self._config.attack.apply_patch(
-                    x               = images_np_for_dpatch,#.detach().cpu().numpy(),
+                    x               = images_np_for_dpatch,
                     patch_external  = learned_patch.detach().cpu().numpy(),
                     random_location = False
                 ).detach().cpu().numpy()
-                patched = torch.from_numpy(patched_np / 255.0).to(self._device) #torch.from_numpy(patched_np).to(self._device)
+                patched = torch.from_numpy(patched_np / 255.0).to(self._device)
                 # #3) EVALUATE on the patched images
                 # evaluator.update(
                 #     model              = self._eval_model,
