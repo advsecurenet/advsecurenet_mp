@@ -1,10 +1,8 @@
-import re
-import torch
-from typing import Optional
+from typing import Optional, Any, Dict # Added Any, Dict
+import torch # Added torch
+from datasets import load_dataset as hf_hub_load_dataset
 
-from datasets import load_dataset, load_dataset_builder, Dataset, DatasetDict
-
-from advsecurenet.datasets.base_dataset import BaseDataset
+from advsecurenet.datasets.base_dataset import BaseDataset, DatasetWrapper
 from advsecurenet.shared.types.configs.preprocess_config import PreprocessConfig
 from advsecurenet.shared.types.dataset import DataType
 
@@ -40,106 +38,88 @@ class HuggingFaceDataset(BaseDataset):
         
         self.mean = None
         self.std = None
+        self.name = "uoft-cs/cifar10"
         self.input_size = (32, 32)
         self.crop_size = (32, 32)
-        self.name = "cifar10"
         self.num_classes = 10
         self.num_input_channels = 3
-    
+
+        self._image_key = 'img'
+        self._label_key = 'label'
+
     def get_dataset_class(self):
         """
-        Get the dataset class.
-        
-        Returns:
-            type: The dataset class.
+        Not used by this HuggingFaceDataset's custom load_dataset flow.
         """
-        return Dataset
+        return None
     
-    def load_dataset(self, train: bool = True, root: str = None, download: bool = True, **kwargs):
+    def load_dataset(self, train: bool = True, root: Optional[str] = None, download: bool = True, **kwargs) -> DatasetWrapper:
         """
-        Load a dataset from the Hugging Face Hub.
-        
-        Args:
-            train (bool, optional): Whether to load the training set. Defaults to True.
-            root (str, optional): Root directory for the dataset. Not used for Hugging Face datasets.
-            download (bool, optional): Whether to download the dataset. Not used for Hugging Face datasets.
-            **kwargs: Additional arguments to pass to the dataset.
-            
-        Raises:
-            ValueError: If the dataset cannot be loaded.
+        Load 'uoft-cs/cifar10' from Hugging Face Hub.
+        'root' and 'download' args are ignored.
         """
+        self.data_type = DataType.TRAIN if train else DataType.TEST
+        split_name = 'train' if train else 'test'
+
         try:
-            # Set data type
-            self.data_type = DataType.TRAIN if train else DataType.TEST
-            
-            # Determine split
-            split = self._split or self.huggingface_config.split
-            if not split:
-                split = "train" if train else "test"
-            
-            # Load dataset
-            hf_dataset = load_dataset(
-                self.huggingface_config.dataset_id,
-                name=self.huggingface_config.subset,
-                split=split,
-                revision=self.huggingface_config.revision,
-                cache_dir=self.huggingface_config.cache_dir,
-                trust_remote_code=self.huggingface_config.trust_remote_code,
+            # Load raw Hugging Face dataset split
+            self._raw_hf_data = hf_hub_load_dataset(
+                path=self.name,
+                split=split_name,
             )
             
-            # Get transforms
-            transform = self.get_transforms()
+            # Get and store torchvision transforms
+            self._transforms_to_apply = self.get_transforms()
             
+            self._dataset = DatasetWrapper(dataset=self, name=self.name)
             return self._dataset
-            
+        
+
         except Exception as e:
-            raise ValueError(f"Error loading Hugging Face dataset: {str(e)}")
+            # Print the actual Hugging Face error if possible
+            hf_error_msg = ""
+            if hasattr(e, 'args') and e.args:
+                hf_error_msg = str(e.args[0])
+            raise ValueError(f"Error loading Hugging Face dataset '{self.name}' (split: {split_name}): {str(e)}. HF Message: {hf_error_msg}") from e
+        
     
-    def _create_dataset(self, dataset_class, transform, root):
+    def _create_dataset(self, dataset_class, transform, root, train, download, **kwargs):
         """
-        Create a dataset instance.
-        
-        This method is not used for Hugging Face datasets as we use the load_dataset method instead.
-        
-        Raises:
-            NotImplementedError: This method is not implemented for Hugging Face datasets.
+        Not used for Hugging Face datasets.
         """
-        raise NotImplementedError("This method is not implemented for Hugging Face datasets")
+        raise NotImplementedError("_create_dataset is not applicable to HuggingFaceDataset.")
     
-    @staticmethod
-    def is_huggingface_url(url: str) -> bool:
+
+    def __len__(self) -> int:
         """
-        Check if a URL is a Hugging Face dataset URL.
+        Return the number of samples in the loaded Hugging Face dataset split.
+        """
+        if self._raw_hf_data is None:
+            raise RuntimeError(f"Hugging Face dataset '{self.name}' not loaded. Call load_dataset() first.")
+        return len(self._raw_hf_data)
+    
+
+    def __getitem__(self, idx: int) -> Any:
+        """
+        Get a sample from the dataset at the given index and apply transforms.
+        """
+        if self._raw_hf_data is None:
+            raise RuntimeError(f"Hugging Face dataset '{self.name}' not loaded. Call load_dataset() first.")
         
-        Args:
-            url (str): The URL to check.
+        item: Dict[str, Any] = self._raw_hf_data[idx]
+        
+        image_data = item.get(self._image_key)
+        if image_data is None:
+            raise KeyError(f"Image key '{self._image_key}' not found in dataset item at index {idx}. Available keys: {list(item.keys())}")
+
+        if self._transforms_to_apply:
+            image_data = self._transforms_to_apply(image_data)
+
+        label_data = item.get(self._label_key)
+        if label_data is None:
+            raise KeyError(f"Label key '{self._label_key}' not found in dataset item at index {idx}. Available keys: {list(item.keys())}")
+        
+        # Convert label to tensor
+        label_tensor = torch.tensor(label_data).long()
             
-        Returns:
-            bool: True if the URL is a Hugging Face dataset URL, False otherwise.
-        """
-        if not url:
-            return False
-        
-        pattern = r'^(https?://) ?(www\.)?(huggingface\.co|hf\.co)/datasets/([^/]+/[^/]+|[^/]+).*$'
-        return bool(re.match(pattern, url))
-    
-    @staticmethod
-    def extract_dataset_id_from_url(url: str) -> Optional[str]:
-        """
-        Extract the dataset ID from a Hugging Face URL.
-        
-        Args:
-            url (str): The URL to extract the dataset ID from.
-            
-        Returns:
-            Optional[str]: The dataset ID if the URL is a valid Hugging Face dataset URL, None otherwise.
-        """
-        if not HuggingFaceDataset.is_huggingface_url(url):
-            return None
-        
-        pattern = r'^(https?://) ?(www\.)?(huggingface\.co|hf\.co)/datasets/([^/]+/[^/]+|[^/]+).*$'
-        match = re.match(pattern, url)
-        if match:
-            return match.group(4)
-        
-        return None
+        return image_data, label_tensor

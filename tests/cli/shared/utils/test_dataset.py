@@ -117,5 +117,5 @@ def test_validate_dataset_name_valid():
 @pytest.mark.cli
 @pytest.mark.essential
 def test_validate_dataset_name_invalid():
-    with pytest.raises(ValueError, match="Unsupported dataset name!"):
+    with pytest.raises(ValueError, match="Unsupported dataset type! Entered dataset name: INVALIDDATASET"):
         _validate_dataset_name("INVALIDDATASET")
