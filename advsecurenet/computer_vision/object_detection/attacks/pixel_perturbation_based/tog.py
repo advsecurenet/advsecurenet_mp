@@ -26,7 +26,7 @@ class TOG(ObjectDetectionAttack):
 
     def attack(
             self,
-            x: torch.tensor,  # (batch_size, channels, height, width)
+            x: np.array,  # (batch_size, channels, height, width)
             target_label: torch.tensor,
             mask: torch.tensor,
             *args,
@@ -42,13 +42,15 @@ class TOG(ObjectDetectionAttack):
         Returns:
             torch.tensor: The adversarial example tensor.
         """
+        if np.max(x) > 1.0:
+            x = x / 255.0
         return self.tog_vanishing(x_query=x, n_iter=self.max_iter, eps=self.eps, eps_iter=self.eps_iter)
     
     def tog_vanishing(self, x_query, n_iter=10, eps=8/255., eps_iter=2/255.):
         eta = np.random.uniform(-eps, eps, size=x_query.shape)
         x_adv = np.clip(x_query + eta, 0.0, 1.0)
         for _ in range(n_iter):
-            grad = self.object_detector.compute_object_vanishing_gradient(x_adv)
+            grad = self.object_detector.compute_object_vanishing_gradient(x_adv, training=False)
             signed_grad = np.sign(grad)
             x_adv -= eps_iter * signed_grad
             eta = np.clip(x_adv - x_query, -eps, eps)

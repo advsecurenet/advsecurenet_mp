@@ -1,10 +1,11 @@
 import torch
+import torch.nn.functional as F
 import yolov5
 import numpy as np
 from torch.utils.data import TensorDataset, DataLoader
-from advsecurenet.models.CustomODWrappers.BaseODWrapper import BaseODWrapper
+from advsecurenet.models.CustomODWrappers.ODWrapper import ODWrapper
 
-class CustomYolov5ODWrapper(BaseODWrapper):
+class CustomYolov5ODWrapper(ODWrapper):
     def __init__(
         self,
         model,
@@ -15,15 +16,18 @@ class CustomYolov5ODWrapper(BaseODWrapper):
         conf_thresh = 0.7,
         weight_dict=None,
     ):
-        super().__init__(model=model, conf_thresh=conf_thresh)
+        super().__init__(
+            model=model, 
+            conf_thresh=conf_thresh, 
+            device_type=device_type, 
+            clip_values=clip_values,
+            input_shape=input_shape,
+            )
         self.inference_model = yolov5.load('model_weights\yolov5s.pt', device=device_type, autoshape=True)
         self.inference_model.conf = conf_thresh
         self.input_shape=input_shape
-        self.clip_values=clip_values
         self.channels_first=True
-        self.device = device_type
         self.attack_losses=attack_losses
-        self.device_type=device_type
         self.weight_dict = weight_dict
 
     def _translate_labels(self, labels: list[dict[str, "torch.Tensor"]]) -> "torch.Tensor":
