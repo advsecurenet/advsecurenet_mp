@@ -1,4 +1,5 @@
 import logging
+import numpy as np
 import torch
 from tqdm.auto import tqdm
 
@@ -17,9 +18,6 @@ class ODAttacker:
     def __init__(self, config: ODAttackerConfig):
         self._config       = config
         self._device       = self._setup_device()
-        # this model is only used inside your attack.attack(...) for gradients
-        self._attack_model = config.attack.object_detector.to(self._device)
-        # this model is used for final inference/evaluation on patched images
         self._eval_model   = config.model.to(self._device).eval()
         self._dataloader   = self._create_dataloader()
 
@@ -36,61 +34,61 @@ class ODAttacker:
 
     def execute(self):
         adversarial_images = []
-
         with AdversarialEvaluator(
             evaluators    = self._config.evaluators,
             target_models = [self._eval_model],      # we evaluate on the eval_model
         ) as evaluator:
-
-            for images, boxes, labels in tqdm(
+            for data_batch in tqdm(
                 self._dataloader,
                 desc="Generating adversarial samples",
                 colour="red",
             ):
-                # move to device
-                images = images.to(self._device)
-                boxes  = [b.to(self._device) for b in boxes]
-                labels = [l.to(self._device) for l in labels]
-
+                images, targets_dict = data_batch
+                images_np_for_dpatch = (images.detach().cpu().numpy() * 255.0).astype(np.float32)
+                images_np_for_dpatch = np.clip(images_np_for_dpatch, 0, 255)
+                boxes  = [b.to(self._device) for b in targets_dict["boxes"]]
+                labels = [l.to(self._device) for l in targets_dict["labels"]]
                 # 1) GENERATE the patch (no real images returned here)
-                my_target_label = self._config.target_label
+                my_target_label = None#self._config.target_label
                 print("Target label for attack: ", my_target_label)
+                targets = []
+                for b, l in zip(boxes, labels):
+                    raw = l.detach().cpu().numpy().astype(int)      # e.g. [1, 3, 18, …]
+                    mapped = np.array([self._config.attack.id2yolo[c] for c in raw], dtype=int)
+                    targets.append({
+                        "boxes":  b.detach().cpu().numpy(),
+                        "labels": mapped,
+                        "scores": np.ones(len(mapped), dtype=float),
+                    })
                 learned_patch = self._config.attack.attack(
-                    model        = self._attack_model,
-                    x            = images,
-                    y            = {"boxes": boxes, "labels": labels},
+                    x            = images_np_for_dpatch,
+                    y            = targets,#{"boxes": boxes, "labels": labels},
                     target_label = my_target_label,#getattr(self._config.attack, "target_label", None),
                     mask         = getattr(self._config.attack, "mask", None),
                 )
-
                 # 2) APPLY the patch to *this* batch of images
                 patched_np = self._config.attack.apply_patch(
-                    x               = images.detach().cpu().numpy(),
+                    x               = images_np_for_dpatch,#.detach().cpu().numpy(),
                     patch_external  = learned_patch.detach().cpu().numpy(),
                     random_location = False
-                )
-                patched = patched_np.to(self._device)#torch.from_numpy(patched_np).to(self._device)
-
-                #3) EVALUATE on the patched images
-                evaluator.update(
-                    model              = self._eval_model,
-                    original_images    = images,
-                    true_labels        = {"boxes": boxes, "labels": labels},
-                    adversarial_images = patched,
-                    is_targeted        = self._config.attack.targeted,
-                    target_labels      = getattr(self._config.attack, "target_label", None),
-                )
-
+                ).detach().cpu().numpy()
+                patched = torch.from_numpy(patched_np / 255.0).to(self._device) #torch.from_numpy(patched_np).to(self._device)
+                # #3) EVALUATE on the patched images
+                # evaluator.update(
+                #     model              = self._eval_model,
+                #     original_images    = images,
+                #     true_labels        = {"boxes": boxes, "labels": labels},
+                #     adversarial_images = patched,
+                #     is_targeted        = self._config.attack.targeted,
+                #     target_labels      = getattr(self._config.attack, "target_label", None),
+                # )
                 if self._config.return_adversarial_images:
-                    #adversarial_images.append(patched.detach().cpu())
-                    adversarial_images.append(images.detach().cpu())
-
+                    adversarial_images.append(patched.detach().cpu())
+                    #adversarial_images.append(images.detach().cpu())
                 # free up GPU memory if needed
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()
-
             # summary logging
-            results = evaluator.get_results()
-            logger.info("Object Detection Attack summary: %s", results)
-
+            # results = evaluator.get_results()
+            # logger.info("Object Detection Attack summary: %s", results)
         return adversarial_images if self._config.return_adversarial_images else None
