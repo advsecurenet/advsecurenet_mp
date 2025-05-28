@@ -5,24 +5,14 @@ https://arxiv.org/pdf/1806.02299
 https://github.com/Trusted-AI/adversarial-robustness-toolbox/blob/main/art/attacks/evasion/dpatch.py
 """
 
-import datasets
-from datasets import load_dataset
 import math
 import random
 import numpy as np
-from PIL import Image
-import typing
-import string
-from collections import deque
-
-import click
 import torch
-from torch import nn
 from tqdm.auto import trange
 
 from advsecurenet.shared.types.configs.attack_configs.dpatch_attack_config import DPatchAttackConfig
 from advsecurenet.computer_vision.object_detection.attacks.base.object_detection_attack import ObjectDetectionAttack
-from advsecurenet.models.base_model import BaseModel
 
 
 class DPatch(ObjectDetectionAttack):
@@ -40,46 +30,8 @@ class DPatch(ObjectDetectionAttack):
         self.max_iterations = config.max_iter
         self.batch_size = config.batch_size
         self.verbose = config.verbose
-
-        # TODO - potentially add clip_values variant (see ART):
         self._patch = torch.zeros(self.patch_shape, dtype=torch.float32, device=config.device.processor)
 
-        # must match the order of COCO_INSTANCE_CATEGORY_NAMES
-        COCO_INSTANCE_CATEGORY_IDS = [
-            1,2,3,4,5,6,7,8,9,10,
-            11,13,14,15,16,17,18,19,20,21,
-            22,23,24,25,27,28,31,32,33,34,
-            35,36,37,38,39,40,41,42,43,44,
-            46,47,48,49,50,51,52,53,54,55,
-            56,57,58,59,60,61,62,63,64,65,
-            67,70,72,73,74,75,76,77,78,79,
-            80,81,82,84,85,86,87,88,89,90
-        ]
-        self.id2yolo = { raw_id: idx
-                         for idx, raw_id in enumerate(COCO_INSTANCE_CATEGORY_IDS) }
-
-
-    def filter_detection_boxes(self, predictions, conf_thresh):
-        dictionary = {}
-
-        boxes_list = []
-        scores_list = []
-        labels_list = []
-
-        for i in range(len(predictions["boxes"])):
-            score = predictions["scores"][i]
-            if score >= conf_thresh:
-                boxes_list.append(predictions["boxes"][i])
-                scores_list.append(predictions["scores"][[i]])
-                labels_list.append(predictions["labels"][[i]])
-
-        if len(boxes_list)>0 and len(scores_list)>0 and len(labels_list)>0:
-            dictionary["boxes"] = np.vstack(boxes_list)
-            dictionary["scores"] = np.hstack(scores_list)
-            dictionary["labels"] = np.hstack(labels_list)
-
-        y = dictionary
-        return y
 
     def attack(
             self,
@@ -100,52 +52,26 @@ class DPatch(ObjectDetectionAttack):
         Returns:
             torch.tensor: The adversarial example tensor.
         """
-
         if target_label is not None and y is not None:
             raise ValueError("Both target_label and y cannot be provided at the same time.")
-
         self.object_detector.model.eval()
-
         if isinstance(x, np.ndarray):
             x = torch.tensor(x)
         elif isinstance(x, list) and isinstance(x[0], np.ndarray):
-            x = torch.tensor(np.stack(x))  # Convert list of numpy arrays to tensor
-           
+            x = torch.tensor(np.stack(x))  # Convert list of numpy arrays to tensor 
         x = self.device_manager.to_device(x)
         mask = mask.copy() if mask is not None else None
-
         initial_patch_for_target_determination = self._patch.clone()
-
-        channel_index = x.ndim - 1 # assuming self.estimator.channels_first is False
         patched_images_initial, transforms_initial = self._augment_images_with_patch(
                     x,
                     initial_patch_for_target_determination,
-                    random_location=False,#True,
-                    #channels_first=False,
+                    random_location=False,
                     mask=mask,
                     transforms=None,
         )       
         transforms = transforms_initial.copy()  # Copy the transforms for later use
         patched_images = patched_images_initial.clone().detach().requires_grad_(True)
         patch_target: list[dict[str, np.ndarray]] = []
-
-        # —— Adapter for ODAttacker’s dict{"boxes":[...],"labels":[...]} format ——
-        # if isinstance(y, dict) and "boxes" in y and "labels" in y:
-        #     boxes_list  = y["boxes"]
-        #     labels_list = y["labels"]
-        #     # if no explicit scores, assume 1.0 for each GT
-        #     scores_list = y.get(
-        #         "scores",
-        #         [torch.ones(len(lbl), device=boxes_list[i].device) for i, lbl in enumerate(labels_list)]
-        #     )
-        #     for b_t, l_t, s_t in zip(boxes_list, labels_list, scores_list):
-        #         raw = l_t.detach().cpu().numpy().astype(int)
-        #         mapped = np.array([self.id2yolo[c] for c in raw], dtype=int)
-        #         patch_target.append({
-        #             "boxes":  b_t.detach().cpu().numpy(),
-        #             "labels": mapped,
-        #             "scores": s_t.detach().cpu().numpy().astype(float),
-        #         })
         if False:
             return
         else:
@@ -156,24 +82,20 @@ class DPatch(ObjectDetectionAttack):
                         t_l = target_label
                     else:
                         t_l = target_label[i_image]
-
                     i_x_1 = transforms[i_image]["i_x_1"]
                     i_x_2 = transforms[i_image]["i_x_2"]
                     i_y_1 = transforms[i_image]["i_y_1"]
                     i_y_2 = transforms[i_image]["i_y_2"]
-
                     target_dict = {}
                     target_dict["boxes"] = np.asarray([[i_x_1, i_y_1, i_x_2, i_y_2]])
-                    raw = np.asarray([t_l], dtype=int)
-                    mapped = np.array([self.id2yolo[c] for c in raw], dtype=int)
-                    target_dict["labels"] = mapped #(np.asarray([t_l], dtype=int) - 1)
+                    mapped = np.asarray([t_l], dtype=int)
+                    target_dict["labels"] = mapped
                     target_dict["scores"] = np.asarray(
                         [
                             1.0,
                         ]
                     )
                     patch_target.append(target_dict)
-
             elif target_label is None: # untargetted attack
                 predictions = None
                 if y is not None:
@@ -184,12 +106,11 @@ class DPatch(ObjectDetectionAttack):
                     targets = []
                     patched_images_np = patched_images.detach().cpu().numpy()
                     res = self.object_detector.predict(patched_images_np)
-                    res = [self.filter_detection_boxes(t, 0.8) for t in res]
+                    res = [self.object_detector.filter_boxes(t, 0.8) for t in res]
                     for preds_dict in res:  # Iterate over each image in the batch
                         boxes = preds_dict["boxes"]  # Bounding boxes (x1, y1, x2, y2)
                         labels = preds_dict["labels"]  # Class labels
-                        scores = preds_dict["scores"]  # Confidence scores
-                        
+                        scores = preds_dict["scores"]  # Confidence scores   
                         target = {
                             "boxes": boxes,
                             "labels": labels,
@@ -197,15 +118,12 @@ class DPatch(ObjectDetectionAttack):
                         }
                         targets.append(target)
                     predictions = targets
-
                 for i_image in range(patched_images.shape[0]):
                     target_dict = {}
                     target_dict["boxes"] = predictions[i_image]["boxes"]
                     target_dict["labels"] = predictions[i_image]["labels"]
                     target_dict["scores"] = predictions[i_image]["scores"]
-
                     patch_target.append(target_dict)
-
         # Flag to determine if the untargeted attack started with no detections
         # and should therefore aim to suppress any new detections.
         _untargeted_attack_should_suppress_from_empty_initial = False
@@ -222,37 +140,30 @@ class DPatch(ObjectDetectionAttack):
                 _untargeted_attack_should_suppress_from_empty_initial = True
                 if self.verbose:
                     print("[DPATCH] Untargeted attack mode: Initial state (image + initial patch) had no detections. The attack will aim to keep it that way (suppress new detections).")     
-        
-        CELoss = nn.CrossEntropyLoss()
-        BBoxLoss = nn.BCEWithLogitsLoss()
-
+        #CELoss = nn.CrossEntropyLoss()
+        #BBoxLoss = nn.BCEWithLogitsLoss()
         for i_step in trange(self.max_iterations, desc="DPatch iteration", disable=not self.verbose):
             if i_step == 0 or (i_step + 1) % 100 == 0:
                 print("Training Step: %i", i_step + 1)
-
             # Generate patched images for the current optimization step
             # using the original images 'x' and the current state of 'self._patch'.
             #current_step_patched_images, current_step_transforms = self._augment_images_with_patch(
             current_step_patched_images, _ = self._augment_images_with_patch(
                 x,                       # Original clean images
                 self._patch,             # Current adversarial patch
-                random_location=False,#True,   # Assuming fixed location based on initial transforms
+                random_location=False,   # Assuming fixed location based on initial transforms
                 mask=mask,               # Original mask
-                transforms=transforms,#None    # Transforms derived from transforms_initial
+                transforms=transforms,   # Transforms derived from transforms_initial
             )
-
             num_batches = math.ceil(x.shape[0] / self.batch_size)
             patch_gradients = torch.zeros_like(self._patch)
-
             for i_batch in range(num_batches):
                 i_batch_start = i_batch * self.batch_size
                 i_batch_end = min((i_batch + 1) * self.batch_size, patched_images.shape[0])
-
                 # Use patch_target for targets
-                y_list = patch_target[i_batch_start:i_batch_end]
-                target_boxes = [torch.tensor(target["boxes"], device=patched_images.device) for target in y_list]
-                target_labels = [torch.tensor(target["labels"], device=patched_images.device) for target in y_list]
-
+                #y_list = patch_target[i_batch_start:i_batch_end]
+                #target_boxes = [torch.tensor(target["boxes"], device=patched_images.device) for target in y_list]
+                #target_labels = [torch.tensor(target["labels"], device=patched_images.device) for target in y_list]
                 img_batch = current_step_patched_images[i_batch_start:i_batch_end].detach().cpu().numpy()
                 input_batch_np = img_batch.astype(np.float32)
                 res = self.object_detector.predict(input_batch_np)
@@ -268,76 +179,43 @@ class DPatch(ObjectDetectionAttack):
                         # This depends on how the loss function handles empty predictions
                         pred_boxes.append(torch.empty((0, 4), device=patched_images.device, dtype=torch.float32))
                         pred_labels.append(torch.empty((0,), device=patched_images.device, dtype=torch.float32))
-
                 # Extract predicted class logits or confidence scores (not just class indices)
                 pred_logits = []
                 for result in res:
                     if "scores" in result and "labels" in result:
                         scores = result["scores"]  # confidence scores
                         labels = result["labels"].astype(int)
-
                         num_classes = 80 # model.num_classes  # You must know this from your model definition
                         logits = torch.zeros((len(labels), num_classes), device=patched_images.device)
-
                         for idx, label in enumerate(labels):
                             logits[idx, label] = float(scores[idx])
-
                         pred_logits.append(logits)
-
                 # Concatenate predictions into a single tensor
-                pred_logits_cat = torch.cat(pred_logits, dim=0)
-
+                #pred_logits_cat = torch.cat(pred_logits, dim=0)
                 # Ensure targets are the correct shape
-                target_labels_cat = torch.cat(target_labels, dim=0).long()
-
-                pred_labels_cat = torch.cat(pred_labels, dim=0)
-                target_labels_cat = torch.cat(target_labels, dim=0)
-                #target_labels_cat = target_labels_cat.long()
-                #classification_loss = CELoss(pred_logits_cat, target_labels_cat)
-
-                if pred_boxes and target_boxes:
-                    pred_boxes_cat = torch.cat(pred_boxes, dim=0)
-                    target_boxes_cat = torch.cat(target_boxes, dim=0)
-                    target_boxes_cat = target_boxes_cat.float()
-                #bbox_loss = BBoxLoss(pred_boxes_cat, target_boxes_cat)
-
-                #total_loss = classification_loss + bbox_loss
-
-                # if patched_images.grad is not None:
-                #     patched_images.grad.zero_()
-
-                # total_loss.backward()
-                # gradients = patched_images.grad.clone().detach()
-                #input_batch_np = patched_images[i_batch_start:i_batch_end].detach().cpu().numpy()
-                # right before calling loss_gradient:
+                #target_labels_cat = torch.cat(target_labels, dim=0).long()
+                #pred_labels_cat = torch.cat(pred_labels, dim=0)
+                #target_labels_cat = torch.cat(target_labels, dim=0)
+                #if pred_boxes and target_boxes:
+                    #pred_boxes_cat = torch.cat(pred_boxes, dim=0)
+                    #target_boxes_cat = torch.cat(target_boxes, dim=0)
+                    #target_boxes_cat = target_boxes_cat.float()
                 all_labels = np.concatenate([t["labels"] for t in patch_target])
                 invalid_mask = (all_labels < 0) | (all_labels >= num_classes)
                 if invalid_mask.any():
                     bad = all_labels[invalid_mask]
                     print("⚠️ Invalid labels detected:", bad, "unique:", np.unique(bad))
                     raise ValueError("Found out-of-range labels in patch_target; see above.")
-
-
                 gradients = self.object_detector.loss_gradient(
-                    x=input_batch_np,#patched_images[i_batch_start:i_batch_end],
+                    x=input_batch_np,
                     y=patch_target[i_batch_start:i_batch_end],
                     standardise_output=True,
                 )
-
                 for i_image in range(gradients.shape[0]):
-
-                    # i_x_1 = current_step_transforms[i_batch_start + i_image]["i_x_1"]
-                    # i_x_2 = current_step_transforms[i_batch_start + i_image]["i_x_2"]
-                    # i_y_1 = current_step_transforms[i_batch_start + i_image]["i_y_1"]
-                    # i_y_2 = current_step_transforms[i_batch_start + i_image]["i_y_2"]
-
                     i_x_1 = transforms[i_batch_start + i_image]["i_x_1"]
                     i_x_2 = transforms[i_batch_start + i_image]["i_x_2"]
                     i_y_1 = transforms[i_batch_start + i_image]["i_y_1"]
                     i_y_2 = transforms[i_batch_start + i_image]["i_y_2"]
-
-                    # patch_gradients_i = gradients[i_image, i_x_1:i_x_2, i_y_1:i_y_2, :]
-                    # patch_gradients = patch_gradients + patch_gradients_i
                     patch_gradients_i = gradients[
                         i_image,           # batch index
                         :,                 # channels
@@ -346,7 +224,6 @@ class DPatch(ObjectDetectionAttack):
                     ]
                     patch_gradients += patch_gradients_i  # now both are (C, patch_h, patch_w)
             patch_gradients /= x.shape[0]
-
             if target_label is not None:
                 self._patch = self._patch - self.learning_rate * torch.sign(patch_gradients)
             else:
@@ -359,18 +236,14 @@ class DPatch(ObjectDetectionAttack):
                     # Standard untargeted attack: patch_target had some objects (from y_true or non-empty initial predictions).
                     # Maximize loss to move away from these targets (gradient ascent).
                     self._patch = self._patch + self.learning_rate * torch.sign(patch_gradients)
-
             self._patch = self._patch.clamp(0.0, 255.0)
-
             patched_images, transforms_initial = self._augment_images_with_patch(
                 x,
                 self._patch,
-                random_location=False,#True,
-                #channels_first=False,#self.estimator.channels_first,
+                random_location=False,
                 mask=None,
                 transforms=None,
             )
-
         return self._patch
     
 
@@ -379,7 +252,6 @@ class DPatch(ObjectDetectionAttack):
         x: torch.Tensor,  # Changed type hint to torch.Tensor
         patch: torch.Tensor, # Changed type hint to torch.Tensor
         random_location: bool,
-        #channels_first: bool, # Assuming channels_first (N, C, H, W)
         mask: np.ndarray | None = None,
         transforms: list[dict[str, int]] | None = None,
     ) -> tuple[torch.Tensor, list[dict[str, int]]]: # Changed return type hint
@@ -401,26 +273,20 @@ class DPatch(ObjectDetectionAttack):
                 raise ValueError(
                     "Definition of patch locations in `locations` requires `random_location=False`, and `mask=None`."
                 )
-
         random_transformations = []
         # Ensure inputs are tensors
         if isinstance(x, np.ndarray):
              x = torch.from_numpy(x)
         if isinstance(patch, np.ndarray):
              patch = torch.from_numpy(patch)
-
         x_copy = x.clone()
         patch_copy = patch.clone()
-
         # Assuming NCHW format for image and CHW for patch
         img_channels, img_height, img_width = x_copy.shape[1], x_copy.shape[2], x_copy.shape[3]
         patch_channels, patch_height, patch_width = patch_copy.shape[0], patch_copy.shape[1], patch_copy.shape[2]
-
         if img_channels != patch_channels:
             raise ValueError(f"Image channels ({img_channels}) and patch channels ({patch_channels}) must match.")
-
         for i_image in range(x_copy.shape[0]):
-
             if transforms is None:
                 if random_location:
                     if mask is None:
@@ -446,22 +312,17 @@ class DPatch(ObjectDetectionAttack):
                              mask_2d = mask
                         else:
                              raise ValueError(f"Unexpected mask dimension: {mask.ndim}")
-
                         # Ensure mask is boolean numpy array
                         if isinstance(mask_2d, torch.Tensor):
                             mask_2d = mask_2d.cpu().numpy()
                         mask_2d = mask_2d.astype(bool)
-
                         if mask_2d.shape[0] != img_height or mask_2d.shape[1] != img_width:
                             raise ValueError(f"Mask shape {mask_2d.shape} does not match image spatial dimensions ({img_height}, {img_width})")
-
-
                         # Calculate patch center offsets
                         edge_x_0 = patch_height // 2
                         edge_x_1 = patch_height - edge_x_0
                         edge_y_0 = patch_width // 2
                         edge_y_1 = patch_width - edge_y_0
-
                         # Create a valid mask for patch *center* placement
                         # A center at (cx, cy) is valid if the patch fits entirely within the image
                         # Top-left corner: (cx - edge_x_0, cy - edge_y_0)
@@ -473,10 +334,8 @@ class DPatch(ObjectDetectionAttack):
                         # cy + edge_y_1 - 1 < img_width  => cy < img_width - edge_y_1 + 1
                         valid_center_mask = np.zeros_like(mask_2d, dtype=bool)
                         valid_center_mask[edge_x_0 : img_height - edge_x_1 + 1, edge_y_0 : img_width - edge_y_1 + 1] = True
-
                         # Combine with the user-provided mask
                         final_mask = mask_2d & valid_center_mask
-
                         # Find valid center positions
                         valid_indices = np.argwhere(final_mask)
                         if valid_indices.shape[0] == 0:
@@ -490,34 +349,25 @@ class DPatch(ObjectDetectionAttack):
                             #      raise ValueError(f"Patch (H={patch_height}, W={patch_width}) is larger than image (H={img_height}, W={img_width}).")
                             # i_x_1 = random.randint(0, max_h_start)
                             # i_y_1 = random.randint(0, max_w_start)
-
                         else:
                             # Choose a random valid center position
                             pos_id = np.random.choice(valid_indices.shape[0], size=1)
                             center_x, center_y = valid_indices[pos_id[0]]
-
                             # Calculate top-left corner based on center
                             i_x_1 = center_x - edge_x_0
                             i_y_1 = center_y - edge_y_0
-
                             # Ensure calculated top-left is valid (should be guaranteed by valid_center_mask, but good for sanity check)
                             if not (0 <= i_x_1 <= img_height - patch_height and 0 <= i_y_1 <= img_width - patch_width):
                                 raise RuntimeError(f"Internal error: Calculated invalid patch start ({i_x_1}, {i_y_1}) from center ({center_x}, {center_y})")
-
-
                 else: # Not random location
                     i_x_1 = 0
                     i_y_1 = 0
                     if patch_height > img_height or patch_width > img_width:
                          raise ValueError(f"Patch (H={patch_height}, W={patch_width}) is larger than image (H={img_height}, W={img_width}) and cannot be placed at origin.")
-
-
                 # Calculate bottom-right corner (exclusive index for slicing)
                 i_x_2 = i_x_1 + patch_height
                 i_y_2 = i_y_1 + patch_width
-
                 random_transformations.append({"i_x_1": i_x_1, "i_y_1": i_y_1, "i_x_2": i_x_2, "i_y_2": i_y_2})
-
             else: # Use provided transforms
                 i_x_1 = transforms[i_image]["i_x_1"]
                 i_x_2 = transforms[i_image]["i_x_2"]
@@ -528,17 +378,12 @@ class DPatch(ObjectDetectionAttack):
                      raise ValueError(f"Invalid transform coordinates for image {i_image}: {transforms[i_image]} with image shape {x_copy.shape}")
                 if (i_x_2 - i_x_1) != patch_height or (i_y_2 - i_y_1) != patch_width:
                      raise ValueError(f"Transform dimensions ({i_x_2 - i_x_1}, {i_y_2 - i_y_1}) do not match patch dimensions ({patch_height}, {patch_width}) for image {i_image}")
-
-
             # Apply patch using channels-first indexing (N, C, H, W)
             try:
                 target_slice = x_copy[i_image, :, i_x_1:i_x_2, i_y_1:i_y_2]
                 if target_slice.shape != patch_copy.shape:
                      raise RuntimeError(f"Shape mismatch before assignment: Slice shape {target_slice.shape}, Patch shape {patch_copy.shape}")
-
-                # Ensure patch is contiguous, might help with weird stride issues
                 x_copy[i_image, :, i_x_1:i_x_2, i_y_1:i_y_2] = patch_copy.contiguous()
-
             except Exception as e:
                  print(f"Error during patch application for image {i_image}:")
                  print(f"  x_copy shape: {x_copy.shape}")
@@ -546,7 +391,6 @@ class DPatch(ObjectDetectionAttack):
                  print(f"  Indices: H={i_x_1}:{i_x_2}, W={i_y_1}:{i_y_2}")
                  print(f"  Calculated slice shape: ({x_copy.shape[1]}, {i_x_2 - i_x_1}, {i_y_2 - i_y_1})")
                  raise e
-
         return x_copy, random_transformations
 
 
@@ -572,13 +416,10 @@ class DPatch(ObjectDetectionAttack):
             patch_local = patch_external
         else:
             patch_local = self._patch
-
         patched_images, _ = self._augment_images_with_patch(
             x=x,
             patch=patch_local,
             random_location=random_location,
-            #channels_first=self.estimator.channels_first,
             mask=mask,
         )
-
         return patched_images
