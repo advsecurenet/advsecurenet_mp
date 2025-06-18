@@ -8,6 +8,7 @@ from tqdm.auto import tqdm
 from advsecurenet.evaluation.adversarial_evaluator import AdversarialEvaluator
 from advsecurenet.shared.types.configs.attack_configs.od_attacker_config import ODAttackerConfig
 from advsecurenet.computer_vision.object_detection.attacks.attacker.od_attacker import ODAttacker
+from advsecurenet.computer_vision.object_detection.attacks.pixel_perturbation_based.tog import TOGAttackType
 
 logger = logging.getLogger(__name__)
 
@@ -15,8 +16,10 @@ class PixelPerturbationODAttacker(ODAttacker):
     """
     Attacks an object detection model using pixel perturbation techniques.
     """
-    def __init__(self, config: ODAttackerConfig):
+    def __init__(self, config: ODAttackerConfig, attack_type: TOGAttackType = TOGAttackType.VANISHING, tog_mislabeling_mode: str = "ml") -> None:
         super().__init__(config)
+        self._attack_type = attack_type
+        self._tog_mislabeling_mode = tog_mislabeling_mode
 
     def execute(self):
         adversarial_images = []
@@ -51,6 +54,8 @@ class PixelPerturbationODAttacker(ODAttacker):
                     y            = targets,
                     target_label = my_target_label,
                     mask         = getattr(self._config.attack, "mask", None),
+                    tog_variant  = self._attack_type,
+                    tog_mislabeling_mode = self._tog_mislabeling_mode or "ml",
                 )
                 patched = torch.from_numpy(adv_imgs).to(self._device)
                 # 2) EVALUATE on the patched images

@@ -30,6 +30,7 @@ class CustomYolov5ODWrapper(ODWrapper):
         self.attack_losses=attack_losses
         self.weight_dict = weight_dict
 
+
     def _translate_labels(self, labels: list[dict[str, "torch.Tensor"]]) -> "torch.Tensor":
         if self.channels_first:
             height = self.input_shape[1]
@@ -73,6 +74,7 @@ class CustomYolov5ODWrapper(ODWrapper):
         labels_xcycwh = torch.vstack(labels_xcycwh_list)
         return labels_xcycwh
 
+
     def _translate_predictions(self, predictions: "torch.Tensor") -> list[dict[str, np.ndarray]]:
         if self.channels_first:
             height = self.input_shape[1]
@@ -106,6 +108,7 @@ class CustomYolov5ODWrapper(ODWrapper):
             predictions_x1y1x2y2.append(pred_dict)
         return predictions_x1y1x2y2
 
+
     def _get_losses(self, x, y):
         self.model.train()
         # 1) Ensure x is a torch.Tensor on the right device
@@ -119,6 +122,7 @@ class CustomYolov5ODWrapper(ODWrapper):
         y_preprocessed = self._translate_labels(y)
         loss_components = self.model(x_preprocessed, y_preprocessed)
         return loss_components, x_preprocessed
+
 
     def loss_gradient(self, x, y, **kwargs):
         loss_components, x_grad = self._get_losses(x=x, y=y)
@@ -141,6 +145,7 @@ class CustomYolov5ODWrapper(ODWrapper):
         assert grads.shape == x.shape
         return grads
 
+
     def predict(self, x_preprocessed: np.ndarray, batch_size: int = 128, **kwargs) -> list[dict[str, np.ndarray]]:
         self.inference_model.eval()
         # Create dataloader
@@ -159,17 +164,22 @@ class CustomYolov5ODWrapper(ODWrapper):
             imgs = [(img.transpose(1, 2, 0)).clip(0,self.clip_values[1]).astype(np.uint8) for img in imgs]
             with torch.no_grad():
                 outputs = self.inference_model(imgs, size=self.input_shape[1])
-                for det in outputs.xyxy:
+                for i, det in enumerate(outputs.xyxy):
                     arr = det.cpu().numpy() if isinstance(det, torch.Tensor) else det
                     if arr.size == 0:
                         predictions.append({"boxes": np.empty((0, 4)), "scores": np.empty((0,)), "labels": np.empty((0,), dtype=int)})
                     else:
+                        # Get raw logits from outputs.pred
+                        raw_pred = outputs.pred[i].cpu().numpy()  # shape: [num_detections, 5 + num_classes]
+                        logits = raw_pred[:, 5:]  # shape: [num_detections, num_classes]
                         predictions.append({
                             "boxes": arr[:, :4],  # x1, y1, x2, y2
                             "scores": arr[:, 4],  
                             "labels": arr[:, 5].astype(int),
+                            "logits": logits,  # Add logits here
                         })
         return predictions
+
 
     def compute_loss(self, x, y, **kwargs):
         loss_components, _ = self._get_losses(x=x, y=y)
@@ -186,3 +196,129 @@ class CustomYolov5ODWrapper(ODWrapper):
         if isinstance(x, torch.Tensor):
             return loss
         return loss.detach().cpu().numpy()
+    
+
+    def compute_object_vanishing_gradient(self, x: np.ndarray, training: bool = False) -> np.ndarray:
+        x = torch.from_numpy(x)
+        x_pre = x.to(self.device, dtype=torch.float32)
+        x_pre.requires_grad_(True)
+        if training:
+            self.model.train()                 # ensure we get raw preds, not autoshaped outputs
+        preds = self.model(x_pre)[0]          # list of 3 tensors: (bs, na, gh, gw, 5+nc)
+        # 3) Compute the TF-identical vanishing loss:
+        loss = torch.tensor(0.0, device=self.device, dtype=torch.float32)
+        for p in preds:
+            # p[..., 4] is the objectness logit
+            obj_logit = p[..., 4]        # shape (bs, na, gh, gw)
+            zeros     = torch.zeros_like(obj_logit, device=self.device)
+            # sum reduction matches K.sum(...)/nothing
+            loss     += F.binary_cross_entropy_with_logits(
+                             obj_logit, zeros,
+                             reduction='sum'
+                         )
+        grad_tensor = torch.autograd.grad(
+            outputs=loss,
+            inputs=x_pre,
+            retain_graph=False,
+            create_graph=False,
+            allow_unused=False
+        )[0]
+        grads = grad_tensor.cpu().numpy()
+        # 5) undo any scaling
+        if self.clip_values is not None:
+            grads = grads / self.clip_values[1]
+        return grads
+    
+
+    def compute_object_untargeted_gradient(self, x: np.ndarray, detections: list[dict[str, np.ndarray]] = None, training: bool = True) -> np.ndarray:
+        if not detections:
+            return np.zeros_like(x)
+        x_torch = torch.from_numpy(x).to(self.device, dtype=torch.float32)
+        x_torch.requires_grad_(True)
+        if training:
+            self.model.train()  # Set model to training mode for loss calculation
+        y_list = []
+        for det in detections:
+            y_list.append({
+                "boxes": torch.from_numpy(det["boxes"]).float().to(self.device),
+                "labels": torch.from_numpy(det["labels"]).long().to(self.device),
+            })
+        total_loss = self.compute_loss(x_torch, y_list)
+        # Compute gradients
+        self.model.zero_grad() 
+        grad_tensor = torch.autograd.grad(
+            outputs=total_loss,
+            inputs=x_torch,
+            retain_graph=False, # Can be False as we are done with this loss value
+            create_graph=False,
+            allow_unused=True # If original_total_loss was 0 and didn't depend on x_torch
+        )[0]
+        grads = grad_tensor.cpu().numpy()
+        if self.clip_values is not None and grad_tensor is not None:
+            grads = grads / self.clip_values[1]
+        return grads
+
+
+    def compute_object_fabrication_gradient(self, x: np.ndarray, detections: dict = None, training: bool = False) -> np.ndarray:
+        x_pre = torch.from_numpy(x).to(self.device, dtype=torch.float32)
+        x_pre.requires_grad_(True)
+        self.model.train()
+        preds = self.model(x_pre)[0]
+        loss = torch.tensor(0.0, device=self.device, dtype=torch.float32)
+        for p in preds: # Iterate over batch items
+            obj_logit = p[..., 4]  # Objectness logit for current batch item
+            ones = torch.ones_like(obj_logit, device=self.device)
+            loss += F.binary_cross_entropy_with_logits(obj_logit, ones, 
+                                                       reduction='sum',
+                                                       )
+        grad_tensor = torch.autograd.grad(
+            outputs=loss,
+            inputs=x_pre,
+            retain_graph=False,
+            create_graph=False,
+            allow_unused=False
+        )[0]
+        grads = grad_tensor.cpu().numpy()
+        if self.clip_values is not None:
+            grads = grads / self.clip_values[1] # Undo scaling
+        return grads
+
+
+    def compute_object_mislabeling_gradient(self, x: np.ndarray, detections: np.ndarray = None, training: bool = True) -> np.ndarray:
+        if detections is None or detections.shape[0] == 0:
+            return np.zeros_like(x)
+        x_torch = torch.from_numpy(x).to(self.device, dtype=torch.float32)
+        x_torch.requires_grad_(True)
+        if training:
+            self.model.train()
+        batch_size = x_torch.shape[0]
+        batch_idxs = detections[:, 0].astype(int)
+        target_labels_list = []
+        for img_idx in range(batch_size):
+            mask = batch_idxs == img_idx
+            if not mask.any():
+                target_labels_list.append({
+                    "boxes": torch.empty((0, 4), dtype=torch.float32, device=self.device),
+                    "labels": torch.empty((0,), dtype=torch.long, device=self.device),
+                })
+                continue
+            det = detections[mask]
+            boxes = torch.tensor(det[:, -4:], dtype=torch.float32, device=self.device)
+            labels = torch.tensor(det[:, 1].astype(np.int64), device=self.device)
+            target_labels_list.append({
+                "boxes": boxes,
+                "labels": labels,
+            })
+        total_loss = self.compute_loss(x=x_torch, y=target_labels_list)
+        self.model.zero_grad()
+        grad_tensor = torch.autograd.grad(
+            outputs=total_loss,
+            inputs=x_torch,
+            retain_graph=False,
+            create_graph=False,
+            allow_unused=False,
+        )[0]
+        grads = grad_tensor.cpu().numpy()
+        if self.clip_values is not None and grad_tensor is not None:
+            grads = grads / self.clip_values[1]
+        return grads
