@@ -3,6 +3,7 @@ from typing import Optional, Tuple, cast
 from torch.utils.data import Dataset as TorchDataset
 
 from advsecurenet.datasets import DatasetFactory
+from advsecurenet.datasets.base_dataset import BaseDataset
 from advsecurenet.shared.types.dataset import DatasetType
 
 from advsecurenet.datasets.HuggingFace import HuggingFaceDataset 
@@ -19,45 +20,47 @@ def get_datasets(
 ) -> Tuple[Optional[TorchDataset], Optional[TorchDataset]]:
     """
     Load the datasets conditionally based on provided paths.
-
-    Args:
-        config (DatasetCliConfigType): Configuration for datasets.
-        **kwargs: Arbitrary keyword arguments for the dataset.
-
-    Returns:
-        Tuple[Optional[TorchDataset], Optional[TorchDataset]]: Tuple containing the training dataset (if requested)
-        and the testing dataset (if requested).
     """
     dataset_name = _validate_dataset_name(config.dataset_name)
     dataset_type = DatasetType(dataset_name)
-    dataset_obj = DatasetFactory.create_dataset(
+
+    # Only pass preprocessing to the factory
+    train_dataset_obj = DatasetFactory.create_dataset(
+        dataset_type=dataset_type,
+        preprocess_config=config.preprocessing,
+    )
+    test_dataset_obj = DatasetFactory.create_dataset(
         dataset_type=dataset_type,
         preprocess_config=config.preprocessing,
     )
 
-    def load_dataset_part(train: bool, path: Optional[str]) -> Optional[TorchDataset]:
+    def load_dataset_part(dataset_obj: BaseDataset, **kwargs) -> Optional[TorchDataset]:
         try:
-            return dataset_obj.load_dataset(
-                train=train, root=path, download=config.download, **kwargs
-            )
+            return dataset_obj.load_dataset(**kwargs)
         except FileNotFoundError:
             return None
 
-    if isinstance(config, AttacksDatasetCliConfigType):
-        config = cast(AttacksDatasetCliConfigType, config)
-        train_data = (
-            load_dataset_part(train=True, path=config.train_dataset_path)
-            if config.dataset_part in ["train", "all"]
-            else None
-        )
-        test_data = (
-            load_dataset_part(train=False, path=config.test_dataset_path)
-            if config.dataset_part in ["test", "all"]
-            else None
-        )
-    else:
-        train_data = load_dataset_part(train=True, path=config.train_dataset_path)
-        test_data = load_dataset_part(train=False, path=config.test_dataset_path)
+    # Prepare kwargs for splits: exclude dataset_name, preprocessing, train_dataset_path, test_dataset_path
+    config_dict = vars(config)
+    base_exclude = {"preprocessing", "train_dataset_path", "test_dataset_path"}
+    split_base_kwargs = {k: v for k, v in config_dict.items() if k not in base_exclude}
+
+    splits = [
+        ("train", train_dataset_obj, True, config.train_dataset_path),
+        ("test", test_dataset_obj, False, config.test_dataset_path),
+    ]
+
+    train_data, test_data = None, None
+    for split_name, dataset_obj, is_train, path in splits:
+        split_kwargs = dict(split_base_kwargs)  # start with base kwargs
+        split_kwargs["root"] = path
+        split_kwargs["train"] = is_train
+        split_kwargs.update(kwargs)  # allow user to override via function call
+        data = load_dataset_part(dataset_obj, **split_kwargs)
+        if split_name == "train":
+            train_data = data
+        elif split_name == "test":
+            test_data = data
 
     return train_data, test_data
 

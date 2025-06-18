@@ -38,7 +38,7 @@ class HuggingFaceDataset(BaseDataset):
         
         self.mean = None
         self.std = None
-        self.name = "uoft-cs/cifar10"
+        #self.name = "uoft-cs/cifar10"
         self.input_size = (32, 32)
         self.crop_size = (32, 32)
         self.num_classes = 10
@@ -53,18 +53,23 @@ class HuggingFaceDataset(BaseDataset):
         """
         return None
     
-    def load_dataset(self, train: bool = True, root: Optional[str] = None, download: bool = True, **kwargs) -> DatasetWrapper:
+    def load_dataset(self, **kwargs) -> DatasetWrapper:
         """
         Load 'uoft-cs/cifar10' from Hugging Face Hub.
         'root' and 'download' args are ignored.
         """
-        self.data_type = DataType.TRAIN if train else DataType.TEST
-        split_name = 'train' if train else 'test'
+        split_name = kwargs.get("split", "train")
+        dataset_name = kwargs.get("dataset_name")
+
+        try:
+            self.data_type = DataType(split_name.upper())
+        except Exception:
+            self.data_type = None
 
         try:
             # Load raw Hugging Face dataset split
             self._raw_hf_data = hf_hub_load_dataset(
-                path=self.name,
+                path=dataset_name,
                 split=split_name,
             )
             

@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Any, List, Optional, Tuple, Union
+import inspect
 
 import pkg_resources
 import torch
@@ -97,48 +98,43 @@ class BaseDataset(TorchDataset, ABC):
         Returns the dataset class.
         """
 
-    def load_dataset(
-        self,
-        root: Optional[str] = None,
-        train: Optional[bool] = True,
-        download: Optional[bool] = True,
-        **kwargs,
-    ) -> DatasetWrapper:
+    def load_dataset(self, **kwargs) -> DatasetWrapper:
         """
         Loads the dataset.
 
         Args:
-            root (str, optional): The root directory where the dataset should be stored. Defaults to './data'.
-            train (bool, optional): If True, loads the training data. Otherwise, loads the test data. Defaults to True.
-            download (bool, optional): If True, downloads the dataset from the internet. Defaults to True.
             **kwargs: Arbitrary keyword arguments for the dataset.
+                      Common ones: root, train, download, split, etc.
 
         Returns:
             DatasetWrapper: The dataset loaded into memory.
         """
-        if root is None:
-            root = pkg_resources.resource_filename("advsecurenet", "data")
+        if "root" not in kwargs or kwargs["root"] is None:
+            kwargs["root"] = pkg_resources.resource_filename("advsecurenet", "data")
 
         transform = self.get_transforms()
-
         dataset_class = self.get_dataset_class()
 
         dataset = self._create_dataset(
             dataset_class=dataset_class,
             transform=transform,
-            root=root,
-            train=train,
-            download=download,
             **kwargs,
-        )
+    )
+
+        if "train" in kwargs:
+            self.data_type = DataType.TRAIN if kwargs["train"] else DataType.TEST
+        elif "split" in kwargs:
+            try:
+                self.data_type = DataType(kwargs["split"].upper())
+            except Exception:
+                self.data_type = None
 
         self._dataset = DatasetWrapper(dataset=dataset, name=self.name)
-        self.data_type = DataType.TRAIN if train else DataType.TEST
         return self._dataset
 
     def get_transforms(self):
         """Returns the data transforms to be applied to the dataset."""
-        if self._preprocess_config and self._preprocess_config.steps:
+        if self._preprocess_config and self._preprocess_config. steps:
             preprocess_steps = self._preprocess_config.steps
             transform_steps = self._construct_transforms(preprocess_steps)
             return transforms.Compose(transform_steps)
@@ -211,14 +207,19 @@ class BaseDataset(TorchDataset, ABC):
         self,
         dataset_class: datasets,
         transform: transforms.Compose,
-        root: Optional[str] = None,
-        train: Optional[bool] = True,
-        download: Optional[bool] = True,
         **kwargs,
     ):
-        return dataset_class(
-            root=root, train=train, transform=transform, download=download, **kwargs
-        )
+        # Get the argument names for the dataset_class constructor
+        sig = inspect.signature(dataset_class.__init__)
+        valid_args = set(sig.parameters.keys()) - {"self"}
+
+        # Always include 'transform'
+        kwargs["transform"] = transform
+
+        # Filter kwargs to only those accepted by the constructor
+        filtered_kwargs = {k: v for k, v in kwargs.items() if k in valid_args}
+
+        return dataset_class(**filtered_kwargs)
 
     def _available_transforms(self) -> List[str]:
         """
