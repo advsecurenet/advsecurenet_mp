@@ -13,6 +13,7 @@ from advsecurenet.shared.types.configs.preprocess_config import (
     PreprocessStep,
 )
 from advsecurenet.shared.types.dataset import DataType
+from advsecurenet.utils.kwargs_utils import filter_kwargs_for_callable, pop_keys_from_dict, map_kwargs
 
 
 class ImageFolderBaseDataset:
@@ -112,18 +113,15 @@ class BaseDataset(TorchDataset, ABC):
         if "root" not in kwargs or kwargs["root"] is None:
             kwargs["root"] = pkg_resources.resource_filename("advsecurenet", "data")
 
-        transform = self.get_transforms()
+        kwargs["transform"] = self.get_transforms()
+
         dataset_class = self.get_dataset_class()
 
         dataset = self._create_dataset(
             dataset_class=dataset_class,
-            transform=transform,
-            **kwargs,
-    )
+            **kwargs)
 
-        if "train" in kwargs:
-            self.data_type = DataType.TRAIN if kwargs["train"] else DataType.TEST
-        elif "split" in kwargs:
+        if "split" in kwargs:
             try:
                 self.data_type = DataType(kwargs["split"].upper())
             except Exception:
@@ -206,18 +204,10 @@ class BaseDataset(TorchDataset, ABC):
     def _create_dataset(
         self,
         dataset_class: datasets,
-        transform: transforms.Compose,
         **kwargs,
-    ):
-        # Get the argument names for the dataset_class constructor
-        sig = inspect.signature(dataset_class.__init__)
-        valid_args = set(sig.parameters.keys()) - {"self"}
-
-        # Always include 'transform'
-        kwargs["transform"] = transform
-
-        # Filter kwargs to only those accepted by the constructor
-        filtered_kwargs = {k: v for k, v in kwargs.items() if k in valid_args}
+    ):    
+        filtered_kwargs = filter_kwargs_for_callable(
+            dataset_class, kwargs)
 
         return dataset_class(**filtered_kwargs)
 
@@ -258,3 +248,35 @@ class BaseDataset(TorchDataset, ABC):
         if self._dataset:
             return self._dataset[idx]
         raise NotImplementedError("Dataset not loaded or specified.")
+    
+    def _map_split_to_train(self, kwargs: dict) -> dict:
+        """
+        A transformation function that maps a 'split' key to a 'train' boolean key.
+        This is designed to be used with the process_kwargs utility.
+        """
+        if "split" in kwargs:
+            split_value = kwargs.pop("split").lower()
+            if split_value in ["train", "test"]:
+                kwargs["train"] = (split_value == "train")
+        return kwargs
+
+    def process_dataset_kwargs(self, kwargs: dict) -> dict:
+        """
+        Processes and maps generic dataset kwargs to dataset-specific arguments.
+        """
+        mapping = {
+            'split': self._map_split_to_train  # Custom transformation
+        }
+        return map_kwargs(kwargs, mapping)
+
+    def process_kwargs_load_dataset(self, kwargs: dict) -> dict:
+        """
+        Processes kwargs for loading the dataset, mapping generic keys to dataset-specific ones.
+        """
+        # Map generic keys to dataset-specific ones
+        kwargs = self.process_dataset_kwargs(kwargs)
+
+        kwargs = pop_keys_from_dict(
+            kwargs, ["dataset_name", "num_classes"])
+        
+        return kwargs

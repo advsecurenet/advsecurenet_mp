@@ -6,13 +6,13 @@ from advsecurenet.datasets import DatasetFactory
 from advsecurenet.datasets.base_dataset import BaseDataset
 from advsecurenet.shared.types.dataset import DatasetType
 
-from advsecurenet.datasets.HuggingFace import HuggingFaceDataset 
+
 from cli.shared.types.utils.dataset import (
-    AttacksDatasetCliConfigType,
     DatasetCliConfigType,
 )
 
-import advsecurenet.utils.huggingface_utils.huggingface_dataset_utils as huggingface_dataset_utils
+from advsecurenet.utils.huggingface_utils import huggingface_dataset_utils
+from advsecurenet.utils.huggingface_utils import huggingface_general_utils
 
 
 def get_datasets(
@@ -21,8 +21,7 @@ def get_datasets(
     """
     Load the datasets conditionally based on provided paths.
     """
-    dataset_name = _validate_dataset_name(config.dataset_name)
-    dataset_type = DatasetType(dataset_name)
+    dataset_type, config.dataset_name = _validate_dataset_name(config.dataset_name)
 
     # Only pass preprocessing to the factory
     train_dataset_obj = DatasetFactory.create_dataset(
@@ -36,6 +35,7 @@ def get_datasets(
 
     def load_dataset_part(dataset_obj: BaseDataset, **kwargs) -> Optional[TorchDataset]:
         try:
+            kwargs = dataset_obj.process_kwargs_load_dataset(kwargs)
             return dataset_obj.load_dataset(**kwargs)
         except FileNotFoundError:
             return None
@@ -45,21 +45,27 @@ def get_datasets(
     base_exclude = {"preprocessing", "train_dataset_path", "test_dataset_path"}
     split_base_kwargs = {k: v for k, v in config_dict.items() if k not in base_exclude}
 
-    splits = [
-        ("train", train_dataset_obj, True, config.train_dataset_path),
-        ("test", test_dataset_obj, False, config.test_dataset_path),
-    ]
+    splits = []
+    if hasattr(config, "dataset_part"):
+        if getattr(config, "dataset_part", None) in ["train", "all"]:
+            splits.append(("train", train_dataset_obj, getattr(config, "train_dataset_path", None)))
+        if getattr(config, "dataset_part", None) in ["test", "all"]:
+            splits.append(("test", test_dataset_obj, getattr(config, "test_dataset_path", None)))
+    else:
+        splits.append(("train", train_dataset_obj, getattr(config, "train_dataset_path", None)))
+        splits.append(("test", test_dataset_obj, getattr(config, "test_dataset_path", None)))
+
 
     train_data, test_data = None, None
-    for split_name, dataset_obj, is_train, path in splits:
-        split_kwargs = dict(split_base_kwargs)  # start with base kwargs
+    for split, dataset_obj, path in splits:
+        split_kwargs = dict(split_base_kwargs)
         split_kwargs["root"] = path
-        split_kwargs["train"] = is_train
-        split_kwargs.update(kwargs)  # allow user to override via function call
+        split_kwargs["split"] = split
+        split_kwargs.update(kwargs)
         data = load_dataset_part(dataset_obj, **split_kwargs)
-        if split_name == "train":
+        if split == "train":
             train_data = data
-        elif split_name == "test":
+        elif split == "test":
             test_data = data
 
     return train_data, test_data
@@ -148,6 +154,7 @@ def _validate_dataset_name(dataset_name: str) -> str:
     """
     if huggingface_dataset_utils.verify_hf_dataset_identifier_exists(dataset_name):
         dataset_type = "HUGGINGFACE"
+        dataset_name = huggingface_general_utils.process_hf_identifier(dataset_name)
     else:
         dataset_type = dataset_name.upper()
 
@@ -157,4 +164,4 @@ def _validate_dataset_name(dataset_name: str) -> str:
         raise ValueError(
             f"Unsupported dataset type! Entered dataset name: {dataset_name}. ")
 
-    return dataset_type
+    return dataset_type, dataset_name

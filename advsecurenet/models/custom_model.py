@@ -1,9 +1,9 @@
 import importlib
 import os
-import inspect
 
 from advsecurenet.models.base_model import BaseModel
 from advsecurenet.shared.types.configs.model_config import CustomModelConfig
+from advsecurenet.utils.kwargs_utils import filter_kwargs_for_callable
 
 
 class CustomModel(BaseModel):
@@ -45,7 +45,7 @@ class CustomModel(BaseModel):
 
         model_class = getattr(custom_module, self._model_name)
 
-        filtered_architecture = self._filter_architecture_params(model_class, self._architecture, self._model_name)
+        filtered_architecture = filter_kwargs_for_callable(model_class, self._architecture, self._model_name)
         self.model = model_class(**filtered_architecture)
 
         # Perform necessary modifications after model load

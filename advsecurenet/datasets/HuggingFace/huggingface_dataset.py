@@ -1,6 +1,7 @@
 from typing import Optional, Any, Dict # Added Any, Dict
 import torch # Added torch
 from datasets import load_dataset as hf_hub_load_dataset
+from advsecurenet.utils.kwargs_utils import map_kwargs, filter_kwargs_for_callable
 
 from advsecurenet.datasets.base_dataset import BaseDataset, DatasetWrapper
 from advsecurenet.shared.types.configs.preprocess_config import PreprocessConfig
@@ -38,7 +39,6 @@ class HuggingFaceDataset(BaseDataset):
         
         self.mean = None
         self.std = None
-        #self.name = "uoft-cs/cifar10"
         self.input_size = (32, 32)
         self.crop_size = (32, 32)
         self.num_classes = 10
@@ -58,34 +58,25 @@ class HuggingFaceDataset(BaseDataset):
         Load 'uoft-cs/cifar10' from Hugging Face Hub.
         'root' and 'download' args are ignored.
         """
-        split_name = kwargs.get("split", "train")
-        dataset_name = kwargs.get("dataset_name")
-
-        try:
-            self.data_type = DataType(split_name.upper())
-        except Exception:
-            self.data_type = None
+        filtered_kwargs = filter_kwargs_for_callable(
+            hf_hub_load_dataset, kwargs)
 
         try:
             # Load raw Hugging Face dataset split
-            self._raw_hf_data = hf_hub_load_dataset(
-                path=dataset_name,
-                split=split_name,
-            )
-            
-            # Get and store torchvision transforms
-            self._transforms_to_apply = self.get_transforms()
-            
-            self._dataset = DatasetWrapper(dataset=self, name=self.name)
-            return self._dataset
+            self._raw_hf_data = hf_hub_load_dataset(**filtered_kwargs)
         
-
         except Exception as e:
             # Print the actual Hugging Face error if possible
             hf_error_msg = ""
             if hasattr(e, 'args') and e.args:
                 hf_error_msg = str(e.args[0])
-            raise ValueError(f"Error loading Hugging Face dataset '{self.name}' (split: {split_name}): {str(e)}. HF Message: {hf_error_msg}") from e
+            raise ValueError(f"Error loading Hugging Face dataset '{self.name}': {str(e)}. HF Message: {hf_error_msg}") from e
+            
+        # Get and store torchvision transforms
+        self._transforms_to_apply = self.get_transforms()
+            
+        self._dataset = DatasetWrapper(dataset=self, name=self.name)
+        return self._dataset
         
     
     def _create_dataset(self, dataset_class, transform, root, train, download, **kwargs):
@@ -128,3 +119,19 @@ class HuggingFaceDataset(BaseDataset):
         label_tensor = torch.tensor(label_data).long()
             
         return image_data, label_tensor
+    
+    def process_dataset_kwargs(self, kwargs: dict) -> dict:
+        """
+        Processes kwargs for Hugging Face datasets, mapping 'dataset_name' to 'path'.
+        """
+        mapping = {
+            'dataset_name': 'path' 
+        }
+        return map_kwargs(kwargs, mapping)
+    
+    def process_kwargs_load_dataset(self, kwargs: dict) -> dict:
+        """
+        Processes kwargs for loading the Hugging Face dataset.
+        """
+        # Map generic keys to dataset-specific ones
+        return self.process_dataset_kwargs(kwargs)

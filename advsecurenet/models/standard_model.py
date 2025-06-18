@@ -7,6 +7,8 @@ from torchvision.models._api import get_model_weights
 from advsecurenet.models.base_model import BaseModel
 from advsecurenet.shared.types.configs.model_config import StandardModelConfig
 
+from advsecurenet.utils.kwargs_utils import filter_kwargs_for_callable
+
 
 class StandardModel(BaseModel):
     """
@@ -48,7 +50,7 @@ class StandardModel(BaseModel):
                 self._architecture["num_classes"] != self.infer_num_classes()):
                 self.modify_model()
         else:
-            filtered_architecture = self._filter_architecture_params(model_fn, self._architecture, self._model_name)
+            filtered_architecture = filter_kwargs_for_callable(model_fn, self._architecture, self._model_name)
             self.model = model_fn(**filtered_architecture)
 
     def modify_model(self):

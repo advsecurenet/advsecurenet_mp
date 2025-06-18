@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 from functools import wraps
 from typing import List, Optional, Tuple
-import inspect
 
 import torch
 from torch import nn
@@ -218,38 +217,3 @@ class BaseModel(ABC, nn.Module):
             return self.model.fc.out_features
 
         return None
-    
-    def _filter_architecture_params(self, model_class: type, architecture: dict, model_name: str) -> nn.Module:
-        """
-        Filter the architectures parameters that don't match with the model_class parameters
-        to match the model's __init__ signature.
-
-        Args:
-            model_class (type): The model class to instantiate.
-            architecture (dict): The dictionary of parameters to potentially pass to the model's __init__.
-            model_name (str): The name of the model (used for error messages).
-
-        Returns:
-            nn.Module: The instantiated model.
-
-        Raises:
-            RuntimeError: If inspection or instantiation fails.
-        """
-        try:
-            # Get the signature of the model's __init__ method
-            # Handle cases where __init__ might be inherited or not explicitly defined
-            init_method = getattr(model_class, '__init__', object.__init__)
-            sig = inspect.signature(init_method)
-            accepted_params = set(sig.parameters.keys())
-            # Remove 'self' if present, as it's implicitly passed
-            accepted_params.discard('self')
-
-            # Filter the architecture dictionary to include only accepted parameters
-            filtered_architecture = {
-                k: v for k, v in architecture.items() if k in accepted_params
-            }
-            return filtered_architecture
-
-        except Exception as e:
-             # Catch potential errors during inspection or instantiation
-             raise RuntimeError(f"Failed to inspect or instantiate model {model_name} with provided architecture: {e}") from e
