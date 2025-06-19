@@ -22,11 +22,10 @@ import torch.multiprocessing as mp
 from absl import app
 from ml_collections import config_flags
 
-from llm_attacks import (AttackPrompt,
-                        MultiPromptAttack,
-                        PromptManager,
-                        EvaluateAttack)
-from llm_attacks import (get_goals_and_targets, get_workers)
+from advsecurenet.llm.core.model_manager.model_manager import AttackPrompt, PromptManager
+from advsecurenet.llm.core.attack_manager.multi_prompt_attack import MultiPromptAttack
+from advsecurenet.llm.core.attack_manager.attack_manager import (EvaluateAttack, get_goals_and_targets, get_workers)
+
 
 _CONFIG = config_flags.DEFINE_config_file('config')
 
