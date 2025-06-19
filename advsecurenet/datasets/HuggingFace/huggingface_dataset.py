@@ -55,8 +55,7 @@ class HuggingFaceDataset(BaseDataset):
     
     def load_dataset(self, **kwargs) -> DatasetWrapper:
         """
-        Load 'uoft-cs/cifar10' from Hugging Face Hub.
-        'root' and 'download' args are ignored.
+        Load dataset from Hugging Face Hub.
         """
         filtered_kwargs = filter_kwargs_for_callable(
             hf_hub_load_dataset, kwargs)

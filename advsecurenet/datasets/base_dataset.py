@@ -132,7 +132,7 @@ class BaseDataset(TorchDataset, ABC):
 
     def get_transforms(self):
         """Returns the data transforms to be applied to the dataset."""
-        if self._preprocess_config and self._preprocess_config. steps:
+        if self._preprocess_config and self._preprocess_config.steps:
             preprocess_steps = self._preprocess_config.steps
             transform_steps = self._construct_transforms(preprocess_steps)
             return transforms.Compose(transform_steps)

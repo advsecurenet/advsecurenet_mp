@@ -1,4 +1,4 @@
-from typing import Optional, Tuple, cast
+from typing import Optional, Tuple, Dict
 
 from torch.utils.data import Dataset as TorchDataset
 
@@ -8,65 +8,105 @@ from advsecurenet.shared.types.dataset import DatasetType
 
 
 from cli.shared.types.utils.dataset import (
-    DatasetCliConfigType,
+    CreateDatasetCliConfigType,
 )
 
 from advsecurenet.utils.huggingface_utils import huggingface_dataset_utils
 from advsecurenet.utils.huggingface_utils import huggingface_general_utils
 
+from cli.shared.types.utils.dataset import determine_identifier_and_soruce, ResolvedSplitConfig, DatasetFinalType
+
 
 def get_datasets(
-    config: DatasetCliConfigType, **kwargs
+    config: CreateDatasetCliConfigType, **kwargs
 ) -> Tuple[Optional[TorchDataset], Optional[TorchDataset]]:
     """
     Load the datasets conditionally based on provided paths.
     """
     dataset_type, config.dataset_name = _validate_dataset_name(config.dataset_name)
 
-    # Only pass preprocessing to the factory
-    train_dataset_obj = DatasetFactory.create_dataset(
-        dataset_type=dataset_type,
-        preprocess_config=config.preprocessing,
-    )
-    test_dataset_obj = DatasetFactory.create_dataset(
-        dataset_type=dataset_type,
-        preprocess_config=config.preprocessing,
-    )
 
-    def load_dataset_part(dataset_obj: BaseDataset, **kwargs) -> Optional[TorchDataset]:
-        try:
-            kwargs = dataset_obj.process_kwargs_load_dataset(kwargs)
-            return dataset_obj.load_dataset(**kwargs)
-        except FileNotFoundError:
-            return None
+    identifier, _ = determine_identifier_and_soruce(config)
 
-    # Prepare kwargs for splits: exclude dataset_name, preprocessing, train_dataset_path, test_dataset_path
-    config_dict = vars(config)
-    base_exclude = {"preprocessing", "train_dataset_path", "test_dataset_path"}
-    split_base_kwargs = {k: v for k, v in config_dict.items() if k not in base_exclude}
-
-    splits = []
-    if hasattr(config, "dataset_part"):
-        if getattr(config, "dataset_part", None) in ["train", "all"]:
-            splits.append(("train", train_dataset_obj, getattr(config, "train_dataset_path", None)))
-        if getattr(config, "dataset_part", None) in ["test", "all"]:
-            splits.append(("test", test_dataset_obj, getattr(config, "test_dataset_path", None)))
+    if config.splits is None and config.split_config is None:
+        splits = ["train", "test"]
+    elif len(config.splits) > 2:
+        splits = config.splits[:2]
+        Warning(
+            f"More than 2 splits provided: {config.splits}. Only the first two splits will be used: {splits}.")
     else:
-        splits.append(("train", train_dataset_obj, getattr(config, "train_dataset_path", None)))
-        splits.append(("test", test_dataset_obj, getattr(config, "test_dataset_path", None)))
+        splits = config.splits
+
+    if config.split_config is not None and len(config.split_config) > 2:
+        Warning(
+            f"More than 2 split configurations provided: {config.split_config}. Only the first two will be used: {config.split_config[:2]}.")
+
+    internal_splits = ["train", "test"]
+
+    final_config = DatasetFinalType(
+        dataset_name=config.dataset_name,
+        splits={},
+    )
+    if config.split_config is None:
+        for split_name, internal_name in zip(splits, internal_splits):
+            split = ResolvedSplitConfig(
+                identifier=identifier,
+                split=split_name,
+                preprocessing=config.preprocessing,
+                kwargs=config.dataset_arguments or {},
+                num_classes=config.num_classes
+            )
+            final_config.splits[internal_name] = split
+    else:
+        # If a specific split config is provided, map its entries to our internal roles.
+        user_split_configs = list(config.split_config.values())
+        for i, internal_name in enumerate(internal_splits):
+            if i >= len(user_split_configs):
+                break  # Stop if the user provided fewer splits than we have internal roles for.
+
+            user_config = user_split_configs[i]
+
+            # Create a ResolvedSplitConfig by overriding global settings with split-specific ones.
+            resolved_split = ResolvedSplitConfig(
+                identifier=user_config.identifier or identifier,
+                split=user_config.split_name,
+                preprocessing=user_config.preprocessing or config.preprocessing,
+                kwargs=user_config.dataset_arguments or config.dataset_arguments or {},
+                num_classes=config.num_classes 
+            )
+            final_config.splits[internal_name] = resolved_split
 
 
-    train_data, test_data = None, None
-    for split, dataset_obj, path in splits:
-        split_kwargs = dict(split_base_kwargs)
-        split_kwargs["root"] = path
-        split_kwargs["split"] = split
-        split_kwargs.update(kwargs)
-        data = load_dataset_part(dataset_obj, **split_kwargs)
-        if split == "train":
-            train_data = data
-        elif split == "test":
-            test_data = data
+    loaded_datasets: Dict[str, Optional[TorchDataset]] = {}
+    for logical_name, resolved_config in final_config.splits.items():
+        try:
+            # 1. Determine the dataset type for this specific split
+            dataset_type, processed_identifier = _validate_dataset_name(resolved_config.identifier)
+
+            # 2. Create the dataset provider object
+            dataset_provider = DatasetFactory.create_dataset(
+                dataset_type=dataset_type,
+                preprocess_config=resolved_config.preprocessing,
+            )
+
+            # 3. Prepare arguments for the load_dataset method
+            load_kwargs = resolved_config.kwargs.copy()
+            load_kwargs['dataset_name'] = processed_identifier
+            load_kwargs['split'] = resolved_config.split
+            load_kwargs.update(kwargs)
+
+            # 4. Process kwargs and load the dataset
+            processed_load_kwargs = dataset_provider.process_kwargs_load_dataset(load_kwargs)
+            dataset = dataset_provider.load_dataset(**processed_load_kwargs)
+            loaded_datasets[logical_name] = dataset
+
+        except Exception as e:
+            print(f"Warning: Could not load dataset for split '{logical_name}'. Error: {e}")
+            loaded_datasets[logical_name] = None
+
+    # Extract train and test data to return as a tuple for backward compatibility
+    train_data = loaded_datasets.get("train")
+    test_data = loaded_datasets.get("test")
 
     return train_data, test_data
 
