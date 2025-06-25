@@ -1,56 +1,43 @@
-from typing import Optional, Any, Dict # Added Any, Dict
-import torch # Added torch
-from datasets import load_dataset as hf_hub_load_dataset
-from advsecurenet.utils.kwargs_utils import map_kwargs, filter_kwargs_for_callable
+from typing import Optional, Any, Dict, List, Tuple
+import torch
 
+from datasets import load_dataset as hf_hub_load_dataset
+
+from advsecurenet.utils.kwargs_utils import map_kwargs, filter_kwargs_for_callable, pop_keys_from_dict
 from advsecurenet.datasets.base_dataset import BaseDataset, DatasetWrapper
 from advsecurenet.shared.types.configs.preprocess_config import PreprocessConfig
-from advsecurenet.shared.types.dataset import DataType
+ 
 
 
 class HuggingFaceDataset(BaseDataset):
-    """
-    A dataset class for Hugging Face datasets.
-    
-    This class provides functionality to load datasets from the Hugging Face Hub.
-    It supports various dataset types and can be used with any dataset available
-    on the Hugging Face Hub.
-    """
-    
+    # ... (docstring)
     def __init__(
         self,
-        preprocess_config: Optional[PreprocessConfig] = None):
-        """
-        Initialize a HuggingFaceDataset.
-        
-        Args:
-            preprocess_config (Optional[PreprocessConfig]): Configuration for preprocessing.
-            num_classes (int, optional): Number of classes in the dataset.
-            num_input_channels (int, optional): Number of input channels.
-            input_size (Tuple[int, int], optional): Input size.
-            mean (List[float], optional): Mean for normalization.
-            std (List[float], optional): Standard deviation for normalization.
-            
-        Raises:
-            ValueError: If huggingface_config is not provided.
-        """
-        
+        preprocess_config: Optional[PreprocessConfig] = None,
+        num_classes: Optional[int] = None,
+        num_input_channels: int = 3,
+        input_size: Tuple[int, int] = (32, 32),
+        mean: Optional[List[float]] = None,
+        std: Optional[List[float]] = None,
+        input_key: str = 'image',
+        target_key: str = 'label',
+        **kwargs # To catch other unused args
+    ):
         super().__init__(preprocess_config)
-        
-        self.mean = None
-        self.std = None
-        self.input_size = (32, 32)
-        self.crop_size = (32, 32)
-        self.num_classes = 10
-        self.num_input_channels = 3
 
-        self._image_key = 'img'
-        self._label_key = 'label'
+        self.num_classes = num_classes
+        self.num_input_channels = num_input_channels
+        self.input_size = input_size
+        self.crop_size = input_size
+        self.mean = mean or [0.5] * self.num_input_channels
+        self.std = std or [0.5] * self.num_input_channels
+        self._input_key = input_key
+        self._target_key = target_key
 
     def get_dataset_class(self):
         """
         Not used by this HuggingFaceDataset's custom load_dataset flow.
-        """
+        """ 
         return None
     
     def load_dataset(self, **kwargs) -> DatasetWrapper:
@@ -103,21 +90,21 @@ class HuggingFaceDataset(BaseDataset):
         
         item: Dict[str, Any] = self._raw_hf_data[idx]
         
-        image_data = item.get(self._image_key)
-        if image_data is None:
-            raise KeyError(f"Image key '{self._image_key}' not found in dataset item at index {idx}. Available keys: {list(item.keys())}")
+        input_data = item.get(self._input_key)
+        if input_data is None:
+            raise KeyError(f"Image key '{self._input_key}' not found in dataset item at index {idx}. Available keys: {list(item.keys())}")
 
         if self._transforms_to_apply:
-            image_data = self._transforms_to_apply(image_data)
+            input_data = self._transforms_to_apply(input_data)
 
-        label_data = item.get(self._label_key)
-        if label_data is None:
-            raise KeyError(f"Label key '{self._label_key}' not found in dataset item at index {idx}. Available keys: {list(item.keys())}")
+        target_data = item.get(self._target_key)
+        if target_data is None:
+            raise KeyError(f"Label key '{self._target_key}' not found in dataset item at index {idx}. Available keys: {list(item.keys())}")
         
         # Convert label to tensor
-        label_tensor = torch.tensor(label_data).long()
+        label_tensor = torch.tensor(target_data).long()
             
-        return image_data, label_tensor
+        return input_data, label_tensor
     
     def process_dataset_kwargs(self, kwargs: dict) -> dict:
         """
@@ -126,7 +113,12 @@ class HuggingFaceDataset(BaseDataset):
         mapping = {
             'dataset_name': 'path' 
         }
-        return map_kwargs(kwargs, mapping)
+        processed_kwargs = map_kwargs(kwargs, mapping)
+
+        popped_keys = ["download", "root"]
+        processed_kwargs = pop_keys_from_dict(processed_kwargs, popped_keys)
+
+        return processed_kwargs
     
     def process_kwargs_load_dataset(self, kwargs: dict) -> dict:
         """

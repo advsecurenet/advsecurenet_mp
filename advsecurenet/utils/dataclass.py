@@ -103,6 +103,13 @@ def process_optional_field(args, value):
     actual_type = next(arg for arg in args if arg is not type(None))
     if is_dataclass(actual_type) and isinstance(value, dict):
         return recursive_dataclass_instantiation(actual_type, value)
+    elif (
+        get_origin(actual_type) is dict
+        and isinstance(value, dict)
+        and is_dataclass(get_args(args[0])[1])
+    ):
+        return {k: recursive_dataclass_instantiation(get_args(args[0])[1], v) for k, v in value.items()}
+    
     return value
 
 

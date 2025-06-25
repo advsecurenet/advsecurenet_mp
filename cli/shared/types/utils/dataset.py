@@ -1,120 +1,165 @@
-from dataclasses import dataclass
-from typing import Optional, List, Dict, Any, Tuple
+from dataclasses import dataclass, field
+from typing import Optional, List, Dict, Any
 from enum import Enum, auto
 
 from advsecurenet.shared.types.configs.preprocess_config import PreprocessConfig
 
+# ----------------------------------------------------------------
+# 1. User-Facing Configuration Classes (for YAML files)
+# ----------------------------------------------------------------
+
 @dataclass
-class BaseDatasetCliConfigType:
+class BaseDatasetCliConfig:
+    """
+    Base configuration containing the most essential, non-optional dataset properties.
+    """
     dataset_name: str
     num_classes: int
     preprocessing: Optional[PreprocessConfig] = None
 
-    
 @dataclass
 class UserSplitConfig:
     """
-    User-provided configuration to override global settings for a specific split.
-    All fields are optional. In a YAML file, this would be a dictionary under a
-    logical split name (e.g., 'train', 'test').
+    User-provided overrides for a single logical split (e.g., 'train' or 'test').
+    Any field set here will override the global setting for that specific split.
     """
-    #source: Optional[str] = None
+    # The name of the dataset to use for this split, if different from the global one.
     identifier: Optional[str] = None
+    # The actual split name required by the library (e.g., 'validation' for a logical 'test' split).
     split_name: Optional[str] = None
+    # Custom preprocessing configuration for this split.
     preprocessing: Optional[PreprocessConfig] = None
-    dataset_arguments: Optional[Dict[str, Any]] = None
+    # Library-specific keyword arguments for this split (e.g., for HuggingFace).
+    dataset_kwargs: Optional[Dict[str, Any]] = None
+    # Additional constructor arguments for the dataset class, if needed.
+    constructor_args: Optional[Dict[str, Any]] = field(default_factory=dict)
+
+@dataclass
+class CreateDatasetCliConfig(BaseDatasetCliConfig):
+    """
+    The comprehensive, user-facing configuration for creating datasets, typically
+    loaded from a YAML file. It supports both simple and advanced setups.
+    """
+    # An optional, alternative identifier for the dataset (e.g., a HuggingFace repo ID).
+    # If provided, this will be used instead of `dataset_name` for loading.
+    identifier: Optional[str] = None
+    # Global library-specific keyword arguments that apply to all splits.
+    dataset_kwargs: Optional[Dict[str, Any]] = field(default_factory=dict)
+    # Additional constructor arguments for the dataset class, if needed.
+    constructor_args: Optional[Dict[str, Any]] = field(default_factory=dict)
+    # A dictionary of split-specific overrides. The keys are the logical split names
+    # (e.g., "train") and the values are UserSplitConfig objects.
+    split_config: Optional[Dict[str, UserSplitConfig]] = None
+    load_splits: List[str] = field(default_factory=list)
+    # Attack-specific: The size of the random sample to take from the dataset.
+    random_sample_size: Optional[int] = None
+
+@dataclass
+class AttacksDatasetCliConfig(CreateDatasetCliConfig):
+    """
+    A specialized configuration for attacks, adding attack-specific parameters.
+    """
+    random_sample_size: Optional[int] = None
+
+# ----------------------------------------------------------------
+# 2. Internal, Resolved Configuration Classes (for application use)
+# ----------------------------------------------------------------
 
 @dataclass
 class ResolvedSplitConfig:
-    """Internal, fully-resolved configuration for a single dataset split."""
-    #source: Optional[str] = None
+    """
+    Internal, fully-resolved configuration for a single dataset split.
+    This object contains all the final, unambiguous settings needed to load one split.
+    """
     identifier: str
-    split: str
-    preprocessing: Optional[PreprocessConfig]
-    kwargs: Dict[str, Any]
     num_classes: int
+    source_split_name: Optional[str] = None
+    preprocessing: Optional[PreprocessConfig] = None
+    kwargs: Optional[Dict[str, Any]] = field(default_factory=dict)
+    constructor_args: Optional[Dict[str, Any]] = field(default_factory=dict)
 
 @dataclass
-class DatasetFinalType:
+class ResolvedDatasetConfig:
+    """
+    The final, resolved configuration object used by the application's loading logic.
+    It is the result of processing a CreateDatasetCliConfig.
+    """
     dataset_name: str
-    splits: dict[splits: str, ResolvedSplitConfig] = None
-
-@dataclass
-class AttacksDatasetCliConfigType(DatasetFinalType):
-    """
-    This dataclass is used to store the configuration of the dataset CLI used for attacks. It extends the DatasetCliConfigType. In addition to the attributes of the DatasetCliConfigType, it has the following attributes:
-
-    Attributes:
-        dataset_part (Optional[str]): The part of the dataset to be used for the attack. it can be train, test or all. This is valid if the dataset paths are not provided.
-        random_sample_size (Optional[int]): The size of the random sample to be taken from the dataset.
-
-    """
-
-    dataset_part: Optional[str] = "test"
+    splits: Dict[str, ResolvedSplitConfig]
     random_sample_size: Optional[int] = None
 
-
-@dataclass()
-class CreateDatasetCliConfigType():
-    """
-    This dataclass is used to store the configuration of the dataset CLI.
-    It extends the DatasetCliConfigType with Hugging Face specific attributes.
-
-    Attributes:
-        (Optinal) dataset_config (dict): The configuration for the Hugging Face dataset. Takes all the arguments of the datasets.load_dataset function
-    """
-
-    #source: Optional[str] = None
-    dataset_name: str = None
-    num_classes: int = 10
-
-    identifier: Optional[str] = None
-    splits: Optional[List] = None
-    preprocessing: Optional[PreprocessConfig] = None
-    dataset_arguments: Optional[Dict[str, Any]] = None
-
-    split_config: Optional[Dict[str, UserSplitConfig]] = None
-
-
+# ----------------------------------------------------------------
+# 3. Helper Enums and Functions
+# ----------------------------------------------------------------
 
 class IdentifierSource(Enum):
-    DATASET_IDENTIFIER = auto()
-    DATASET_NAME = auto()
+    """Enumeration to track the source of the dataset identifier."""
+    IDENTIFIER = auto()
+    NAME = auto()
 
-@staticmethod
-def determine_identifier_and_soruce(config: CreateDatasetCliConfigType):
+def determine_identifier_and_source(config: CreateDatasetCliConfig) -> tuple[str, IdentifierSource]:
+    """Determines the primary dataset identifier to use from the configuration."""
     if config.identifier:
-        identifier = config.identifier
-        source = IdentifierSource.DATASET_IDENTIFIER
+        return config.identifier, IdentifierSource.IDENTIFIER
+    return config.dataset_name, IdentifierSource.NAME
+
+def resolve_dataset_config(config: CreateDatasetCliConfig) -> ResolvedDatasetConfig:
+    """
+    Resolves a user-facing CreateDatasetCliConfig into a structured,
+    internal ResolvedDatasetConfig. It applies global defaults and handles
+    split-specific overrides.
+    """
+    identifier, _ = determine_identifier_and_source(config)
+
+    if not config.load_splits and config.split_config is None:
+        splits = ["train", "test"]
+    elif len(config.load_splits) > 2:
+        splits = config.load_splits[:2]
+        Warning(
+            f"More than 2 splits provided: {config.load_splits}. Only the first two splits will be used: {splits}.")
     else:
-        identifier = config.dataset_name
-        source = IdentifierSource.DATASET_NAME
-    return identifier, source
+        splits = config.load_splits
 
+    if config.split_config is not None and len(config.split_config) > 2:
+        Warning(
+            f"More than 2 split configurations provided: {config.split_config}. Only the first two will be used: {config.split_config[:2]}.")
 
+    internal_splits = ["train", "test"]
 
-"""@dataclass
-class DatasetCliConfigType(BaseDatasetCliConfigType):
-    """"""
-    This dataclass is used to store the configuration of the dataset CLI.
-    """"""
-    train_dataset_path: Optional[str] = None
-    test_dataset_path: Optional[str] = None
-    """
+    final_splits = {}
+    if config.split_config is None:
+        for split_name, internal_name in zip(splits, internal_splits):
+            split = ResolvedSplitConfig(
+                identifier=identifier,
+                source_split_name=split_name,
+                preprocessing=config.preprocessing,
+                kwargs=config.dataset_kwargs or {},
+                num_classes=config.num_classes,
+                constructor_args=config.constructor_args or {}
+            )
+            final_splits[internal_name] = split
+    else:
+        # If a specific split config is provided, map its entries to our internal roles.
+        user_split_configs = list(config.split_config.values())
+        for i, internal_name in enumerate(internal_splits):
+            if i >= len(user_split_configs):
+                break  # Stop if the user provided fewer splits than we have internal roles for.
 
-"""@dataclass()
-class HuggingFaceDatasetInputCliConfigType(BaseDatasetCliConfigType):
-    """"""
-    This dataclass is used to store the configuration of the Hugging Face dataset CLI.
-    It extends the DatasetCliConfigType with Hugging Face specific attributes.
+            user_config = user_split_configs[i]
 
-    Attributes:
-        (Optinal) dataset_config (dict): The configuration for the Hugging Face dataset. Takes all the arguments of the datasets.load_dataset function
-    """"""
+            # Create a ResolvedSplitConfig by overriding global settings with split-specific ones.
+            resolved_split = ResolvedSplitConfig(
+                identifier=user_config.identifier or identifier,
+                source_split_name=user_config.split_name,
+                preprocessing=user_config.preprocessing or config.preprocessing,
+                kwargs=user_config.dataset_kwargs or config.dataset_kwargs or {},
+                num_classes=config.num_classes,
+                constructor_args=user_config.constructor_args or config.constructor_args or {}
+            )
+            final_splits[internal_name] = resolved_split
 
-    dataset_config: Optional[dict] = None
-
-@dataclass(kw_only=True)
-class HuggingFaceDatasetResolvedCliConfigType(HuggingFaceDatasetInputCliConfigType):
-    dataset_id: str
-    """
+    return ResolvedDatasetConfig(
+        dataset_name=config.dataset_name,
+        splits=final_splits,
+        random_sample_size=config.random_sample_size
+    )
