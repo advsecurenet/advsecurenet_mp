@@ -54,8 +54,18 @@ class TOG(ObjectDetectionAttack):
             if mode.lower() == 'll':
                 adv_class = np.argmin(logits, axis=1)
             else:
-                logits[softmax(logits, axis=1) > confidence_threshold] = np.finfo(np.float32).min
-                adv_class = np.argmax(logits, axis=1)
+                adv_class = []
+                orig_class = detection["labels"]
+                for i in range(num_boxes):
+                    label = orig_class[i]
+                    print(f"Detection {i}: label={label}, logits.shape={logits[i].shape}, logits.shape[1]={logits.shape[1]}")
+                    if label >= logits.shape[1]:
+                        print(f"WARNING: label {label} is out of bounds for logits with shape {logits.shape}")
+                        continue  # Skip this detection
+                    logit_row = logits[i].copy()
+                    logit_row[label] = -np.inf  # Exclude original class
+                    adv_class.append(np.argmax(logit_row))
+                adv_class = np.array(adv_class)
             # Optionally only target a specific class
             if class_id is not None:
                 if logits.shape[1] % 10 == 1:
@@ -99,13 +109,14 @@ class TOG(ObjectDetectionAttack):
         """
         if np.max(x) > 1.0:
             x = x / 255.0
+        y = kwargs.get('y')
         match tog_variant:
             case TOGAttackType.VANISHING:
                 return self.tog_vanishing(x_query=x, n_iter=self.max_iter, eps=self.eps, eps_iter=self.eps_iter)
             case TOGAttackType.FABRICATION:
                 return self.tog_fabrication(x_query=x, n_iter=self.max_iter, eps=self.eps, eps_iter=self.eps_iter)
             case TOGAttackType.MISLABELING:
-                return self.tog_mislabeling(x_query=x, mode=tog_mislabeling_mode, n_iter=self.max_iter, eps=self.eps, eps_iter=self.eps_iter)
+                return self.tog_mislabeling(x_query=x, y=y, mode=tog_mislabeling_mode, n_iter=self.max_iter, eps=self.eps, eps_iter=self.eps_iter)
             case TOGAttackType.UNTARGETED:
                 return self.tog_untargeted(x_query=x, n_iter=self.max_iter, eps=self.eps, eps_iter=self.eps_iter)
 
@@ -133,27 +144,11 @@ class TOG(ObjectDetectionAttack):
             x_adv = np.clip(x_query + eta, 0.0, 1.0)
         return x_adv
     
-
-    def tog_mislabeling(self, x_query, mode, n_iter=10, eps=8/255., eps_iter=2/255.):
-        # Handle batch of images by iterating
-        if x_query.ndim == 4 and x_query.shape[0] > 1:
-            adv_images_batch = []
-            for i in range(x_query.shape[0]):
-                # Process each image individually by calling the same function
-                single_x_query_batch = np.expand_dims(x_query[i], axis=0)
-                adv_img = self.tog_mislabeling(single_x_query_batch, mode, n_iter, eps, eps_iter)
-                adv_images_batch.append(adv_img.squeeze(0))
-            return np.stack(adv_images_batch, axis=0)
-        # Original logic for a single image
-        x_uint8 = (x_query * 255.0).clip(0,255).astype(np.uint8)
-        detections_query = self.object_detector.predict(x_uint8)
-        detections_target = TOG.generate_attack_targets(detections_query, mode=mode, confidence_threshold=self.object_detector.conf_thresh, class_id=None)
-        if detections_target.shape[0] == 0:
-            return x_query
+    def tog_mislabeling(self, x_query, y, mode, n_iter=10, eps=8/255., eps_iter=2/255.):
         eta = np.random.uniform(-eps, eps, size=x_query.shape)
         x_adv = np.clip(x_query + eta, 0.0, 1.0)
         for _ in range(n_iter):
-            grad = self.object_detector.compute_object_mislabeling_gradient(x_adv, detections=detections_target)
+            grad = self.object_detector.compute_object_mislabeling_gradient(x_adv, detections=y)
             signed_grad = np.sign(grad)
             x_adv -= eps_iter * signed_grad
             eta = np.clip(x_adv - x_query, -eps, eps)

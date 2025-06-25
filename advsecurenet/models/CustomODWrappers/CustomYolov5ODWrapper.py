@@ -1,6 +1,9 @@
 import torch
+import torchvision
 import torch.nn.functional as F
 import yolov5
+from yolov5.models.common import AutoShape
+from yolov5.utils.general import xywh2xyxy
 import numpy as np
 from torch.utils.data import TensorDataset, DataLoader
 from advsecurenet.models.CustomODWrappers.ODWrapper import ODWrapper
@@ -98,12 +101,14 @@ class CustomYolov5ODWrapper(ODWrapper):
                     torch.minimum((pred[:, 1] + pred[:, 3] / 2), torch.tensor(width, device=self.device)),
                 ]
             ).permute((1, 0))
+            logits = pred[:, 5:]
             labels = torch.argmax(pred[:, 5:], dim=1)
             scores = pred[:, 4]
             pred_dict = {
                 "boxes": boxes.detach().cpu().numpy(),
                 "labels": labels.detach().cpu().numpy(),
                 "scores": scores.detach().cpu().numpy(),
+                "logits": logits.detach().cpu().numpy(),
             }
             predictions_x1y1x2y2.append(pred_dict)
         return predictions_x1y1x2y2
@@ -144,6 +149,54 @@ class CustomYolov5ODWrapper(ODWrapper):
             grads = grads / self.clip_values[1]
         assert grads.shape == x.shape
         return grads
+
+
+    def _predict_with_logits(self, x_tensor: torch.Tensor) -> list[dict[str, np.ndarray]]:
+        """
+        Internal prediction method that guarantees full logits are returned.
+        It uses the raw model and performs manual NMS.
+        """
+        self.model.eval()
+        final_predictions = []
+        with torch.no_grad():
+            raw_pred = self.model(x_tensor)[0]
+            conf_thres = self.conf_thresh
+            iou_thres = 0.45  # Standard NMS IoU threshold
+            max_det = 1000
+
+            bs = raw_pred.shape[0]
+            nc = raw_pred.shape[2] - 5
+            xc = raw_pred[..., 4] > conf_thres
+
+            for i in range(bs):
+                x = raw_pred[i][xc[i]]
+                if not x.shape[0]:
+                    final_predictions.append({
+                        "boxes": np.empty((0, 4)), "scores": np.empty((0,)),
+                        "labels": np.empty((0,), dtype=int), "logits": np.empty((0, nc))
+                    })
+                    continue
+
+                x[:, 5:] *= x[:, 4:5]
+                box = xywh2xyxy(x[:, :4])
+                conf, j = x[:, 5:].max(1, keepdim=True)
+                
+                nms_indices = torchvision.ops.nms(box, conf.view(-1), iou_thres)
+                if nms_indices.shape[0] > max_det:
+                    nms_indices = nms_indices[:max_det]
+                
+                final_dets = x[nms_indices]
+                final_boxes = xywh2xyxy(final_dets[:, :4])
+                final_logits = final_dets[:, 5:]
+                final_conf, final_labels = final_logits.max(1)
+
+                final_predictions.append({
+                    "boxes": final_boxes.cpu().numpy(),
+                    "scores": final_conf.cpu().numpy(),
+                    "labels": final_labels.cpu().numpy().astype(int),
+                    "logits": final_logits.cpu().numpy(),
+                })
+        return final_predictions
 
 
     def predict(self, x_preprocessed: np.ndarray, batch_size: int = 128, **kwargs) -> list[dict[str, np.ndarray]]:
@@ -263,7 +316,8 @@ class CustomYolov5ODWrapper(ODWrapper):
     def compute_object_fabrication_gradient(self, x: np.ndarray, detections: dict = None, training: bool = False) -> np.ndarray:
         x_pre = torch.from_numpy(x).to(self.device, dtype=torch.float32)
         x_pre.requires_grad_(True)
-        self.model.train()
+        if training:
+            self.model.train()
         preds = self.model(x_pre)[0]
         loss = torch.tensor(0.0, device=self.device, dtype=torch.float32)
         for p in preds: # Iterate over batch items
@@ -285,41 +339,57 @@ class CustomYolov5ODWrapper(ODWrapper):
         return grads
 
 
-    def compute_object_mislabeling_gradient(self, x: np.ndarray, detections: np.ndarray = None, training: bool = True) -> np.ndarray:
-        if detections is None or detections.shape[0] == 0:
+    def compute_object_mislabeling_gradient(self, x: np.ndarray, detections: list[dict[str, np.ndarray]] = None, training: bool = True) -> np.ndarray:
+        if not detections or not any(len(det.get('labels', [])) > 0 for det in detections):
             return np.zeros_like(x)
         x_torch = torch.from_numpy(x).to(self.device, dtype=torch.float32)
         x_torch.requires_grad_(True)
         if training:
             self.model.train()
-        batch_size = x_torch.shape[0]
-        batch_idxs = detections[:, 0].astype(int)
+        # Create a fixed adversarial target using the original boxes and a flipped label.
         target_labels_list = []
-        for img_idx in range(batch_size):
-            mask = batch_idxs == img_idx
-            if not mask.any():
-                target_labels_list.append({
-                    "boxes": torch.empty((0, 4), dtype=torch.float32, device=self.device),
-                    "labels": torch.empty((0,), dtype=torch.long, device=self.device),
-                })
+        num_classes = len(self.inference_model.model.names)
+        for det in detections:
+            if len(det.get('labels', [])) == 0:
                 continue
-            det = detections[mask]
-            boxes = torch.tensor(det[:, -4:], dtype=torch.float32, device=self.device)
-            labels = torch.tensor(det[:, 1].astype(np.int64), device=self.device)
+            boxes = torch.tensor(det["boxes"], dtype=torch.float32, device=self.device)
+            original_labels = torch.from_numpy(det['labels']).long().to(self.device)
+            # Flip the label to a random different class.
+            new_labels = original_labels.clone()
+            for i in range(len(new_labels)):
+                original_label = new_labels[i].item()
+                new_label = original_label
+                while new_label == original_label:
+                    new_label = np.random.randint(0, num_classes)
+                new_labels[i] = new_label
             target_labels_list.append({
                 "boxes": boxes,
-                "labels": labels,
+                "labels": new_labels,
             })
-        total_loss = self.compute_loss(x=x_torch, y=target_labels_list)
-        self.model.zero_grad()
-        grad_tensor = torch.autograd.grad(
-            outputs=total_loss,
-            inputs=x_torch,
-            retain_graph=False,
-            create_graph=False,
-            allow_unused=False,
-        )[0]
+        if not target_labels_list:
+            return np.zeros_like(x)
+        # Temporarily modify loss weights to isolate classification loss
+        original_hyp = self.model._model.hyp.copy()
+        try:
+            self.model._model.hyp['box'] = 0.0
+            self.model._model.hyp['obj'] = 0.0
+            # Use the total loss, which now only consists of the classification component
+            loss_components, _ = self._get_losses(x=x_torch, y=target_labels_list)
+            total_loss = loss_components['loss_total']
+            self.model.zero_grad()
+            grad_tensor = torch.autograd.grad(
+                outputs=total_loss,
+                inputs=x_torch,
+                retain_graph=False,
+                create_graph=False,
+                allow_unused=True,
+            )[0]
+        finally:
+            # Restore original hyperparameters to not affect other attacks
+            self.model._model.hyp = original_hyp
+        if grad_tensor is None:
+            return np.zeros_like(x)
         grads = grad_tensor.cpu().numpy()
-        if self.clip_values is not None and grad_tensor is not None:
+        if self.clip_values is not None:
             grads = grads / self.clip_values[1]
         return grads
