@@ -244,6 +244,7 @@ class CustomYolov5ODWrapper(ODWrapper):
                 "labels": torch.from_numpy(det["labels"]).long().to(self.device),
             })
         total_loss = self.compute_loss(x_torch, y_list)
+        total_loss = -total_loss
         # Compute gradients
         self.model.zero_grad() 
         grad_tensor = torch.autograd.grad(
