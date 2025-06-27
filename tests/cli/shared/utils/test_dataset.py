@@ -13,7 +13,7 @@ from cli.shared.utils.dataset import _validate_dataset_name, get_datasets
 
 @pytest.mark.cli
 @pytest.mark.essential
-@patch("cli.shared.utils.dataset.DatasetFactory.create_dataset")
+@patch("cli.shared.utils.dataset.DatasetFactory.load_dataset")
 @patch("cli.shared.utils.dataset._validate_dataset_name", return_value="CIFAR10")
 def test_get_datasets_standard(mock_validate_dataset_name, mock_create_dataset):
     mock_dataset = MagicMock()
@@ -44,7 +44,7 @@ def test_get_datasets_standard(mock_validate_dataset_name, mock_create_dataset):
 
 @pytest.mark.cli
 @pytest.mark.essential
-@patch("cli.shared.utils.dataset.DatasetFactory.create_dataset")
+@patch("cli.shared.utils.dataset.DatasetFactory.load_dataset")
 @patch("cli.shared.utils.dataset._validate_dataset_name", return_value="CIFAR10")
 def test_get_datasets_attacks(mock_validate_dataset_name, mock_create_dataset):
     mock_dataset = MagicMock()
@@ -82,7 +82,7 @@ def test_get_datasets_attacks(mock_validate_dataset_name, mock_create_dataset):
 
 @pytest.mark.cli
 @pytest.mark.essential
-@patch("cli.shared.utils.dataset.DatasetFactory.create_dataset")
+@patch("cli.shared.utils.dataset.DatasetFactory.load_dataset")
 @patch("cli.shared.utils.dataset._validate_dataset_name", return_value="CIFAR10")
 def test_get_datasets_file_not_found(mock_validate_dataset_name, mock_create_dataset):
     mock_dataset = MagicMock()

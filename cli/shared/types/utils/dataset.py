@@ -14,7 +14,7 @@ class BaseDatasetCliConfig:
     Base configuration containing the most essential, non-optional dataset properties.
     """
     dataset_name: str
-    num_classes: int
+    num_classes: int = 10
     preprocessing: Optional[PreprocessConfig] = None
 
 @dataclass

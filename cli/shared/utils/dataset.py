@@ -36,7 +36,7 @@ def get_datasets(
     resolved_config = resolve_dataset_config(config)
 
     # 2. Delegate the entire loading process to the factory
-    loaded_datasets = DatasetFactory.load_from_config(
+    loaded_datasets = DatasetFactory.load_dataset_from_config(
         resolved_config=resolved_config,
         **kwargs
     )

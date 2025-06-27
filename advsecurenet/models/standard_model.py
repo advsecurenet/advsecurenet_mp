@@ -50,7 +50,7 @@ class StandardModel(BaseModel):
                 self._architecture["num_classes"] != self.infer_num_classes()):
                 self.modify_model()
         else:
-            filtered_architecture = filter_kwargs_for_callable(model_fn, self._architecture, self._model_name)
+            filtered_architecture = filter_kwargs_for_callable(model_fn, self._architecture)
             self.model = model_fn(**filtered_architecture)
 
     def modify_model(self):

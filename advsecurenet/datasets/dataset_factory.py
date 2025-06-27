@@ -13,6 +13,7 @@ from cli.shared.types.utils.dataset import ResolvedDatasetConfig, ResolvedSplitC
 from advsecurenet.utils.huggingface_utils import huggingface_dataset_utils
 from advsecurenet.utils.huggingface_utils import huggingface_general_utils
 from advsecurenet.utils.kwargs_utils import filter_kwargs_for_callable
+from cli.shared.types.utils.dataset import CreateDatasetCliConfig, resolve_dataset_config
 
 DATASET_MAP = {
     DatasetType.CIFAR10: CIFAR10Dataset,
@@ -32,7 +33,20 @@ class DatasetFactory:
     """
 
     @staticmethod
-    def load_from_config(
+    def load_dataset(**runtime_kwargs):
+        """
+        Loads datasets based on runtime arguments, which are expected to be
+        passed from the command line or other runtime sources.
+        
+        This method is a convenience wrapper around `load_dataset_from_config`
+        that resolves the configuration internally.
+        """
+        config = CreateDatasetCliConfig(**runtime_kwargs)
+        resolved_config = resolve_dataset_config(config)
+        return DatasetFactory.load_dataset_from_config(resolved_config)
+
+    @staticmethod
+    def load_dataset_from_config(
         resolved_config: ResolvedDatasetConfig,
         **runtime_kwargs
     ) -> Dict[str, Optional[BaseDataset]]:

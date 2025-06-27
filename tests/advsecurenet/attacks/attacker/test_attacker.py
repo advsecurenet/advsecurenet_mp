@@ -38,8 +38,8 @@ def config(device):
         attack=FGSM(config=FgsmAttackConfig(epsilon=0.3, device=device_cfg)),
         dataloader=DataLoaderConfig(
             # get the test dataset
-            dataset=DatasetFactory.create_dataset(
-                dataset_type="MNIST", return_loaded=True
+            dataset=DatasetFactory.load_dataset(
+                dataset_name="MNIST"
             )[1]
         ),
         device=device_cfg,
