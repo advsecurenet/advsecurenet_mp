@@ -72,7 +72,7 @@ class ResolvedSplitConfig:
     This object contains all the final, unambiguous settings needed to load one split.
     """
     identifier: str
-    num_classes: int
+    num_classes: Optional[int] = 10
     source_split_name: Optional[str] = None
     preprocessing: Optional[PreprocessConfig] = None
     kwargs: Optional[Dict[str, Any]] = field(default_factory=dict)

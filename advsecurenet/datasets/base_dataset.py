@@ -121,11 +121,7 @@ class BaseDataset(TorchDataset, ABC):
             dataset_class=dataset_class,
             **kwargs)
 
-        if "split" in kwargs:
-            try:
-                self.data_type = DataType(kwargs["split"].upper())
-            except Exception:
-                self.data_type = None
+        self.data_type = DataType.TRAIN if kwargs.get("train") else DataType.TEST
 
         self._dataset = DatasetWrapper(dataset=dataset, name=self.name)
         return self._dataset

@@ -5,26 +5,29 @@ from torch.utils.data import Dataset as TorchDataset
 
 from advsecurenet.shared.types.dataset import DatasetType
 from cli.shared.types.utils.dataset import (
-    AttacksDatasetCliConfigType,
-    DatasetCliConfigType,
+    AttacksDatasetCliConfig,
+    CreateDatasetCliConfig,
+    UserSplitConfig,
+    ResolvedDatasetConfig,
+    ResolvedSplitConfig
 )
-from cli.shared.utils.dataset import _validate_dataset_name, get_datasets
+from cli.shared.utils.dataset import get_datasets
 
 
 @pytest.mark.cli
 @pytest.mark.essential
 @patch("cli.shared.utils.dataset.DatasetFactory.load_dataset")
-@patch("cli.shared.utils.dataset._validate_dataset_name", return_value="CIFAR10")
-def test_get_datasets_standard(mock_validate_dataset_name, mock_create_dataset):
+def test_get_datasets_standard(mock_create_dataset):
     mock_dataset = MagicMock()
     mock_create_dataset.return_value = mock_dataset
-    mock_config = DatasetCliConfigType(
+    mock_config = CreateDatasetCliConfig(
         dataset_name="CIFAR10",
         num_classes=10,
         preprocessing=MagicMock(),
-        train_dataset_path="path/to/train",
-        test_dataset_path="path/to/test",
-        download=True,
+        split_config={
+            "train": UserSplitConfig(split_name = "train", dataset_kwargs = {"root": "path/to/train"}),
+            "test": UserSplitConfig(split_name = "test", dataset_kwargs = {"root": "path/to/test"})
+        }
     )
 
     mock_dataset.load_dataset.side_effect = [
@@ -34,7 +37,6 @@ def test_get_datasets_standard(mock_validate_dataset_name, mock_create_dataset):
 
     train_data, test_data = get_datasets(mock_config)
 
-    mock_validate_dataset_name.assert_called_once_with("CIFAR10")
     mock_create_dataset.assert_called_once_with(
         dataset_type=DatasetType.CIFAR10, preprocess_config=mock_config.preprocessing
     )
@@ -45,18 +47,17 @@ def test_get_datasets_standard(mock_validate_dataset_name, mock_create_dataset):
 @pytest.mark.cli
 @pytest.mark.essential
 @patch("cli.shared.utils.dataset.DatasetFactory.load_dataset")
-@patch("cli.shared.utils.dataset._validate_dataset_name", return_value="CIFAR10")
-def test_get_datasets_attacks(mock_validate_dataset_name, mock_create_dataset):
+def test_get_datasets_attacks(mock_create_dataset):
     mock_dataset = MagicMock()
     mock_create_dataset.return_value = mock_dataset
-    mock_config = AttacksDatasetCliConfigType(
+    mock_config = AttacksDatasetCliConfig(
         dataset_name="CIFAR10",
         num_classes=10,
         preprocessing=MagicMock(),
-        train_dataset_path="path/to/train",
-        test_dataset_path="path/to/test",
-        download=True,
-        dataset_part="all",
+        split_config={
+            "train": UserSplitConfig(split_name = "train", dataset_kwargs = {"root": "path/to/train"}),
+            "test": UserSplitConfig(split_name = "test", dataset_kwargs = {"root": "path/to/test"})
+        }
     )
 
     mock_dataset.load_dataset.side_effect = [
@@ -66,7 +67,6 @@ def test_get_datasets_attacks(mock_validate_dataset_name, mock_create_dataset):
 
     train_data, test_data = get_datasets(mock_config)
 
-    mock_validate_dataset_name.assert_called_once_with("CIFAR10")
     mock_create_dataset.assert_called_once_with(
         dataset_type=DatasetType.CIFAR10, preprocess_config=mock_config.preprocessing
     )
@@ -82,40 +82,33 @@ def test_get_datasets_attacks(mock_validate_dataset_name, mock_create_dataset):
 
 @pytest.mark.cli
 @pytest.mark.essential
-@patch("cli.shared.utils.dataset.DatasetFactory.load_dataset")
-@patch("cli.shared.utils.dataset._validate_dataset_name", return_value="CIFAR10")
-def test_get_datasets_file_not_found(mock_validate_dataset_name, mock_create_dataset):
+@patch("cli.shared.utils.dataset.DatasetFactory.load_dataset_from_config")
+def test_get_datasets_file_not_found(mock_create_dataset):
     mock_dataset = MagicMock()
+    preprocessing_mock = MagicMock()
     mock_create_dataset.return_value = mock_dataset
-    mock_config = DatasetCliConfigType(
+    mock_config = CreateDatasetCliConfig(
         dataset_name="CIFAR10",
         num_classes=10,
-        preprocessing=MagicMock(),
-        train_dataset_path="path/to/train",
-        test_dataset_path="path/to/test",
-        download=True,
+        preprocessing=preprocessing_mock,
+        split_config={
+            "train": UserSplitConfig(split_name = "train", dataset_kwargs = {"root": "path/to/train"}),
+            "test": UserSplitConfig(split_name = "test", dataset_kwargs = {"root": "path/to/test"})
+        }
     )
 
-    mock_dataset.load_dataset.side_effect = FileNotFoundError
+    mock_dataset.load_dataset_from_config.side_effect = FileNotFoundError
 
     train_data, test_data = get_datasets(mock_config)
 
-    mock_validate_dataset_name.assert_called_once_with("CIFAR10")
-    mock_create_dataset.assert_called_once_with(
-        dataset_type=DatasetType.CIFAR10, preprocess_config=mock_config.preprocessing
+    resolved_config = ResolvedDatasetConfig(
+        dataset_name="CIFAR10",
+        splits={
+            "train": ResolvedSplitConfig(identifier="CIFAR10", source_split_name="train", kwargs={"root": "path/to/train"}, num_classes=10, preprocessing=preprocessing_mock),
+            "test": ResolvedSplitConfig(identifier="CIFAR10", source_split_name="test", kwargs = {"root": "path/to/test"}, num_classes=10, preprocessing=preprocessing_mock)
+        }
     )
+
+    mock_create_dataset.assert_called_once_with(resolved_config=resolved_config)
     assert train_data is None
     assert test_data is None
-
-
-@pytest.mark.cli
-@pytest.mark.essential
-def test_validate_dataset_name_valid():
-    assert _validate_dataset_name("CIFAR10") == "CIFAR10"
-
-
-@pytest.mark.cli
-@pytest.mark.essential
-def test_validate_dataset_name_invalid():
-    with pytest.raises(ValueError, match="Unsupported dataset type! Entered dataset name: INVALIDDATASET"):
-        _validate_dataset_name("INVALIDDATASET")

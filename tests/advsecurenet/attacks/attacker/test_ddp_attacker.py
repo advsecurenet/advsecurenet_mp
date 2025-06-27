@@ -44,7 +44,7 @@ def attacker_config(processor):
         dataloader=DataLoaderConfig(
             # get the test dataset
             dataset=DatasetFactory.load_dataset(
-                dataset_name="MNIST")[1]
+                dataset_name="MNIST")["test"]
         ),
         device=device_cfg,
     )

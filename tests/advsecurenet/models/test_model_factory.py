@@ -108,14 +108,15 @@ def test_create_model_external(
     model_instance = MagicMock(spec=BaseModel)
     mock_external_model.return_value = model_instance
 
-    created_model = ModelFactory.create_model(config=config)
+    with patch("advsecurenet.models.external_model.filter_kwargs_for_callable", lambda cls, kwargs: kwargs):
+        created_model = ModelFactory.create_model(config=config)
 
-    mock_exists.assert_called_with("/path/to/mock_model.py")
-    mock_spec_from_file_location.assert_called_once_with(
-        "MockExternalModel", "/path/to/mock_model.py"
-    )
-    mock_module_from_spec.assert_called_once_with(spec_mock)
-    assert isinstance(created_model, BaseModel)
+        mock_exists.assert_called_with("/path/to/mock_model.py")
+        mock_spec_from_file_location.assert_called_once_with(
+            "MockExternalModel", "/path/to/mock_model.py"
+        )
+        mock_module_from_spec.assert_called_once_with(spec_mock)
+        assert isinstance(created_model, BaseModel)
 
 
 @pytest.mark.advsecurenet

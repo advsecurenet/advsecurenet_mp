@@ -40,7 +40,7 @@ def config(device):
             # get the test dataset
             dataset=DatasetFactory.load_dataset(
                 dataset_name="MNIST"
-            )[1]
+            )["test"]
         ),
         device=device_cfg,
         return_adversarial_images=True,
