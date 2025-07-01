@@ -109,14 +109,13 @@ class TOG(ObjectDetectionAttack):
         """
         if np.max(x) > 1.0:
             x = x / 255.0
-        y = kwargs.get('y')
         match tog_variant:
             case TOGAttackType.VANISHING:
                 return self.tog_vanishing(x_query=x, n_iter=self.max_iter, eps=self.eps, eps_iter=self.eps_iter)
             case TOGAttackType.FABRICATION:
                 return self.tog_fabrication(x_query=x, n_iter=self.max_iter, eps=self.eps, eps_iter=self.eps_iter)
             case TOGAttackType.MISLABELING:
-                return self.tog_mislabeling(x_query=x, y=y, mode=tog_mislabeling_mode, n_iter=self.max_iter, eps=self.eps, eps_iter=self.eps_iter)
+                return self.tog_mislabeling(x_query=x, mode=tog_mislabeling_mode, n_iter=self.max_iter, eps=self.eps, eps_iter=self.eps_iter)
             case TOGAttackType.UNTARGETED:
                 return self.tog_untargeted(x_query=x, n_iter=self.max_iter, eps=self.eps, eps_iter=self.eps_iter)
 
@@ -144,11 +143,23 @@ class TOG(ObjectDetectionAttack):
             x_adv = np.clip(x_query + eta, 0.0, 1.0)
         return x_adv
     
-    def tog_mislabeling(self, x_query, y, mode, n_iter=10, eps=8/255., eps_iter=2/255.):
+    def tog_mislabeling(self, x_query, mode, n_iter=10, eps=8/255., eps_iter=2/255.):
+        if mode.lower() not in ["ml", "ll"]:
+            print(f"Warning: Unknown mode '{mode}'. Using 'ml' instead.")
+            mode = "ml"
+        x_uint8 = (x_query * 255.0).clip(0, 255).astype(np.uint8)
+        x_tensor = torch.from_numpy(x_uint8).float().to(next(self.object_detector.model.parameters()).device)
+        initial_detections = self.object_detector._predict_with_logits(x_tensor)
         eta = np.random.uniform(-eps, eps, size=x_query.shape)
         x_adv = np.clip(x_query + eta, 0.0, 1.0)
-        for _ in range(n_iter):
-            grad = self.object_detector.compute_object_mislabeling_gradient(x_adv, detections=y)
+        for i in range(n_iter):
+            grad = self.object_detector.compute_object_mislabeling_gradient(x_adv, detections=initial_detections, mode=mode)
+            grad_norm = np.linalg.norm(grad)
+            if i % 50 == 0:  # Log every 50 iterations
+                print(f"Iteration {i}: Gradient norm = {grad_norm:.6f}")
+            if grad_norm < 1e-8:
+                print("Warning: Very small gradients detected, stopping early")
+                break
             signed_grad = np.sign(grad)
             x_adv -= eps_iter * signed_grad
             eta = np.clip(x_adv - x_query, -eps, eps)

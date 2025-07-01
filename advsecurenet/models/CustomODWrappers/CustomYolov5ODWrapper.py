@@ -339,29 +339,62 @@ class CustomYolov5ODWrapper(ODWrapper):
         return grads
 
 
-    def compute_object_mislabeling_gradient(self, x: np.ndarray, detections: list[dict[str, np.ndarray]] = None, training: bool = True) -> np.ndarray:
+    def compute_object_mislabeling_gradient(self, x, detections=None, mode="ml", training=True):
+        """Compute gradients for the mislabeling attack."""
         if not detections or not any(len(det.get('labels', [])) > 0 for det in detections):
             return np.zeros_like(x)
+        mode = mode.lower()
+        if mode not in ['ml', 'll']:
+            print(f"Warning: Unknown mode '{mode}'. Using 'ml' instead.")
+            mode = 'ml'
         x_torch = torch.from_numpy(x).to(self.device, dtype=torch.float32)
         x_torch.requires_grad_(True)
         if training:
             self.model.train()
-        # Create a fixed adversarial target using the original boxes and a flipped label.
-        target_labels_list = []
+        # Get number of classes from model
         num_classes = len(self.inference_model.model.names)
+        target_labels_list = []
         for det in detections:
             if len(det.get('labels', [])) == 0:
                 continue
             boxes = torch.tensor(det["boxes"], dtype=torch.float32, device=self.device)
             original_labels = torch.from_numpy(det['labels']).long().to(self.device)
-            # Flip the label to a random different class.
+            # Choose target labels based on the specified mode
             new_labels = original_labels.clone()
-            for i in range(len(new_labels)):
-                original_label = new_labels[i].item()
-                new_label = original_label
-                while new_label == original_label:
-                    new_label = np.random.randint(0, num_classes)
-                new_labels[i] = new_label
+            for i in range(len(original_labels)):
+                orig_label = original_labels[i].item()
+                # Safe random selection if orig_label is out of range
+                if orig_label >= num_classes:
+                    print(f"Warning: Label {orig_label} is out of range (num_classes={num_classes})")
+                    new_labels[i] = np.random.randint(0, num_classes)
+                    continue
+                # Use prediction confidence to create pseudo-logits if not available
+                if 'logits' not in det or det['logits'] is None or i >= len(det['logits']):
+                    # Generate random alternative class
+                    new_label = orig_label
+                    while new_label == orig_label:
+                        new_label = np.random.randint(0, num_classes)
+                    new_labels[i] = new_label
+                else:
+                    # Use actual logits for smart targeting
+                    obj_logits = torch.from_numpy(det['logits'][i]).to(self.device)
+                    # Make sure logits array has enough elements
+                    if len(obj_logits) <= orig_label:
+                        # Generate pseudo-logits to accommodate the original label
+                        pseudo_logits = torch.randn(max(num_classes, orig_label+1), device=self.device)
+                        # Copy existing values
+                        pseudo_logits[:len(obj_logits)] = obj_logits
+                        obj_logits = pseudo_logits
+                    if mode == 'll':
+                        # Least likely: find class with lowest logit value
+                        obj_logits_mod = obj_logits.clone()
+                        obj_logits_mod[orig_label] = float('inf')  # Exclude original class
+                        new_labels[i] = torch.argmin(obj_logits_mod).item()
+                    else:  # mode == 'ml'
+                        # Most likely: find class with highest logit value (excluding original)
+                        obj_logits_mod = obj_logits.clone()
+                        obj_logits_mod[orig_label] = float('-inf')  # Exclude original class
+                        new_labels[i] = torch.argmax(obj_logits_mod).item()
             target_labels_list.append({
                 "boxes": boxes,
                 "labels": new_labels,
@@ -369,13 +402,12 @@ class CustomYolov5ODWrapper(ODWrapper):
         if not target_labels_list:
             return np.zeros_like(x)
         # Temporarily modify loss weights to isolate classification loss
-        original_hyp = self.model._model.hyp.copy()
+        original_hyp = self.model._model.hyp.copy() if hasattr(self.model, '_model') else None
         try:
-            self.model._model.hyp['box'] = 0.0
-            self.model._model.hyp['obj'] = 0.0
             # Use the total loss, which now only consists of the classification component
             loss_components, _ = self._get_losses(x=x_torch, y=target_labels_list)
             total_loss = loss_components['loss_total']
+            print(f"[DEBUG] Loss Components: {loss_components}")
             self.model.zero_grad()
             grad_tensor = torch.autograd.grad(
                 outputs=total_loss,
@@ -385,8 +417,9 @@ class CustomYolov5ODWrapper(ODWrapper):
                 allow_unused=True,
             )[0]
         finally:
-            # Restore original hyperparameters to not affect other attacks
-            self.model._model.hyp = original_hyp
+            # Restore original hyperparameters
+            if original_hyp:
+                self.model._model.hyp = original_hyp
         if grad_tensor is None:
             return np.zeros_like(x)
         grads = grad_tensor.cpu().numpy()
