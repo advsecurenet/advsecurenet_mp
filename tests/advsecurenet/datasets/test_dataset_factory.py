@@ -7,6 +7,8 @@ from torchvision.datasets.cifar import CIFAR10
 import warnings
 from unittest.mock import patch, MagicMock
 
+from datasets import load_dataset as hf_hub_load_dataset
+
 from advsecurenet.datasets.dataset_factory import (
     _create_provider,
     _infner_dataset_type,
@@ -19,6 +21,61 @@ from advsecurenet.datasets.dataset_factory import (
 
 from advsecurenet.shared.types.dataset import DatasetType
 from advsecurenet.datasets.Cifar10.cifar10_dataset import CIFAR10Dataset
+
+# Fixture 1: Downloads the TRAIN split once per session.
+@pytest.fixture(scope="session")
+def real_cifar10_hf_train_split():
+    """
+    Downloads the real CIFAR-10 TRAIN split from Hugging Face once and
+    caches it for the entire test session.
+    """
+    print("\n(Downloading real Hugging Face TRAIN split for testing...)")
+    return hf_hub_load_dataset("uoft-cs/cifar10", split="train")
+
+# Fixture 2: Downloads the TEST split once per session.
+@pytest.fixture(scope="session")
+def real_cifar10_hf_test_split():
+    """
+    Downloads the real CIFAR-10 TEST split from Hugging Face once and
+    caches it for the entire test session.
+    """
+    print("\n(Downloading real Hugging Face TEST split for testing...)")
+    return hf_hub_load_dataset("uoft-cs/cifar10", split="test")
+
+@pytest.fixture
+def mock_hf_hub_load(real_cifar10_hf_train_split, real_cifar10_hf_test_split):
+    """
+    A fixture that patches hf_hub_load_dataset and yields a mock that
+    returns pre-loaded train/test splits.
+    """
+    def mock_loader(*args, **kwargs):
+        path = kwargs.get("path")
+        split_name = kwargs.get("split")
+        if path == "uoft-cs/cifar10":
+            if split_name == "train": return real_cifar10_hf_train_split
+            if split_name == "test": return real_cifar10_hf_test_split
+        raise ValueError(f"Mock received unexpected call with path='{path}' and split='{split_name}'")
+
+    with patch("advsecurenet.datasets.HuggingFace.huggingface_dataset.hf_hub_load_dataset", side_effect=mock_loader, autospec=True) as mock:
+        yield mock
+
+
+# It requests both fixtures to ensure they both download correctly.
+@pytest.mark.advsecurenet
+@pytest.mark.integration
+@pytest.mark.essential
+def test_huggingface_real_download_and_load(real_cifar10_hf_train_split, real_cifar10_hf_test_split):
+    """
+    Verifies that the real train/test splits can be downloaded and are not empty.
+    This is the primary integration test.
+    """
+    assert len(real_cifar10_hf_train_split) > 0
+    assert len(real_cifar10_hf_test_split) > 0
+
+    assert real_cifar10_hf_train_split is not None
+    assert real_cifar10_hf_test_split is not None
+    assert len(real_cifar10_hf_train_split) > 0
+    assert len(real_cifar10_hf_test_split) > 0
 
 # This is the expected, normalized config object that the factory will receive.
 # We will create it manually for the first test.
@@ -80,12 +137,12 @@ cifar10_config = {
 @pytest.mark.advsecurenet
 @pytest.mark.integration
 @pytest.mark.essential
-def test_load_dataset_from_resolved_config():
+def test_load_dataset_from_resolved_config(mock_hf_hub_load):
     """
     Tests the factory's `load_dataset_from_config` method directly with a
     manually created, pre-resolved configuration object.
     """
-    # Act: Call the factory with the pre-resolved config
+
     loaded_datasets = DatasetFactory.load_dataset_from_config(RESOLVED_CONFIG_FOR_TEST)
 
     # Assert: Check that the datasets were loaded and configured correctly
@@ -98,6 +155,10 @@ def test_load_dataset_from_resolved_config():
     assert train_wrapper.dataset._target_key == "label"
     assert len(train_wrapper.dataset) > 0
 
+    assert mock_hf_hub_load.call_count == 2
+    mock_hf_hub_load.assert_any_call(path='uoft-cs/cifar10', split='train')
+    mock_hf_hub_load.assert_any_call(path='uoft-cs/cifar10', split='test')
+
 
 @pytest.mark.advsecurenet
 @pytest.mark.integration
@@ -107,7 +168,7 @@ def test_load_dataset_from_resolved_config():
     [config_variant_1, config_variant_2, config_variant_3],
     ids=["detailed_split_config", "global_url", "global_url_explicit_splits"],
 )
-def test_load_dataset_with_kwargs(config_dict):
+def test_load_dataset_with_kwargs(config_dict, mock_hf_hub_load):
     """
     Tests the factory's `load_dataset` method, passing the raw user config
     as keyword arguments. This tests the internal config resolution and loading pipeline.
@@ -125,10 +186,14 @@ def test_load_dataset_with_kwargs(config_dict):
     assert train_wrapper.dataset._target_key == "label"
     assert len(train_wrapper.dataset) > 0
 
+    assert mock_hf_hub_load.call_count == 2
+    mock_hf_hub_load.assert_any_call(path='uoft-cs/cifar10', split='train')
+    mock_hf_hub_load.assert_any_call(path='uoft-cs/cifar10', split='test')
+
 @pytest.mark.advsecurenet
 @pytest.mark.integration
 @pytest.mark.essential
-def test_load_dataset_cifar10_with_kwargs(tmp_path):
+def test_load_dataset_cifar10_with_kwargs():
     """
     Tests the factory's `load_dataset` method for a standard torchvision
     dataset (CIFAR10) using keyword arguments.

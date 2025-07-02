@@ -29,8 +29,8 @@ class HuggingFaceDataset(BaseDataset):
         self.num_input_channels = num_input_channels
         self.input_size = input_size
         self.crop_size = input_size
-        self.mean = mean or [0.5] * self.num_input_channels
-        self.std = std or [0.5] * self.num_input_channels
+        self.mean = mean
+        self.std = std
         self._input_key = input_key
         self._target_key = target_key
 

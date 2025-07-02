@@ -46,6 +46,3 @@ def get_datasets(
     test_data = loaded_datasets.get("test")
 
     return train_data, test_data
-
-def infer_dataset_type(dataset_identifier: str) -> DatasetType:
-    return NotImplementedError()
