@@ -83,14 +83,14 @@ class BaseDataset(TorchDataset, ABC):
 
     def __init__(self, preprocess_config: Optional[PreprocessConfig] = None):
         self._dataset: DatasetWrapper
-        self.mean: List[float] = []
-        self.std: List[float] = []
-        self.input_size: Tuple[int, int]
-        self.crop_size: Tuple[int, int]
+        self.mean: Optional[List[float]] = []
+        self.std: Optional[List[float]] = []
+        self.input_size: Optional[Tuple[int, int]]
+        self.crop_size: Optional[Tuple[int, int]]
         self.name: str = ""
-        self.num_classes: int
-        self.num_input_channels: int
-        self.data_type: DataType
+        self.num_classes: Optional[int]
+        self.num_input_channels: Optional[int]
+        self.data_type: Optional[DataType]
         self._preprocess_config = preprocess_config
 
     @abstractmethod

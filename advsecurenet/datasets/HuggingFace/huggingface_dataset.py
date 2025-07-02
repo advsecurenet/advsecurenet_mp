@@ -16,7 +16,6 @@ class HuggingFaceDataset(BaseDataset):
         preprocess_config: Optional[PreprocessConfig] = None,
         num_classes: Optional[int] = None,
         num_input_channels: int = 3,
-        input_size: Tuple[int, int] = (32, 32),
         mean: Optional[List[float]] = None,
         std: Optional[List[float]] = None,
         input_key: str = 'image',
@@ -27,8 +26,6 @@ class HuggingFaceDataset(BaseDataset):
 
         self.num_classes = num_classes
         self.num_input_channels = num_input_channels
-        self.input_size = input_size
-        self.crop_size = input_size
         self.mean = mean
         self.std = std
         self._input_key = input_key

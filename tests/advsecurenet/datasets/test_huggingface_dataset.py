@@ -12,7 +12,6 @@ def test_huggingface_dataset_init_defaults():
     ds = HuggingFaceDataset(num_classes=10)
     assert ds.num_classes == 10
     assert ds.num_input_channels == 3
-    assert ds.input_size == (32, 32)
     assert ds.mean == None
     assert ds.std == None
     assert ds._input_key == "image"
@@ -24,7 +23,6 @@ def test_huggingface_dataset_init_custom():
     ds = HuggingFaceDataset(
         num_classes=5,
         num_input_channels=1,
-        input_size=(28, 28),
         mean=[0.1],
         std=[0.2],
         input_key="img",
@@ -32,7 +30,6 @@ def test_huggingface_dataset_init_custom():
     )
     assert ds.num_classes == 5
     assert ds.num_input_channels == 1
-    assert ds.input_size == (28, 28)
     assert ds.mean == [0.1]
     assert ds.std == [0.2]
     assert ds._input_key == "img"
