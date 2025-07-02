@@ -22,7 +22,6 @@ model:
       - 0.5
 dataset:
   dataset_name: cifar10
-  download: true
   num_classes: 10
   dataset_part: test
   train_dataset_path:

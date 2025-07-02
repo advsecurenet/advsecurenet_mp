@@ -98,26 +98,6 @@ def mock_auto_model_class():
         mock_class.from_config.return_value = mock_instance
         yield mock_class
 
-# --- Add Missing Static Method Implementation for Tests ---
-# This is needed because the tests call static methods that might be missing
-# in the provided code snippet. We add them here for the tests to run.
-# Ideally, these should exist in the actual huggingface_model.py file.
-
-@staticmethod
-def extract_model_id_from_url(url: str) -> Optional[str]:
-    """
-    Extracts the model ID (e.g., 'user/repo') from a Hugging Face URL.
-    """
-    if not url or not huggingface_general_utils.is_huggingface_url(url):
-        return None
-    # More robust regex to handle potential variations and ignore query params/fragments
-    pattern = r'^(?:https?://)?(?:www\.)?(?:huggingface\.co|hf\.co)/([^/]+/[^/]+)(?:/.*)?$'
-    match = re.match(pattern, url)
-    return match.group(1) if match else None
-
-# Patch the HuggingFaceModel class *during test collection* to add the missing method
-huggingface_general_utils.extract_id_from_url = extract_model_id_from_url
-
 # --- Test Cases ---
 
 @pytest.mark.advsecurenet

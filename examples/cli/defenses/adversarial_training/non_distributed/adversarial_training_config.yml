@@ -34,7 +34,6 @@ training:
           params:
             dtype: torch.float32
             scale: true
-    download: true
   dataloader:
     train:
       num_workers: 4

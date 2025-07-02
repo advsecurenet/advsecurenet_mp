@@ -9,11 +9,10 @@ from advsecurenet.datasets.MNIST import FashionMNISTDataset, MNISTDataset
 from advsecurenet.datasets.svhn import SVHNDataset
 from advsecurenet.datasets.HuggingFace import HuggingFaceDataset
 from advsecurenet.shared.types import DatasetType
-from cli.shared.types.utils.dataset import ResolvedDatasetConfig, ResolvedSplitConfig
+from cli.shared.types.utils.dataset import ResolvedDatasetConfig, ResolvedSplitConfig, UserSplitConfig, CreateDatasetCliConfig, resolve_dataset_config
 from advsecurenet.utils.huggingface_utils import huggingface_dataset_utils
 from advsecurenet.utils.huggingface_utils import huggingface_general_utils
 from advsecurenet.utils.kwargs_utils import filter_kwargs_for_callable
-from cli.shared.types.utils.dataset import CreateDatasetCliConfig, resolve_dataset_config
 
 DATASET_MAP = {
     DatasetType.CIFAR10: CIFAR10Dataset,
@@ -41,6 +40,12 @@ class DatasetFactory:
         This method is a convenience wrapper around `load_dataset_from_config`
         that resolves the configuration internally.
         """
+        if "split_config" in runtime_kwargs and isinstance(runtime_kwargs["split_config"], dict):
+            runtime_kwargs["split_config"] = {
+                split_name: UserSplitConfig(**split_data)
+                for split_name, split_data in runtime_kwargs["split_config"].items()
+            }
+
         config = CreateDatasetCliConfig(**runtime_kwargs)
         resolved_config = resolve_dataset_config(config)
         return DatasetFactory.load_dataset_from_config(resolved_config)
@@ -65,7 +70,7 @@ class DatasetFactory:
                 else:
                     identifier = split_config.identifier
 
-                dataset_provider = DatasetFactory._create_provider(split_config, dataset_type)
+                dataset_provider = _create_provider(split_config, dataset_type)
 
                 # 2. Prepare kwargs for the `load_dataset` method
                 keys_to_override = {
@@ -93,25 +98,24 @@ class DatasetFactory:
         
         return loaded_datasets
     
-    @staticmethod
-    def _create_provider(split_config: ResolvedSplitConfig, dataset_type: DatasetType) -> BaseDataset:
-        """
-        Creates an instance of a dataset provider, passing only the necessary
-        arguments to its constructor.
-        """
-        # 1. Determine the dataset type and get the class
-        dataset_cls = _infer_dataset_class_from_type(dataset_type)
+def _create_provider(split_config: ResolvedSplitConfig, dataset_type: DatasetType) -> BaseDataset:
+    """
+    Creates an instance of a dataset provider, passing only the necessary
+    arguments to its constructor.
+    """
+    # 1. Determine the dataset type and get the class
+    dataset_cls = _infer_dataset_class_from_type(dataset_type)
 
-        # 2. Prepare constructor arguments based on the dataset type
-        constructor_args = {
-            "preprocess_config": split_config.preprocessing,
-        }
+    # 2. Prepare constructor arguments based on the dataset type
+    constructor_args = {
+        "preprocess_config": split_config.preprocessing,
+    }
 
-        constructor_args.update(split_config.constructor_args)
+    constructor_args.update(split_config.constructor_args)
 
-        constructor_args = filter_kwargs_for_callable(dataset_cls, constructor_args)
+    constructor_args = filter_kwargs_for_callable(dataset_cls, constructor_args)
 
-        return dataset_cls(**constructor_args)
+    return dataset_cls(**constructor_args)
     
 def _infner_dataset_type(identifier: str) -> DatasetType:
     """
@@ -135,24 +139,6 @@ def _infner_dataset_type(identifier: str) -> DatasetType:
             raise ValueError(f"Unknown dataset identifier: {identifier}")
     
     return dataset_type
-    
-def _infer_dataset_class(identifier) -> type:
-    """
-    Infers the dataset class to use for a given split configuration.
-
-    Args:
-        identifier: The dataset identifier.
-
-    Returns:
-        type: The dataset class to instantiate.
-
-    Raises:
-        ValueError: If the dataset identifier is not recognized.
-    """
-
-    dataset_type = _infner_dataset_type(identifier)
-
-    return _infer_dataset_class_from_type(dataset_type)
     
 
 def _infer_dataset_class_from_type(dataset_type: DatasetType) -> type:

@@ -33,6 +33,7 @@ class UserSplitConfig:
     dataset_kwargs: Optional[Dict[str, Any]] = None
     # Additional constructor arguments for the dataset class, if needed.
     constructor_args: Optional[Dict[str, Any]] = field(default_factory=dict)
+    path: Optional[str] = None
 
 @dataclass
 class CreateDatasetCliConfig(BaseDatasetCliConfig):
@@ -77,6 +78,7 @@ class ResolvedSplitConfig:
     preprocessing: Optional[PreprocessConfig] = None
     kwargs: Optional[Dict[str, Any]] = field(default_factory=dict)
     constructor_args: Optional[Dict[str, Any]] = field(default_factory=dict)
+    path: Optional[str] = None
 
 @dataclass
 class ResolvedDatasetConfig:
@@ -154,7 +156,8 @@ def resolve_dataset_config(config: CreateDatasetCliConfig) -> ResolvedDatasetCon
                 preprocessing=user_config.preprocessing or config.preprocessing,
                 kwargs=user_config.dataset_kwargs or config.dataset_kwargs or {},
                 num_classes=config.num_classes,
-                constructor_args=user_config.constructor_args or config.constructor_args or {}
+                constructor_args=user_config.constructor_args or config.constructor_args or {},
+                path=user_config.path or None
             )
             final_splits[internal_name] = resolved_split
 
