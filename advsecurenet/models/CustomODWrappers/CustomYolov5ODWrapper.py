@@ -176,7 +176,7 @@ class CustomYolov5ODWrapper(ODWrapper):
                         "labels": np.empty((0,), dtype=int), "logits": np.empty((0, nc))
                     })
                     continue
-
+                raw_logits = x[:, 5:].clone()
                 x[:, 5:] *= x[:, 4:5]
                 box = xywh2xyxy(x[:, :4])
                 conf, j = x[:, 5:].max(1, keepdim=True)
@@ -187,8 +187,8 @@ class CustomYolov5ODWrapper(ODWrapper):
                 
                 final_dets = x[nms_indices]
                 final_boxes = xywh2xyxy(final_dets[:, :4])
-                final_logits = final_dets[:, 5:]
-                final_conf, final_labels = final_logits.max(1)
+                final_logits = raw_logits[nms_indices]
+                final_conf, final_labels = final_dets[:, 5:].max(1)
 
                 final_predictions.append({
                     "boxes": final_boxes.cpu().numpy(),
@@ -402,24 +402,18 @@ class CustomYolov5ODWrapper(ODWrapper):
         if not target_labels_list:
             return np.zeros_like(x)
         # Temporarily modify loss weights to isolate classification loss
-        original_hyp = self.model._model.hyp.copy() if hasattr(self.model, '_model') else None
-        try:
-            # Use the total loss, which now only consists of the classification component
-            loss_components, _ = self._get_losses(x=x_torch, y=target_labels_list)
-            total_loss = loss_components['loss_total']
-            print(f"[DEBUG] Loss Components: {loss_components}")
-            self.model.zero_grad()
-            grad_tensor = torch.autograd.grad(
-                outputs=total_loss,
-                inputs=x_torch,
-                retain_graph=False,
-                create_graph=False,
-                allow_unused=True,
-            )[0]
-        finally:
-            # Restore original hyperparameters
-            if original_hyp:
-                self.model._model.hyp = original_hyp
+        # Use the total loss, which now only consists of the classification component
+        loss_components, _ = self._get_losses(x=x_torch, y=target_labels_list)
+        total_loss = loss_components['loss_total']
+        print(f"[DEBUG] Loss Components: {loss_components}")
+        self.model.zero_grad()
+        grad_tensor = torch.autograd.grad(
+            outputs=total_loss,
+            inputs=x_torch,
+            retain_graph=False,
+            create_graph=False,
+            allow_unused=True,
+        )[0]
         if grad_tensor is None:
             return np.zeros_like(x)
         grads = grad_tensor.cpu().numpy()

@@ -140,8 +140,6 @@ class DPatch(ObjectDetectionAttack):
                 _untargeted_attack_should_suppress_from_empty_initial = True
                 if self.verbose:
                     print("[DPATCH] Untargeted attack mode: Initial state (image + initial patch) had no detections. The attack will aim to keep it that way (suppress new detections).")     
-        #CELoss = nn.CrossEntropyLoss()
-        #BBoxLoss = nn.BCEWithLogitsLoss()
         for i_step in trange(self.max_iterations, desc="DPatch iteration", disable=not self.verbose):
             if i_step == 0 or (i_step + 1) % 100 == 0:
                 print("Training Step: %i", i_step + 1)
@@ -160,10 +158,6 @@ class DPatch(ObjectDetectionAttack):
             for i_batch in range(num_batches):
                 i_batch_start = i_batch * self.batch_size
                 i_batch_end = min((i_batch + 1) * self.batch_size, patched_images.shape[0])
-                # Use patch_target for targets
-                #y_list = patch_target[i_batch_start:i_batch_end]
-                #target_boxes = [torch.tensor(target["boxes"], device=patched_images.device) for target in y_list]
-                #target_labels = [torch.tensor(target["labels"], device=patched_images.device) for target in y_list]
                 img_batch = current_step_patched_images[i_batch_start:i_batch_end].detach().cpu().numpy()
                 input_batch_np = img_batch.astype(np.float32)
                 res = self.object_detector.predict(input_batch_np)
@@ -190,16 +184,6 @@ class DPatch(ObjectDetectionAttack):
                         for idx, label in enumerate(labels):
                             logits[idx, label] = float(scores[idx])
                         pred_logits.append(logits)
-                # Concatenate predictions into a single tensor
-                #pred_logits_cat = torch.cat(pred_logits, dim=0)
-                # Ensure targets are the correct shape
-                #target_labels_cat = torch.cat(target_labels, dim=0).long()
-                #pred_labels_cat = torch.cat(pred_labels, dim=0)
-                #target_labels_cat = torch.cat(target_labels, dim=0)
-                #if pred_boxes and target_boxes:
-                    #pred_boxes_cat = torch.cat(pred_boxes, dim=0)
-                    #target_boxes_cat = torch.cat(target_boxes, dim=0)
-                    #target_boxes_cat = target_boxes_cat.float()
                 all_labels = np.concatenate([t["labels"] for t in patch_target])
                 invalid_mask = (all_labels < 0) | (all_labels >= num_classes)
                 if invalid_mask.any():
@@ -339,16 +323,7 @@ class DPatch(ObjectDetectionAttack):
                         # Find valid center positions
                         valid_indices = np.argwhere(final_mask)
                         if valid_indices.shape[0] == 0:
-                            # Fallback or error if no valid location in mask
-                            # Option 1: Raise error
                             raise ValueError("No valid locations found in the mask to place the patch center such that the patch remains within image bounds.")
-                            # Option 2: Place randomly without mask (like the mask=None case)
-                            # max_h_start = img_height - patch_height
-                            # max_w_start = img_width - patch_width
-                            # if max_h_start < 0 or max_w_start < 0:
-                            #      raise ValueError(f"Patch (H={patch_height}, W={patch_width}) is larger than image (H={img_height}, W={img_width}).")
-                            # i_x_1 = random.randint(0, max_h_start)
-                            # i_y_1 = random.randint(0, max_w_start)
                         else:
                             # Choose a random valid center position
                             pos_id = np.random.choice(valid_indices.shape[0], size=1)
