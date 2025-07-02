@@ -13,8 +13,8 @@ def test_huggingface_dataset_init_defaults():
     assert ds.num_classes == 10
     assert ds.num_input_channels == 3
     assert ds.input_size == (32, 32)
-    assert ds.mean == [0.5, 0.5, 0.5]
-    assert ds.std == [0.5, 0.5, 0.5]
+    assert ds.mean == None
+    assert ds.std == None
     assert ds._input_key == "image"
     assert ds._target_key == "label"
 
