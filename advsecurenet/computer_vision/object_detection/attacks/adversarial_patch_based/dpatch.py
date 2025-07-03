@@ -72,58 +72,55 @@ class DPatch(ObjectDetectionAttack):
         transforms = transforms_initial.copy()  # Copy the transforms for later use
         patched_images = patched_images_initial.clone().detach().requires_grad_(True)
         patch_target: list[dict[str, np.ndarray]] = []
-        if False:
-            return
-        else:
-            if (target_label is not None) and (y is None): # targetted attack
-                print(f"[DPATCH] targetted attack - target_label: {target_label}")
-                for i_image in range(patched_images.shape[0]):
-                    if isinstance(target_label, int):
-                        t_l = target_label
-                    else:
-                        t_l = target_label[i_image]
-                    i_x_1 = transforms[i_image]["i_x_1"]
-                    i_x_2 = transforms[i_image]["i_x_2"]
-                    i_y_1 = transforms[i_image]["i_y_1"]
-                    i_y_2 = transforms[i_image]["i_y_2"]
-                    target_dict = {}
-                    target_dict["boxes"] = np.asarray([[i_x_1, i_y_1, i_x_2, i_y_2]])
-                    mapped = np.asarray([t_l], dtype=int)
-                    target_dict["labels"] = mapped
-                    target_dict["scores"] = np.asarray(
-                        [
-                            1.0,
-                        ]
-                    )
-                    patch_target.append(target_dict)
-            elif target_label is None: # untargetted attack
-                predictions = None
-                if y is not None:
-                    print(f"[DPATCH] untargetted attack - true labels provided")
-                    predictions = y
-                else: # untargetted attack where no true labels are provided
-                    print(f"[DPATCH] untargetted attack - no true labels provided")
-                    targets = []
-                    patched_images_np = patched_images.detach().cpu().numpy()
-                    res = self.object_detector.predict(patched_images_np)
-                    res = [self.object_detector.filter_boxes(t, 0.8) for t in res]
-                    for preds_dict in res:  # Iterate over each image in the batch
-                        boxes = preds_dict["boxes"]  # Bounding boxes (x1, y1, x2, y2)
-                        labels = preds_dict["labels"]  # Class labels
-                        scores = preds_dict["scores"]  # Confidence scores   
-                        target = {
-                            "boxes": boxes,
-                            "labels": labels,
-                            "scores": scores,
-                        }
-                        targets.append(target)
-                    predictions = targets
-                for i_image in range(patched_images.shape[0]):
-                    target_dict = {}
-                    target_dict["boxes"] = predictions[i_image]["boxes"]
-                    target_dict["labels"] = predictions[i_image]["labels"]
-                    target_dict["scores"] = predictions[i_image]["scores"]
-                    patch_target.append(target_dict)
+        if (target_label is not None) and (y is None): # targetted attack
+            print(f"[DPATCH] targetted attack - target_label: {target_label}")
+            for i_image in range(patched_images.shape[0]):
+                if isinstance(target_label, int):
+                    t_l = target_label
+                else:
+                    t_l = target_label[i_image]
+                i_x_1 = transforms[i_image]["i_x_1"]
+                i_x_2 = transforms[i_image]["i_x_2"]
+                i_y_1 = transforms[i_image]["i_y_1"]
+                i_y_2 = transforms[i_image]["i_y_2"]
+                target_dict = {}
+                target_dict["boxes"] = np.asarray([[i_x_1, i_y_1, i_x_2, i_y_2]])
+                mapped = np.asarray([t_l], dtype=int)
+                target_dict["labels"] = mapped
+                target_dict["scores"] = np.asarray(
+                    [
+                        1.0,
+                    ]
+                )
+                patch_target.append(target_dict)
+        elif target_label is None: # untargetted attack
+            predictions = None
+            if y is not None:
+                print(f"[DPATCH] untargetted attack - true labels provided")
+                predictions = y
+            else: # untargetted attack where no true labels are provided
+                print(f"[DPATCH] untargetted attack - no true labels provided")
+                targets = []
+                patched_images_np = patched_images.detach().cpu().numpy()
+                res = self.object_detector.predict(patched_images_np)
+                res = [self.object_detector.filter_boxes(t, 0.8) for t in res]
+                for preds_dict in res:  # Iterate over each image in the batch
+                    boxes = preds_dict["boxes"]  # Bounding boxes (x1, y1, x2, y2)
+                    labels = preds_dict["labels"]  # Class labels
+                    scores = preds_dict["scores"]  # Confidence scores   
+                    target = {
+                        "boxes": boxes,
+                        "labels": labels,
+                        "scores": scores,
+                    }
+                    targets.append(target)
+                predictions = targets
+            for i_image in range(patched_images.shape[0]):
+                target_dict = {}
+                target_dict["boxes"] = predictions[i_image]["boxes"]
+                target_dict["labels"] = predictions[i_image]["labels"]
+                target_dict["scores"] = predictions[i_image]["scores"]
+                patch_target.append(target_dict)
         # Flag to determine if the untargeted attack started with no detections
         # and should therefore aim to suppress any new detections.
         _untargeted_attack_should_suppress_from_empty_initial = False

@@ -113,6 +113,9 @@ class DataLoaderFactory:
         config_dict = dataclass_to_dict(config)
         # merge the config and kwargs
         params = {**config_dict, **kwargs}
+        # PATCH: check for collate_fn as attribute if not explicitly passed
+        if collate_fn is None and hasattr(config, "collate_fn"):
+            collate_fn = getattr(config, "collate_fn")
         if collate_fn is not None:
             params["collate_fn"] = collate_fn
         dataloader = TorchDataLoader(**params)

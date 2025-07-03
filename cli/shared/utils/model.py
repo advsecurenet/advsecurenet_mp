@@ -22,6 +22,12 @@ def create_model(config: ModelCliConfigType) -> BaseModel:
     # Flatten the dataclass and filter for the CreateModelConfig dataclass
     flat_config = flatten_dataclass(config)
     filtered_config = filter_for_dataclass(flat_config, CreateModelConfig)
+    # Pull model_arch_path and model_weights_path from path_configs if present
+    if hasattr(config, "path_configs"):
+        if getattr(config.path_configs, "model_arch_path", None) is not None:
+            filtered_config["model_arch_path"] = config.path_configs.model_arch_path
+        if getattr(config.path_configs, "model_weights_path", None) is not None:
+            filtered_config["model_weights_path"] = config.path_configs.model_weights_path
     create_model_config = CreateModelConfig(**filtered_config)
     # create the model
     model = ModelFactory.create_model(create_model_config)

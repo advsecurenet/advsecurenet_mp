@@ -1,0 +1,70 @@
+# default_dpatch_attack_config.yml
+model:
+  model_name: CustomYolov5Model
+  num_input_channels: 3
+  num_classes: 80  # COCO dataset classes
+  pretrained: false
+  weights: "DEFAULT"
+  is_external: true
+  random_seed: null
+  path_configs:
+    model_weights_path: "model_weights/yolov5s.pt"
+    model_arch_path: "C:/Users/rut30/OneDrive/Dokumenty/Desktop/UZH/SEMESTER_2/MASTER_PROJECT/project-code/advsecurenet_mp/advsecurenet/models/CustomModels/CustomYolov5Model.py"
+  norm_config:
+    add_norm_layer: false
+    norm_mean:
+    - 0.485
+    - 0.456
+    - 0.406
+    norm_std:
+    - 0.229
+    - 0.224
+    - 0.225
+  object_detector_config:
+    type: CustomYolov5ODWrapper
+    conf_thresh: 0.25
+    input_shape: [3, 640, 640]
+    clip_values: [0, 255]
+    attack_losses: ["loss_total", "loss_cls", "loss_box", "loss_obj"]
+dataset:
+  dataset_name: coco
+  download: true
+  num_classes: 80
+  dataset_part: test
+  train_dataset_path: "advsecurenet/data/train2017"
+  test_dataset_path: "advsecurenet/data/val2017"
+  random_sample_size: 5
+  preprocessing:
+    steps:
+    - name: Resize
+      params:
+        size: [640, 640]
+    - name: ToTensor
+      params:
+    - name: ToDtype
+      params:
+        dtype: torch.float32
+dataloader: 
+  default: !include ../shared/dataloader_config.yml
+  default.batch_size: 16 # Override default batch size
+  default.num_workers: 0 # Override default num workers
+device: !include ../shared/device_config.yml
+device.processor: cuda:0 # Override default processor
+attack_procedure:
+  verbose: true
+  save_result_images: true
+  result_images_dir: attack_dpatch
+  result_images_prefix: dpatch_adv
+attack_config:
+  target_parameters:
+    targeted: false
+    target_labels_config:
+      target_labels: []
+  attack_parameters:
+    object_detector: yolov5
+    patch_shape: [3, 200, 200]
+    learning_rate: 1.99
+    max_iter: 10 #1600
+    batch_size: 16
+    verbose: true
+    random_location: false

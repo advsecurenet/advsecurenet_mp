@@ -7,9 +7,6 @@ from cli.shared.types.attack.attacks.image_classification.fgsm import FgsmAttack
 from cli.shared.types.attack.attacks.image_classification.lots import LotsAttackCLIConfigType
 from cli.shared.types.attack.attacks.image_classification.pgd import PgdAttackCLIConfigType
 
-from cli.shared.types.attack.attacks.object_detection.dpatch import DPatchAttackCLIConfigType
-from cli.shared.types.attack.attacks.object_detection.tog import TOGAttackCLIConfigType
-
 __all__ = [
     "FgsmAttackCLIConfigType",
     "PgdAttackCLIConfigType",
@@ -17,6 +14,4 @@ __all__ = [
     "DecisionBoundaryAttackCLIConfigType",
     "CwAttackCLIConfigType",
     "LotsAttackCLIConfigType",
-    "DPatchAttackCLIConfigType",
-    "TOGAttackCLIConfigType",
 ]

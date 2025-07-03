@@ -33,10 +33,11 @@ class PixelPerturbationODAttacker(ODAttacker):
                 colour="red",
             ):
                 images, targets_dict = data_batch
+                images, targets_dict = self._move_batch_to_device(images, targets_dict)
                 images_np_for_dpatch = (images.detach().cpu().numpy() * 255.0).astype(np.float32)
                 images_np_for_dpatch = np.clip(images_np_for_dpatch, 0, 255)
-                boxes  = [b.to(self._device) for b in targets_dict["boxes"]]
-                labels = [l.to(self._device) for l in targets_dict["labels"]]
+                boxes  = targets_dict["boxes"]
+                labels = targets_dict["labels"]
                 # 1) GENERATE the patch (no real images returned here)
                 my_target_label = None#self._config.target_label
                 print("Target label for attack: ", my_target_label)

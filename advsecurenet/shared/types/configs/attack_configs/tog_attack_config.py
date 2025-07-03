@@ -6,13 +6,14 @@ from advsecurenet.shared.types.configs.attack_configs.attack_config import Attac
 @dataclass(kw_only=True)
 class TOGAttackConfig(AttackConfig):
     """
-    DPatch attack configuration.
+    TOG attack configuration.
     """
 
-    object_detector: str = "fasterrcnn_resnet50_fpn"
-    #learning_rate: int = 10
+    object_detector: str = "yolov5"
     max_iter: int = 10
     eps: float = 0.1
     eps_iter: float = 0.1
     batch_size: int = 10
     verbose: int = 10
+    attack_type: str = "vanishing"
+    mislabeling_mode: str = "ml"
