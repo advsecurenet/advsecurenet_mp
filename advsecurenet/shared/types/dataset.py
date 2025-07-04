@@ -13,6 +13,7 @@ class DatasetType(Enum):
     IMAGENET = "IMAGENET"
     MNIST = "MNIST"
     CUSTOM = "CUSTOM"
+    HUGGINGFACE = "HUGGINGFACE"
 
 
 class DataType(Enum):

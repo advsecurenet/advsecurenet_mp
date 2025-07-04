@@ -335,6 +335,10 @@ class Trainer:
         self._model.train()
         self._optimizer.zero_grad()
         output = self._model(source)
+
+        if hasattr(output, "logits"):
+            output = output.logits
+
         loss = self._loss_fn(output, targets)
         loss.backward()
         self._optimizer.step()

@@ -19,8 +19,7 @@ from cli.shared.utils.model import _validate_norm_layer, create_model
 def mock_config():
     return ModelCliConfigType(
         model_name="CustomModel",
-        num_input_channels=3,
-        num_classes=10,
+        architecture={"num_classes": 10, "num_input_channels": 3},
         pretrained=False,
         weights="path/to/weights",
         is_external=False,
@@ -115,7 +114,7 @@ def test_validate_norm_layer_length_mismatch_mean_and_num_input_channels():
     mock_config.norm_config.add_norm_layer = True
     mock_config.norm_config.norm_mean = [0.5, 0.5]
     mock_config.norm_config.norm_std = [0.5, 0.5, 0.5]
-    mock_config.num_input_channels = 3
+    mock_config.architecture={"num_input_channels": 3}
     with pytest.raises(
         ValueError,
         match=CLIErrorMessages.TRAINER.value.NORM_LAYER_LENGTH_MISMATCH_MEAN_AND_NUM_INPUT_CHANNELS.value,
@@ -130,7 +129,7 @@ def test_validate_norm_layer_length_mismatch_std_and_num_input_channels():
     mock_config.norm_config.add_norm_layer = True
     mock_config.norm_config.norm_mean = [0.5, 0.5, 0.5]
     mock_config.norm_config.norm_std = [0.5, 0.5]
-    mock_config.num_input_channels = 3
+    mock_config.architecture={"num_input_channels": 3}
     with pytest.raises(
         ValueError,
         match=CLIErrorMessages.TRAINER.value.NORM_LAYER_LENGTH_MISMATCH_STD_AND_NUM_INPUT_CHANNELS.value,
@@ -142,8 +141,8 @@ def test_validate_norm_layer_length_mismatch_std_and_num_input_channels():
 @pytest.mark.essential
 def test_validate_norm_layer_invalid_type_mean_and_std(mock_config):
     mock_config.norm_config.add_norm_layer = True
-    mock_config.norm_config.norm_mean = torch.randn(mock_config.num_input_channels)
-    mock_config.norm_config.norm_std = torch.randn(mock_config.num_input_channels)
+    mock_config.norm_config.norm_mean = torch.randn(mock_config.architecture["num_input_channels"])
+    mock_config.norm_config.norm_std = torch.randn(mock_config.architecture["num_input_channels"])
     with pytest.raises(
         ValueError,
         match=CLIErrorMessages.TRAINER.value.NORM_LAYER_MEAN_OR_STD_NOT_LIST.value,

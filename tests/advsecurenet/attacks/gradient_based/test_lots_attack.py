@@ -39,8 +39,7 @@ def mock_model(device):
     model = ModelFactory.create_model(
         CreateModelConfig(
             model_name="CustomCifar10Model",
-            num_classes=10,
-            num_input_channels=3,
+            architecture={"num_classes": 10, "num_input_channels": 3},
             pretrained=False,
         )
     )
