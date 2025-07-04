@@ -7,6 +7,7 @@ class CustomYolov5Model(torch.nn.Module):
     def __init__(self, model_weights_path="model_weights\yolov5s.pt"):
         super().__init__()
         self._model = yolov5.load(model_weights_path, autoshape=False).model
+        self._autoshape = AutoShape(self._model)
         self._model.hyp = {'box': 0.05,
                         'obj': 1.0,
                         'cls': 0.5,
@@ -19,7 +20,7 @@ class CustomYolov5Model(torch.nn.Module):
 
     def forward(self, x, targets=None):
         if self.training and targets is not None:
-            outputs = self._model(x)
+            outputs = self._model(x) # raw logits, pre-nms
             loss, loss_items = self.compute_loss(outputs, targets)
             loss_components_dict = {"loss_total": loss}
             loss_components_dict['loss_box'] = loss_items[0]
@@ -27,4 +28,10 @@ class CustomYolov5Model(torch.nn.Module):
             loss_components_dict['loss_cls'] = loss_items[2]
             return loss_components_dict
         else:
-            return self._model(x)
+            return self._autoshape(x) # after nms
+        
+    def predict_raw(self, x):
+        """
+        Predicts raw logits without applying NMS.
+        """
+        return self._model(x)

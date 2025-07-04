@@ -151,54 +151,6 @@ class CustomYolov5ODWrapper(ODWrapper):
         return grads
 
 
-    def _predict_with_logits(self, x_tensor: torch.Tensor) -> list[dict[str, np.ndarray]]:
-        """
-        Internal prediction method that guarantees full logits are returned.
-        It uses the raw model and performs manual NMS.
-        """
-        self.model.eval()
-        final_predictions = []
-        with torch.no_grad():
-            raw_pred = self.model(x_tensor)[0]
-            conf_thres = self.conf_thresh
-            iou_thres = 0.45  # Standard NMS IoU threshold
-            max_det = 1000
-
-            bs = raw_pred.shape[0]
-            nc = raw_pred.shape[2] - 5
-            xc = raw_pred[..., 4] > conf_thres
-
-            for i in range(bs):
-                x = raw_pred[i][xc[i]]
-                if not x.shape[0]:
-                    final_predictions.append({
-                        "boxes": np.empty((0, 4)), "scores": np.empty((0,)),
-                        "labels": np.empty((0,), dtype=int), "logits": np.empty((0, nc))
-                    })
-                    continue
-                raw_logits = x[:, 5:].clone()
-                x[:, 5:] *= x[:, 4:5]
-                box = xywh2xyxy(x[:, :4])
-                conf, j = x[:, 5:].max(1, keepdim=True)
-                
-                nms_indices = torchvision.ops.nms(box, conf.view(-1), iou_thres)
-                if nms_indices.shape[0] > max_det:
-                    nms_indices = nms_indices[:max_det]
-                
-                final_dets = x[nms_indices]
-                final_boxes = xywh2xyxy(final_dets[:, :4])
-                final_logits = raw_logits[nms_indices]
-                final_conf, final_labels = final_dets[:, 5:].max(1)
-
-                final_predictions.append({
-                    "boxes": final_boxes.cpu().numpy(),
-                    "scores": final_conf.cpu().numpy(),
-                    "labels": final_labels.cpu().numpy().astype(int),
-                    "logits": final_logits.cpu().numpy(),
-                })
-        return final_predictions
-
-
     def predict(self, x_preprocessed: np.ndarray, batch_size: int = 128, **kwargs) -> list[dict[str, np.ndarray]]:
         self.inference_model.eval()
         # Create dataloader
@@ -257,7 +209,7 @@ class CustomYolov5ODWrapper(ODWrapper):
         x_pre.requires_grad_(True)
         if training:
             self.model.train()                 # ensure we get raw preds, not autoshaped outputs
-        preds = self.model(x_pre)[0]          # list of 3 tensors: (bs, na, gh, gw, 5+nc)
+        preds = self.model(x_pre)[0] if training else self.model.predict_raw(x_pre)[0]        # list of 3 tensors: (bs, na, gh, gw, 5+nc)
         # 3) Compute the TF-identical vanishing loss:
         loss = torch.tensor(0.0, device=self.device, dtype=torch.float32)
         for p in preds:
@@ -318,7 +270,7 @@ class CustomYolov5ODWrapper(ODWrapper):
         x_pre.requires_grad_(True)
         if training:
             self.model.train()
-        preds = self.model(x_pre)[0]
+        preds = self.model(x_pre)[0] if training else self.model.predict_raw(x_pre)[0]
         loss = torch.tensor(0.0, device=self.device, dtype=torch.float32)
         for p in preds: # Iterate over batch items
             obj_logit = p[..., 4]  # Objectness logit for current batch item

@@ -67,7 +67,9 @@ attack_config:
     mislabeling_mode: ml
     patch_shape: [3, 200, 200]
     learning_rate: 1.99
-    max_iter: 30
+    max_iter: 90
+    eps: 0.03
+    eps_iter: 0.01
     batch_size: 16
     verbose: true
     random_location: false 

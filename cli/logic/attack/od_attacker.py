@@ -23,30 +23,30 @@ class CLIODAttacker:
     """
     Attacker class for the CLI for object detection. This module parses the CLI arguments and executes the OD attack.
     """
-    def __init__(self, config: ODAttackerConfig, attack_type, **kwargs):
+    def __init__(self, config: ODAttackerConfig, od_main_attack_type, **kwargs):
         self._config = config
-        self._attack_type = attack_type
+        self.od_main_attack_type = od_main_attack_type
         self._kwargs = kwargs
         self._dataset = self._prepare_dataset()
 
     def execute(self):
-        logger.info("Starting %s attack (object detection).", self._attack_type.name)
+        logger.info("Starting %s attack (object detection).", self.od_main_attack_type.name)
         self._execute_attack()
         click.secho("Attack completed successfully.", fg="green")
-        logger.info("%s attack completed successfully.", self._attack_type.name)
+        logger.info("%s attack completed successfully.", self.od_main_attack_type.name)
 
     def _execute_attack(self):
         config, extra_kwargs = self._prepare_attack_config()
-        if self._attack_type.name.upper() == "DPATCH":
+        if self.od_main_attack_type.name.upper() == "DPATCH":
             attacker = AdversarialPatchODAttacker(config=config)
-        elif self._attack_type.name.upper() == "TOG":
+        elif self.od_main_attack_type.name.upper() == "TOG":
             attacker = PixelPerturbationODAttacker(
                 config=config,
                 attack_type=extra_kwargs.get("attack_type", TOGAttackType.VANISHING),
                 tog_mislabeling_mode=extra_kwargs.get("tog_mislabeling_mode", "ml")
             )
         else:
-            raise ValueError(f"Unknown attack type: {self._attack_type}")
+            raise ValueError(f"Unknown attack type: {self.od_main_attack_type}")
         adv_imgs = attacker.execute()
         self._save_images_if_needed(adv_imgs)
 
@@ -74,9 +74,9 @@ class CLIODAttacker:
         attack_config.object_detector = detector
 
         extra_kwargs = {}
-        if self._attack_type.name.upper() == "DPATCH":
+        if self.od_main_attack_type.name.upper() == "DPATCH":
             attack = DPatch(attack_config)
-        elif self._attack_type.name.upper() == "TOG":
+        elif self.od_main_attack_type.name.upper() == "TOG":
             attack = TOG(attack_config)
             # Map string to TOGAttackType enum
             attack_type_str = getattr(attack_config, "attack_type", "vanishing")
@@ -85,7 +85,7 @@ class CLIODAttacker:
             extra_kwargs["attack_type"] = tog_attack_type
             extra_kwargs["tog_mislabeling_mode"] = mislabeling_mode
         else:
-            raise ValueError(f"Unknown attack type: {self._attack_type}")
+            raise ValueError(f"Unknown attack type: {self.od_main_attack_type}")
 
         config = ODAttackerConfig(
             model=model,

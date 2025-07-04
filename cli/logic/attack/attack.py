@@ -29,7 +29,7 @@ def cli_attack(attack_name: str, config: str, **kwargs) -> None:
         logger.error("Unknown attack type %s", attack_name)
         raise ValueError(f"Unknown attack type: {attack_name}")
 
-    attack_type, attack_config_class = attack_cli_mapping[attack_name]
+    od_main_attack_type, attack_config_class = attack_cli_mapping[attack_name]
 
     config_data: BaseAttackCLIConfigType = load_and_instantiate_config(
         config=config,
@@ -41,9 +41,9 @@ def cli_attack(attack_name: str, config: str, **kwargs) -> None:
     logger.info("Loaded attack configuration: %s", config_data)
     try:
         if attack_name in OD_ATTACKS:
-            attacker = CLIODAttacker(config_data, attack_type, **kwargs)
+            attacker = CLIODAttacker(config_data, od_main_attack_type, **kwargs)
         else:
-            attacker = CLIAttacker(config_data, attack_type, **kwargs)
+            attacker = CLIAttacker(config_data, od_main_attack_type, **kwargs)
         attacker.execute()
         logger.info("Attack completed successfully")
     except Exception as e:

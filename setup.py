@@ -34,6 +34,8 @@ setup(
         "filetype",
         "requests",
         "datasets",
+        "mean_average_precision",
+        "yolov5",
     ],
     entry_points={
         "console_scripts": [

@@ -149,7 +149,7 @@ class TOG(ObjectDetectionAttack):
             mode = "ml"
         x_uint8 = (x_query * 255.0).clip(0, 255).astype(np.uint8)
         x_tensor = torch.from_numpy(x_uint8).float().to(next(self.object_detector.model.parameters()).device)
-        initial_detections = self.object_detector._predict_with_logits(x_tensor)
+        initial_detections = self.object_detector.predict(x_tensor)
         eta = np.random.uniform(-eps, eps, size=x_query.shape)
         x_adv = np.clip(x_query + eta, 0.0, 1.0)
         for i in range(n_iter):

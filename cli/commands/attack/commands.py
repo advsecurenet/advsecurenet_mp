@@ -564,16 +564,10 @@ def lots(config, **kwargs):
     help="Maximum number of optimization iterations.",
 )
 @click.option(
-    "--batch-size",
+    "--target-label",
     default=None,
     type=click.INT,
-    help="Batch size for patch optimization.",
-)
-@click.option(
-    "--verbose",
-    default=None,
-    type=click.BOOL,
-    help="Whether to print progress of the attack.",
+    help="Target label for targeted attacks (classification or detection).",
 )
 def dpatch(config, **kwargs):
     """
@@ -634,16 +628,16 @@ def dpatch(config, **kwargs):
     help="Step size (epsilon per iteration) for the attack.",
 )
 @click.option(
-    "--batch-size",
+    "--attack-type",
     default=None,
-    type=click.INT,
-    help="Batch size for attack optimization.",
+    type=click.Choice(["vanishing", "untargeted", "mislabeling", "fabrication"], case_sensitive=False),
+    help="TOG attack type: vanishing, untargeted, or mislabeling.",
 )
 @click.option(
-    "--verbose",
+    "--mislabeling-mode",
     default=None,
-    type=click.BOOL,
-    help="Whether to print progress of the attack.",
+    type=click.Choice(["ml", "ll"], case_sensitive=False),
+    help="Mislabeling mode for TOG: ml (most likely) or ll (least likely).",
 )
 def tog(config, **kwargs):
     """

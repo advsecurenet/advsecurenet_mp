@@ -1,3 +1,4 @@
+from typing import Optional
 from dataclasses import dataclass
 
 from advsecurenet.shared.types.configs.attack_configs.attack_config import AttackConfig
@@ -16,3 +17,4 @@ class DPatchAttackConfig(AttackConfig):
     batch_size: int = 10
     verbose: int = 10
     attack_feature: int = 10
+    target_label: Optional[int] = None
