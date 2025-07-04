@@ -73,8 +73,8 @@ class DatasetFactory:
                 keys_to_override = {
                     'dataset_name': identifier,
                     'split': split_config.source_split_name,
-                    'root': getattr(split_config, 'path', None),
-                    'download': getattr(resolved_config, 'download', True)
+                    'root': split_config.path,
+                    'download':  True
                 }
 
                 load_kwargs = _prepare_load_kwargs(
