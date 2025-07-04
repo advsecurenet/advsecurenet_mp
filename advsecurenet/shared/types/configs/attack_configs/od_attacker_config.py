@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
 
 from advsecurenet.shared.types.configs.attack_configs.attacker_config import AttackerConfig
@@ -10,3 +10,4 @@ class ODAttackerConfig(AttackerConfig):
     """
 
     target_label: Optional[int] = None
+    evaluators: list[str] = field(default_factory=lambda: ["mean_average_precision"])

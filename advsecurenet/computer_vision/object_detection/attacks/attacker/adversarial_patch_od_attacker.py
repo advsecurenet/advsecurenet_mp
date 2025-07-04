@@ -3,9 +3,10 @@
 import logging
 import numpy as np
 import torch
+import click
 from tqdm.auto import tqdm
 
-from advsecurenet.evaluation.adversarial_evaluator import AdversarialEvaluator
+from advsecurenet.evaluation.od_adversarial_evaluator import ObjectDetectorAdversarialEvaluator
 from advsecurenet.shared.types.configs.attack_configs.od_attacker_config import ODAttackerConfig
 from advsecurenet.computer_vision.object_detection.attacks.attacker.od_attacker import ODAttacker
 
@@ -20,7 +21,7 @@ class AdversarialPatchODAttacker(ODAttacker):
 
     def execute(self):
         adversarial_images = []
-        with AdversarialEvaluator(
+        with ObjectDetectorAdversarialEvaluator(
             evaluators    = self._config.evaluators,
             target_models = [self._eval_model],      # we evaluate on the eval_model
         ) as evaluator:
@@ -61,21 +62,22 @@ class AdversarialPatchODAttacker(ODAttacker):
                 ).detach().cpu().numpy()
                 patched = torch.from_numpy(patched_np / 255.0).to(self._device)
                 # #3) EVALUATE on the patched images
-                # evaluator.update(
-                #     model              = self._eval_model,
-                #     original_images    = images,
-                #     true_labels        = {"boxes": boxes, "labels": labels},
-                #     adversarial_images = patched,
-                #     is_targeted        = self._config.attack.targeted,
-                #     target_labels      = getattr(self._config.attack, "target_label", None),
-                # )
+                evaluator.update(
+                    model              = self._eval_model,
+                    original_images    = images,
+                    adversarial_images = patched,
+                    targets            = targets,
+                )
                 if self._config.return_adversarial_images:
                     adversarial_images.append(patched.detach().cpu())
-                    #adversarial_images.append(images.detach().cpu())
                 # free up GPU memory if needed
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()
             # summary logging
-            # results = evaluator.get_results()
-            # logger.info("Object Detection Attack summary: %s", results)
+            results = evaluator.get_results()
+            click.secho(
+                "Adversarial Patch Attack summary: {}".format(results),
+                fg="green",
+            )
+            logger.info("Object Detection Attack summary: %s", results)
         return adversarial_images if self._config.return_adversarial_images else None

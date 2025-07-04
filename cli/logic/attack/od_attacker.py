@@ -93,7 +93,7 @@ class CLIODAttacker:
             device=self._config.device,
             attack=attack,
             return_adversarial_images=self._config.attack_procedure.save_result_images,
-            evaluators=self._kwargs.get("evaluators", ["attack_success_rate"]),
+            evaluators=self._get_evaluators(),
         )
         return config, extra_kwargs
 
@@ -161,3 +161,21 @@ class CLIODAttacker:
         subset, _ = random_split(data, lengths)
         random_data = Subset(data, subset.indices)
         return random_data
+
+    def _get_evaluators(self):
+        """
+        Get the evaluators for the attack from the CLI parameters or config.
+        
+        Returns:
+            list[str]: List of evaluator names.
+        """
+        # First check if evaluators are passed from the CLI directly
+        if "evaluators" in self._kwargs:
+            return self._kwargs.get("evaluators")
+        
+        # Then check if evaluators are defined in the config
+        if hasattr(self._config, "evaluators") and self._config.evaluators:
+            return self._config.evaluators
+            
+        # Finally, use default evaluator for object detection
+        return ["mean_average_precision"]
