@@ -91,19 +91,67 @@ class ResolvedDatasetConfig:
     random_sample_size: Optional[int] = None
 
 # ----------------------------------------------------------------
-# 3. Helper Enums and Functions
+# 3. Helper and Functions
 # ----------------------------------------------------------------
 
-class IdentifierSource(Enum):
-    """Enumeration to track the source of the dataset identifier."""
-    IDENTIFIER = auto()
-    NAME = auto()
-
-def determine_identifier_and_source(config: CreateDatasetCliConfig) -> tuple[str, IdentifierSource]:
-    """Determines the primary dataset identifier to use from the configuration."""
+def _get_identifier(config: CreateDatasetCliConfig) -> str:
+    """Determines the primary dataset identifier to use from the global configuration."""
     if config.identifier:
-        return config.identifier, IdentifierSource.IDENTIFIER
-    return config.dataset_name, IdentifierSource.NAME
+        return config.identifier
+    return config.dataset_name
+
+def _get_user_splits(config: CreateDatasetCliConfig) -> List[str]:
+    """
+    Determines the splits to load based on the user configuration.
+    Defaults to ['train', 'test'] if no splits are specified.
+    """
+    # First priority: use the keys from split_config if it's provided.
+    if config.split_config:
+        return list(config.split_config.keys())
+    
+    # Second priority: use load_splits if it's explicitly provided and not empty.
+    if config.load_splits:
+        return config.load_splits
+
+    # Default case: if neither of the above is provided, default to train and test.
+    return ["train", "test"]
+
+def _create_resolved_split(
+    global_config: CreateDatasetCliConfig,
+    split_name: str,
+    user_split_config: Optional[UserSplitConfig] = None
+) -> ResolvedSplitConfig:
+    """
+    Creates a single ResolvedSplitConfig, overriding global settings with
+    split-specific settings if provided.
+    """
+    global_identifier = _get_identifier(global_config)
+    if user_split_config:
+        # Use split-specific values, falling back to global ones.
+        identifier = user_split_config.identifier or global_identifier
+        source_split_name = user_split_config.split_name or split_name
+        preprocessing = user_split_config.preprocessing or global_config.preprocessing
+        kwargs = user_split_config.dataset_kwargs or global_config.dataset_kwargs or {}
+        constructor_args = user_split_config.constructor_args or global_config.constructor_args or {}
+        path = user_split_config.path
+    else:
+        # Use global settings only.
+        identifier = global_identifier
+        source_split_name = split_name
+        preprocessing = global_config.preprocessing
+        kwargs = global_config.dataset_kwargs or {}
+        constructor_args = global_config.constructor_args or {}
+        path = None
+
+    return ResolvedSplitConfig(
+        identifier=identifier,
+        source_split_name=source_split_name,
+        preprocessing=preprocessing,
+        kwargs=kwargs,
+        num_classes=global_config.num_classes,
+        constructor_args=constructor_args,
+        path=path,
+    )
 
 def resolve_dataset_config(config: CreateDatasetCliConfig) -> ResolvedDatasetConfig:
     """
@@ -111,58 +159,24 @@ def resolve_dataset_config(config: CreateDatasetCliConfig) -> ResolvedDatasetCon
     internal ResolvedDatasetConfig. It applies global defaults and handles
     split-specific overrides.
     """
-    identifier, _ = determine_identifier_and_source(config)
-
-    if not config.load_splits and config.split_config is None:
-        splits = ["train", "test"]
-    elif len(config.load_splits) > 2:
-        splits = config.load_splits[:2]
-        Warning(
-            f"More than 2 splits provided: {config.load_splits}. Only the first two splits will be used: {splits}.")
-    else:
-        splits = config.load_splits
-
-    if config.split_config is not None and len(config.split_config) > 2:
-        Warning(
-            f"More than 2 split configurations provided: {config.split_config}. Only the first two will be used: {config.split_config[:2]}.")
-
-    internal_splits = ["train", "test"]
-
+    user_splits_to_process = _get_user_splits(config)
     final_splits = {}
-    if config.split_config is None:
-        for split_name, internal_name in zip(splits, internal_splits):
-            split = ResolvedSplitConfig(
-                identifier=identifier,
-                source_split_name=split_name,
-                preprocessing=config.preprocessing,
-                kwargs=config.dataset_kwargs or {},
-                num_classes=config.num_classes,
-                constructor_args=config.constructor_args or {}
-            )
-            final_splits[internal_name] = split
-    else:
-        # If a specific split config is provided, map its entries to our internal roles.
-        user_split_configs = list(config.split_config.values())
-        for i, internal_name in enumerate(internal_splits):
-            if i >= len(user_split_configs):
-                break  # Stop if the user provided fewer splits than we have internal roles for.
 
-            user_config = user_split_configs[i]
+    for split_name in user_splits_to_process:
+        # Get the specific configuration for this split, if it exists.
+        user_split_config = config.split_config.get(split_name) if config.split_config else None
 
-            # Create a ResolvedSplitConfig by overriding global settings with split-specific ones.
-            resolved_split = ResolvedSplitConfig(
-                identifier=user_config.identifier or identifier,
-                source_split_name=user_config.split_name,
-                preprocessing=user_config.preprocessing or config.preprocessing,
-                kwargs=user_config.dataset_kwargs or config.dataset_kwargs or {},
-                num_classes=config.num_classes,
-                constructor_args=user_config.constructor_args or config.constructor_args or {},
-                path=user_config.path or None
-            )
-            final_splits[internal_name] = resolved_split
+        # Create the final, resolved configuration for this split.
+        resolved_split = _create_resolved_split(
+            global_config=config,
+            split_name=split_name,
+            user_split_config=user_split_config,
+        )
+        # The key in the final dictionary is the split name itself (e.g., 'train', 'test').
+        final_splits[split_name] = resolved_split
 
     return ResolvedDatasetConfig(
         dataset_name=config.dataset_name,
         splits=final_splits,
-        random_sample_size=config.random_sample_size
+        random_sample_size=config.random_sample_size,
     )
