@@ -65,10 +65,7 @@ class DatasetFactory:
                 # 1. Create the dataset provider instance with constructor args from the config
                 dataset_type = _infner_dataset_type(split_config.identifier)
                 
-                if dataset_type == DatasetType.HUGGINGFACE:
-                    identifier = huggingface_general_utils.process_hf_identifier(split_config.identifier)
-                else:
-                    identifier = split_config.identifier
+                identifier = _process_identifier(dataset_type, split_config.identifier)
 
                 dataset_provider = _create_provider(split_config, dataset_type)
 
@@ -229,6 +226,12 @@ def _prepare_load_kwargs(
     )
     
     return final_kwargs
+
+def _process_identifier(dataset_type: DatasetType, identifier: str) -> str:
+    if dataset_type == DatasetType.HUGGINGFACE:
+        return huggingface_general_utils.process_hf_identifier(identifier)
+    else:
+        return identifier
 
 
 @staticmethod

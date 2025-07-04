@@ -116,7 +116,7 @@ config_variant_1 = {
 }
 
 config_variant_2 = {
-    "dataset_name": "https://huggingface.co/datasets/uoft-cs/cifar10",
+    "dataset_name": "uoft-cs/cifar10",
     "num_classes": 10,
     "constructor_args": {"input_key": "img", "target_key": "label"},
 }
