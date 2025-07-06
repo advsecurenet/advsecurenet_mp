@@ -28,7 +28,6 @@ class DPatch(ObjectDetectionAttack):
         self.patch_shape = config.patch_shape
         self.learning_rate = config.learning_rate
         self.max_iterations = config.max_iter
-        self.verbose = config.verbose
         self._patch = torch.zeros(
             tuple(int(x) for x in self.patch_shape.replace('(', '').replace(')', '').replace(' ', '').split(',')) if isinstance(self.patch_shape, str) else self.patch_shape,
             dtype=torch.float32,
@@ -139,9 +138,7 @@ class DPatch(ObjectDetectionAttack):
                     break
             if all_initial_targets_empty:
                 _untargeted_attack_should_suppress_from_empty_initial = True
-                if self.verbose:
-                    print("[DPATCH] Untargeted attack mode: Initial state (image + initial patch) had no detections. The attack will aim to keep it that way (suppress new detections).")     
-        for i_step in trange(self.max_iterations, desc="DPatch iteration", disable=not self.verbose):
+        for i_step in trange(self.max_iterations, desc="DPatch iteration"):
             if i_step == 0 or (i_step + 1) % 100 == 0:
                 print("Training Step: %i", i_step + 1)
             # Generate patched images for the current optimization step

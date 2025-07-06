@@ -40,8 +40,6 @@ class PixelPerturbationODAttacker(ODAttacker):
                 boxes  = targets_dict["boxes"]
                 labels = targets_dict["labels"]
                 # 1) GENERATE the patch (no real images returned here)
-                my_target_label = None#self._config.target_label
-                print("Target label for attack: ", my_target_label)
                 targets = []
                 for b, l in zip(boxes, labels):
                     raw = l.detach().cpu().numpy().astype(int)      # e.g. [1, 3, 18, …]
@@ -54,7 +52,6 @@ class PixelPerturbationODAttacker(ODAttacker):
                 adv_imgs = self._config.attack.attack(
                     x            = images_np_for_dpatch,
                     y            = targets,
-                    target_label = my_target_label,
                     mask         = getattr(self._config.attack, "mask", None),
                     tog_variant  = self._attack_type,
                     tog_mislabeling_mode = self._tog_mislabeling_mode or "ml",

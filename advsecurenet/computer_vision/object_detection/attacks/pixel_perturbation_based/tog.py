@@ -90,7 +90,6 @@ class TOG(ObjectDetectionAttack):
     def attack(
             self,
             x: np.ndarray,  # (batch_size, channels, height, width)
-            target_label: torch.Tensor,
             mask: torch.Tensor,
             tog_variant: TOGAttackType,
             tog_mislabeling_mode: str = "ml",
