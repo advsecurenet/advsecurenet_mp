@@ -18,6 +18,7 @@ class AdversarialPatchODAttacker(ODAttacker):
     """
     def __init__(self, config: ODAttackerConfig):
         super().__init__(config)
+        self._trained_patch = None
 
     def execute(self):
         adversarial_images = []
@@ -37,8 +38,6 @@ class AdversarialPatchODAttacker(ODAttacker):
                 boxes  = targets_dict["boxes"]
                 labels = targets_dict["labels"]
                 # 1) GENERATE the patch (no real images returned here)
-                my_target_label = None#self._config.target_label
-                print("Target label for attack: ", my_target_label)
                 targets = []
                 for b, l in zip(boxes, labels):
                     raw = l.detach().cpu().numpy().astype(int)      # e.g. [1, 3, 18, …]
@@ -48,16 +47,15 @@ class AdversarialPatchODAttacker(ODAttacker):
                         "labels": mapped,
                         "scores": np.ones(len(mapped), dtype=float),
                     })
-                learned_patch = self._config.attack.attack(
+                self._trained_patch = self._config.attack.attack(
                     x            = images_np_for_dpatch,
                     y            = targets,
-                    target_label = my_target_label,
                     mask         = getattr(self._config.attack, "mask", None),
                 )
                 # 2) APPLY the patch to *this* batch of images
                 patched_np = self._config.attack.apply_patch(
                     x               = images_np_for_dpatch,
-                    patch_external  = learned_patch.detach().cpu().numpy(),
+                    patch_external  = self._trained_patch.detach().cpu().numpy(),
                     random_location = False
                 ).detach().cpu().numpy()
                 patched = torch.from_numpy(patched_np / 255.0).to(self._device)

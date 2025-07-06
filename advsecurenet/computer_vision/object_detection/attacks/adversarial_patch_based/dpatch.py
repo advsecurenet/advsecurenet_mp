@@ -28,16 +28,19 @@ class DPatch(ObjectDetectionAttack):
         self.patch_shape = config.patch_shape
         self.learning_rate = config.learning_rate
         self.max_iterations = config.max_iter
-        self.batch_size = config.batch_size
         self.verbose = config.verbose
-        self._patch = torch.zeros(self.patch_shape, dtype=torch.float32, device=config.device.processor)
+        self._patch = torch.zeros(
+            tuple(int(x) for x in self.patch_shape.replace('(', '').replace(')', '').replace(' ', '').split(',')) if isinstance(self.patch_shape, str) else self.patch_shape,
+            dtype=torch.float32,
+            device=config.device.processor
+        )
+        self._target_label = config.target_label
 
 
     def attack(
             self,
             x: torch.tensor,  # (batch_size, channels, height, width)
             y: torch.tensor,  # (batch_size, num_boxes, 4) (x1, y1, x2, y2)
-            target_label: torch.tensor,
             mask: torch.tensor,
             *args,
             **kwargs
@@ -52,8 +55,9 @@ class DPatch(ObjectDetectionAttack):
         Returns:
             torch.tensor: The adversarial example tensor.
         """
-        if target_label is not None and y is not None:
-            raise ValueError("Both target_label and y cannot be provided at the same time.")
+        if self._target_label is not None and y is not None:
+            print(f"[DPATCH] Both target_label and y have been provided at the same time. Removing y to avoid conflict.")
+            y = None  # Remove y to avoid conflict with target_label
         self.object_detector.model.eval()
         if isinstance(x, np.ndarray):
             x = torch.tensor(x)
@@ -72,13 +76,13 @@ class DPatch(ObjectDetectionAttack):
         transforms = transforms_initial.copy()  # Copy the transforms for later use
         patched_images = patched_images_initial.clone().detach().requires_grad_(True)
         patch_target: list[dict[str, np.ndarray]] = []
-        if (target_label is not None) and (y is None): # targetted attack
-            print(f"[DPATCH] targetted attack - target_label: {target_label}")
+        if (self._target_label is not None) and (y is None): # targetted attack
+            print(f"[DPATCH] targetted attack - target_label: {self._target_label}")
             for i_image in range(patched_images.shape[0]):
-                if isinstance(target_label, int):
-                    t_l = target_label
+                if isinstance(self._target_label, int):
+                    t_l = self._target_label
                 else:
-                    t_l = target_label[i_image]
+                    t_l = self._target_label[i_image]
                 i_x_1 = transforms[i_image]["i_x_1"]
                 i_x_2 = transforms[i_image]["i_x_2"]
                 i_y_1 = transforms[i_image]["i_y_1"]
@@ -93,7 +97,7 @@ class DPatch(ObjectDetectionAttack):
                     ]
                 )
                 patch_target.append(target_dict)
-        elif target_label is None: # untargetted attack
+        elif self._target_label is None: # untargetted attack
             predictions = None
             if y is not None:
                 print(f"[DPATCH] untargetted attack - true labels provided")
@@ -124,7 +128,7 @@ class DPatch(ObjectDetectionAttack):
         # Flag to determine if the untargeted attack started with no detections
         # and should therefore aim to suppress any new detections.
         _untargeted_attack_should_suppress_from_empty_initial = False
-        if not target_label and y is None:
+        if not self._target_label and y is None:
             # This condition means patch_target was derived from self.object_detector(patched_images)
             # where patched_images were based on the initial_patch_for_target_determination.
             all_initial_targets_empty = True
@@ -150,62 +154,62 @@ class DPatch(ObjectDetectionAttack):
                 mask=mask,               # Original mask
                 transforms=transforms,   # Transforms derived from transforms_initial
             )
-            num_batches = math.ceil(x.shape[0] / self.batch_size)
+            # Use the actual batch size from the input tensor
+            actual_batch_size = x.shape[0]
             patch_gradients = torch.zeros_like(self._patch)
-            for i_batch in range(num_batches):
-                i_batch_start = i_batch * self.batch_size
-                i_batch_end = min((i_batch + 1) * self.batch_size, patched_images.shape[0])
-                img_batch = current_step_patched_images[i_batch_start:i_batch_end].detach().cpu().numpy()
-                input_batch_np = img_batch.astype(np.float32)
-                res = self.object_detector.predict(input_batch_np)
-                pred_boxes = []
-                pred_labels = []
-                for i in range(len(res)):
-                    # Check if the dictionary for the current image is not empty
-                    if "boxes" in res[i] and res[i]["boxes"].size > 0:
-                        pred_boxes.append(torch.tensor(res[i]["boxes"], device=patched_images.device, dtype=torch.float32))
-                        pred_labels.append(torch.tensor(res[i]["labels"], device=patched_images.device, dtype=torch.float32))
-                    else:
-                        # Handle cases with no detections if necessary, e.g., append empty tensors
-                        # This depends on how the loss function handles empty predictions
-                        pred_boxes.append(torch.empty((0, 4), device=patched_images.device, dtype=torch.float32))
-                        pred_labels.append(torch.empty((0,), device=patched_images.device, dtype=torch.float32))
-                # Extract predicted class logits or confidence scores (not just class indices)
-                pred_logits = []
-                for result in res:
-                    if "scores" in result and "labels" in result:
-                        scores = result["scores"]  # confidence scores
-                        labels = result["labels"].astype(int)
-                        num_classes = 80 # model.num_classes  # You must know this from your model definition
-                        logits = torch.zeros((len(labels), num_classes), device=patched_images.device)
-                        for idx, label in enumerate(labels):
-                            logits[idx, label] = float(scores[idx])
-                        pred_logits.append(logits)
-                all_labels = np.concatenate([t["labels"] for t in patch_target])
-                invalid_mask = (all_labels < 0) | (all_labels >= num_classes)
-                if invalid_mask.any():
-                    bad = all_labels[invalid_mask]
-                    print("⚠️ Invalid labels detected:", bad, "unique:", np.unique(bad))
-                    raise ValueError("Found out-of-range labels in patch_target; see above.")
-                gradients = self.object_detector.loss_gradient(
-                    x=input_batch_np,
-                    y=patch_target[i_batch_start:i_batch_end],
-                    standardise_output=True,
-                )
-                for i_image in range(gradients.shape[0]):
-                    i_x_1 = transforms[i_batch_start + i_image]["i_x_1"]
-                    i_x_2 = transforms[i_batch_start + i_image]["i_x_2"]
-                    i_y_1 = transforms[i_batch_start + i_image]["i_y_1"]
-                    i_y_2 = transforms[i_batch_start + i_image]["i_y_2"]
-                    patch_gradients_i = gradients[
-                        i_image,           # batch index
-                        :,                 # channels
-                        i_x_1:i_x_2,       # height slice
-                        i_y_1:i_y_2        # width slice
-                    ]
-                    patch_gradients += patch_gradients_i  # now both are (C, patch_h, patch_w)
+            i_batch_start = 0
+            i_batch_end = min(actual_batch_size, patched_images.shape[0])
+            img_batch = current_step_patched_images[i_batch_start:i_batch_end].detach().cpu().numpy()
+            input_batch_np = img_batch.astype(np.float32)
+            res = self.object_detector.predict(input_batch_np)
+            pred_boxes = []
+            pred_labels = []
+            for i in range(len(res)):
+                # Check if the dictionary for the current image is not empty
+                if "boxes" in res[i] and res[i]["boxes"].size > 0:
+                    pred_boxes.append(torch.tensor(res[i]["boxes"], device=patched_images.device, dtype=torch.float32))
+                    pred_labels.append(torch.tensor(res[i]["labels"], device=patched_images.device, dtype=torch.float32))
+                else:
+                    # Handle cases with no detections if necessary, e.g., append empty tensors
+                    # This depends on how the loss function handles empty predictions
+                    pred_boxes.append(torch.empty((0, 4), device=patched_images.device, dtype=torch.float32))
+                    pred_labels.append(torch.empty((0,), device=patched_images.device, dtype=torch.float32))
+            # Extract predicted class logits or confidence scores (not just class indices)
+            pred_logits = []
+            for result in res:
+                if "scores" in result and "labels" in result:
+                    scores = result["scores"]  # confidence scores
+                    labels = result["labels"].astype(int)
+                    num_classes = 80 # model.num_classes  # You must know this from your model definition
+                    logits = torch.zeros((len(labels), num_classes), device=patched_images.device)
+                    for idx, label in enumerate(labels):
+                        logits[idx, label] = float(scores[idx])
+                    pred_logits.append(logits)
+            all_labels = np.concatenate([t["labels"] for t in patch_target])
+            invalid_mask = (all_labels < 0) | (all_labels >= num_classes)
+            if invalid_mask.any():
+                bad = all_labels[invalid_mask]
+                print("⚠️ Invalid labels detected:", bad, "unique:", np.unique(bad))
+                raise ValueError("Found out-of-range labels in patch_target; see above.")
+            gradients = self.object_detector.loss_gradient(
+                x=input_batch_np,
+                y=patch_target[i_batch_start:i_batch_end],
+                standardise_output=True,
+            )
+            for i_image in range(gradients.shape[0]):
+                i_x_1 = transforms[i_batch_start + i_image]["i_x_1"]
+                i_x_2 = transforms[i_batch_start + i_image]["i_x_2"]
+                i_y_1 = transforms[i_batch_start + i_image]["i_y_1"]
+                i_y_2 = transforms[i_batch_start + i_image]["i_y_2"]
+                patch_gradients_i = gradients[
+                    i_image,           # batch index
+                    :,                 # channels
+                    i_x_1:i_x_2,       # height slice
+                    i_y_1:i_y_2        # width slice
+                ]
+                patch_gradients += patch_gradients_i  # now both are (C, patch_h, patch_w)
             patch_gradients /= x.shape[0]
-            if target_label is not None:
+            if self._target_label is not None:
                 self._patch = self._patch - self.learning_rate * torch.sign(patch_gradients)
             else:
                 if _untargeted_attack_should_suppress_from_empty_initial:

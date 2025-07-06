@@ -8,6 +8,7 @@ from torch.utils.data import Subset, random_split
 from advsecurenet.computer_vision.object_detection.attacks.attacker.adversarial_patch_od_attacker import AdversarialPatchODAttacker
 from advsecurenet.computer_vision.object_detection.attacks.attacker.pixel_perturbation_od_attacker import PixelPerturbationODAttacker
 from advsecurenet.computer_vision.object_detection.attacks.attacker.od_attacker import ODAttackerConfig
+from cli.shared.types.attack import BaseAttackCLIConfigType
 from advsecurenet.dataloader.data_loader_factory import od_collate_fn, DataLoaderFactory
 from advsecurenet.shared.types.configs.dataloader_config import DataLoaderConfig
 from cli.shared.utils.dataset import get_datasets
@@ -23,7 +24,7 @@ class CLIODAttacker:
     """
     Attacker class for the CLI for object detection. This module parses the CLI arguments and executes the OD attack.
     """
-    def __init__(self, config: ODAttackerConfig, od_main_attack_type, **kwargs):
+    def __init__(self, config: BaseAttackCLIConfigType, od_main_attack_type, **kwargs):
         self._config = config
         self.od_main_attack_type = od_main_attack_type
         self._kwargs = kwargs
@@ -75,8 +76,12 @@ class CLIODAttacker:
 
         extra_kwargs = {}
         if self.od_main_attack_type.name.upper() == "DPATCH":
+            # Set verbose from attack_procedure
+            setattr(attack_config, 'verbose', self._config.attack_procedure.verbose)
             attack = DPatch(attack_config)
         elif self.od_main_attack_type.name.upper() == "TOG":
+            # Set verbose from attack_procedure
+            setattr(attack_config, 'verbose', self._config.attack_procedure.verbose)
             attack = TOG(attack_config)
             # Map string to TOGAttackType enum
             attack_type_str = getattr(attack_config, "attack_type", "vanishing")
@@ -164,18 +169,10 @@ class CLIODAttacker:
 
     def _get_evaluators(self):
         """
-        Get the evaluators for the attack from the CLI parameters or config.
+        Get the evaluators for the attack from the CLI parameters.
         
         Returns:
             list[str]: List of evaluator names.
         """
-        # First check if evaluators are passed from the CLI directly
-        if "evaluators" in self._kwargs:
-            return self._kwargs.get("evaluators")
-        
-        # Then check if evaluators are defined in the config
-        if hasattr(self._config, "evaluators") and self._config.evaluators:
-            return self._config.evaluators
-            
-        # Finally, use default evaluator for object detection
-        return ["mean_average_precision"]
+        # Get evaluators from CLI kwargs (same as image classification attacks)
+        return self._kwargs.get("evaluators", ["mean_average_precision"])

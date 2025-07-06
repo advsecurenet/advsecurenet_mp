@@ -7,7 +7,7 @@ from cli.shared.types.attack import BaseAttackCLIConfigType, TargetedAttackCLICo
 @dataclass
 class TOGAttackCLIConfigType(BaseAttackCLIConfigType):
     """
-    This dataclass is used to store the configuration of the DPatch attack CLI.
+    This dataclass is used to store the configuration of the TOG attack CLI.
     """
 
     attack_config: TargetedAttackCLIConfigType[TOGAttackConfig]

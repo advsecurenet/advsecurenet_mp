@@ -8,6 +8,4 @@ class ODAttackerConfig(AttackerConfig):
     """
     Configuration class for the ODAttacker module.
     """
-
-    target_label: Optional[int] = None
     evaluators: list[str] = field(default_factory=lambda: ["mean_average_precision"])

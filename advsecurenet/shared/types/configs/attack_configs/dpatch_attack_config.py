@@ -10,11 +10,8 @@ class DPatchAttackConfig(AttackConfig):
     DPatch attack configuration.
     """
 
-    object_detector: str = "fasterrcnn_resnet50_fpn"
-    patch_shape: int = 10
-    learning_rate: int = 10
-    max_iter: int = 10
-    batch_size: int = 10
-    verbose: int = 10
-    attack_feature: int = 10
+    object_detector: str = "yolov5"
+    patch_shape: tuple[int, int, int] = (3, 200, 200)
+    learning_rate: float = 1.99
+    max_iter: int = 1000
     target_label: Optional[int] = None

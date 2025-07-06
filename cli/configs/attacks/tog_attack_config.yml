@@ -49,8 +49,6 @@ dataloader:
   default.num_workers: 0 # Override default num workers
 device: !include ../shared/device_config.yml
 device.processor: cuda:0 # Override default processor
-evaluators:
-  - mean_average_precision
 attack_procedure:
   verbose: true
   save_result_images: true
@@ -70,6 +68,4 @@ attack_config:
     max_iter: 90
     eps: 0.03
     eps_iter: 0.01
-    batch_size: 16
-    verbose: true
     random_location: false 

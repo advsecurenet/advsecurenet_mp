@@ -50,8 +50,6 @@ dataloader:
   default.num_workers: 0 # Override default num workers
 device: !include ../shared/device_config.yml
 device.processor: cuda:0 # Override default processor
-evaluators:
-  - mean_average_precision
 attack_procedure:
   verbose: true
   save_result_images: true
@@ -66,7 +64,6 @@ attack_config:
     object_detector: yolov5
     patch_shape: [3, 200, 200]
     learning_rate: 1.99
-    max_iter: 10 #1600
-    batch_size: 16
-    verbose: true
+    max_iter: 1600
     random_location: false
+    target_label: 50
