@@ -7,11 +7,11 @@ from advsecurenet.datasets.base_dataset import BaseDataset
 from advsecurenet.shared.types.dataset import DatasetType
 
 
-from cli.shared.types.utils.dataset import (
+from advsecurenet.shared.types.configs.dataset_config import (
     CreateDatasetCliConfig,
 )
 
-from cli.shared.types.utils.dataset import CreateDatasetCliConfig, resolve_dataset_config
+from advsecurenet.shared.types.configs.dataset_config import CreateDatasetCliConfig, resolve_dataset_config
 
 
 def get_datasets(

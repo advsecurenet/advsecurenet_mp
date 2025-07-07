@@ -2,7 +2,7 @@ import pytest
 from advsecurenet.datasets.dataset_factory import DatasetFactory
 from advsecurenet.datasets.HuggingFace.huggingface_dataset import HuggingFaceDataset
 from advsecurenet.datasets.base_dataset import DatasetWrapper
-from cli.shared.types.utils.dataset import ResolvedDatasetConfig, ResolvedSplitConfig
+from advsecurenet.shared.types.configs.dataset_config import ResolvedDatasetConfig, ResolvedSplitConfig
 from torchvision.datasets.cifar import CIFAR10
 import warnings
 from unittest.mock import patch, MagicMock

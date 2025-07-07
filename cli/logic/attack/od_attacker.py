@@ -121,10 +121,10 @@ class CLIODAttacker:
 
     def _prepare_dataset(self):
         train_data, test_data = get_datasets(self._config.dataset)
-        dataset_part = self._config.dataset.dataset_part
-        if dataset_part == "train":
+        load_splits = self._config.dataset.load_splits
+        if load_splits == ["train"]:
             data = train_data
-        elif dataset_part == "test":
+        elif load_splits == ["test"]:
             data = test_data
         else:
             data = train_data + test_data if train_data and test_data else train_data or test_data

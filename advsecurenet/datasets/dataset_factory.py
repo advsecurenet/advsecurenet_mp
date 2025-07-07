@@ -11,7 +11,7 @@ from advsecurenet.datasets.COCO import COCODataset
 from advsecurenet.datasets.svhn import SVHNDataset
 from advsecurenet.datasets.HuggingFace import HuggingFaceDataset
 from advsecurenet.shared.types import DatasetType
-from cli.shared.types.utils.dataset import ResolvedDatasetConfig, ResolvedSplitConfig, UserSplitConfig, CreateDatasetCliConfig, resolve_dataset_config
+from advsecurenet.shared.types.configs.dataset_config import ResolvedDatasetConfig, ResolvedSplitConfig, UserSplitConfig, CreateDatasetCliConfig, resolve_dataset_config
 from advsecurenet.utils.huggingface_utils import huggingface_dataset_utils
 from advsecurenet.utils.huggingface_utils import huggingface_general_utils
 from advsecurenet.utils.kwargs_utils import filter_kwargs_for_callable

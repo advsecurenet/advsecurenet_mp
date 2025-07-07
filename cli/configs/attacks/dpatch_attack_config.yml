@@ -2,7 +2,8 @@
 model:
   model_name: CustomYolov5Model
   num_input_channels: 3
-  num_classes: 80  # COCO dataset classes
+  architecture:
+    num_classes: 80  # COCO dataset classes
   pretrained: false
   weights: "DEFAULT"
   is_external: true
