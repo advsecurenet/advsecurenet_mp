@@ -35,6 +35,7 @@ setup(
         "requests",
         "transformers",
         "datasets",
+        "opacus"
     ],
     entry_points={
         "console_scripts": [

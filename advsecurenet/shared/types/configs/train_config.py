@@ -1,8 +1,8 @@
 from dataclasses import dataclass
-from typing import Optional, Union
+from typing import Optional, Union, Any
 
 from torch import nn
-from torch.optim import Optimizer
+from torch.optim import Optimizer, lr_scheduler
 from torch.utils.data import DataLoader
 
 from advsecurenet.shared.types.configs.device_config import DeviceConfig
@@ -14,7 +14,7 @@ class ModelConfig:
     Configuration class for the model.
     """
 
-    model: nn.Module = None
+    model: nn.Module
 
 
 @dataclass
@@ -23,7 +23,7 @@ class TrainingProcessConfig:
     Configuration class for the training process.
     """
 
-    train_loader: DataLoader = None
+    train_loader: DataLoader
     criterion: Union[str, nn.Module] = "cross_entropy"
     epochs: int = 10
     learning_rate: float = 0.001
@@ -37,9 +37,20 @@ class OptimizationConfig:
     """
 
     optimizer: Union[str, Optimizer] = "adam"
-    optimizer_kwargs: Optional[dict] = None
-    scheduler: Optional[Union[str, nn.Module]] = None
+    optimizer_kwargs: Optional[dict[str, Any]] = None
+    scheduler: Optional[Union[str, lr_scheduler._LRScheduler]] = None
     scheduler_kwargs: Optional[dict] = None
+
+@dataclass
+class DifferentialPrivacyConfig:
+    """
+    Configuration for Differential Privacy using Opacus.
+    """
+    enable: bool = False
+    noise_multiplier: float = 1.0
+    max_grad_norm: float = 1.0
+    delta: float = 1e-5
+    kwargs: Optional[dict] = None
 
 
 @dataclass
@@ -79,3 +90,4 @@ class TrainConfig(
     """
     Dataclass to store the overall training configuration by aggregating other configurations.
     """
+    differential_privacy: Optional[DifferentialPrivacyConfig] = None

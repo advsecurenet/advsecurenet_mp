@@ -1,17 +1,22 @@
 import logging
 import os
-from typing import Union, cast
+from typing import Union, cast, Optional
 
 import click
 import torch
 from torch import nn, optim
+from torch.utils.data import DataLoader
 from tqdm.auto import tqdm, trange
+
+from opacus import PrivacyEngine
 
 from advsecurenet.shared.optimizer import Optimizer
 from advsecurenet.shared.scheduler import Scheduler
 from advsecurenet.shared.types.configs.train_config import TrainConfig
 from advsecurenet.utils.loss import get_loss_function
 from advsecurenet.utils.model_utils import save_model
+from advsecurenet.utils.trainer_utils.differential_privacy_utils import setup_privacy_engine
+from advsecurenet.utils.device_utils import setup_device
 
 logger = logging.getLogger(__name__)
 
@@ -28,13 +33,65 @@ class Trainer:
         Args:
             config (TrainConfig): The train config.
         """
+
         self._config = config
-        self._device = self._setup_device()
-        self._model = self._setup_model()
-        self._optimizer = self._setup_optimizer()
+        self._device = setup_device(config.processor)
         self._loss_fn = get_loss_function(config.criterion)
-        self._start_epoch = self._load_checkpoint_if_any()
-        self._scheduler = self._setup_scheduler()
+
+        model = config.model.to(self._device)
+        train_loader = self._config.train_loader
+
+        optimizer_kwargs = config.optimizer_kwargs or {}
+        optimizer = self._get_optimizer(config.optimizer, model, config.learning_rate, **optimizer_kwargs)
+
+        checkpoint = self._load_checkpoint_data(
+            load_checkpoint=self._config.load_checkpoint,
+            checkpoint_path=self._config.load_checkpoint_path,
+            device=self._device,
+        )
+        
+        start_epoch = 1
+        if checkpoint:
+            model.load_state_dict(checkpoint["model_state_dict"])
+            optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+            self._assign_device_to_optimizer_state(optimizer) # Pass optimizer explicitly
+            start_epoch = checkpoint["epoch"] + 1
+            
+        self._start_epoch = start_epoch
+
+
+        if (
+            not config.differential_privacy
+            or not config.differential_privacy.enable
+        ):
+            self._model = model
+            self._optimizer = optimizer
+            self._train_loader = train_loader
+            self._privacy_engine = None
+        else:
+            (
+            self._model, 
+            self._optimizer, 
+            self._train_loader, 
+            self._privacy_engine, 
+            private_loss_fn
+            ) = setup_privacy_engine(
+                model, 
+                optimizer,
+                train_loader,
+                config.differential_privacy
+            )
+
+            if private_loss_fn:
+                self._loss_fn = private_loss_fn
+
+        self._scheduler = self._get_scheduler(
+            scheduler=config.scheduler,
+            optimizer=self._optimizer,
+            scheduler_kwargs=config.scheduler_kwargs,
+        )
+        
+
 
     def train(self) -> None:
         """
@@ -46,37 +103,8 @@ class Trainer:
         ):
             self._run_epoch(epoch)
             if self._should_save_checkpoint(epoch):
-                self._save_checkpoint(epoch, self._optimizer)
+                self._save_checkpoint(epoch, self._optimizer)<
         self._post_training()
-
-    def _setup_device(self) -> torch.device:
-        """
-        Setup the device.
-        """
-        device = self._config.processor or torch.device(
-            "cuda" if torch.cuda.is_available() else "cpu"
-        )
-        return device
-
-    def _setup_model(self) -> torch.nn.Module:
-        """
-        Initializes the model and moves it to the device.
-        """
-        return self._config.model.to(self._device)
-
-    def _setup_optimizer(self) -> optim.Optimizer:
-        """
-        Initializes the optimizer based on the given optimizer string or optim.Optimizer.
-
-        Returns:
-            optim.Optimizer: The optimizer. I.e. Adam, SGD, etc.
-        """
-        kwargs = self._config.optimizer_kwargs if self._config.optimizer_kwargs else {}
-        optimizer = self._get_optimizer(
-            self._config.optimizer, self._model, self._config.learning_rate, **kwargs
-        )
-
-        return optimizer
 
     def _setup_scheduler(self) -> torch.optim.lr_scheduler._LRScheduler:
         """
@@ -88,17 +116,19 @@ class Trainer:
         scheduler = self._get_scheduler(self._config.scheduler, self._optimizer)
         return scheduler
 
+    @staticmethod
     def _get_scheduler(
-        self,
-        scheduler: Union[str, torch.optim.lr_scheduler._LRScheduler],
+        scheduler: Optional[Union[str, torch.optim.lr_scheduler._LRScheduler]],
         optimizer: optim.Optimizer,
-    ) -> torch.optim.lr_scheduler._LRScheduler:
+        scheduler_kwargs: Optional[dict] = None,
+    ) -> Optional[torch.optim.lr_scheduler._LRScheduler]:
         """
         Returns the scheduler based on the given scheduler string or torch.optim.lr_scheduler._LRScheduler.
 
         Args:
             scheduler (str or torch.optim.lr_scheduler._LRScheduler, optional): The scheduler. Defaults to None.
-            optimizer (optim.Optimizer, optional): The optimizer. Required if scheduler is a string.
+            optimizer (optim.Optimizer): The optimizer for the scheduler.
+            scheduler_kwargs (Optional[dict]): Additional keyword arguments for the scheduler.
 
         Returns:
             torch.optim.lr_scheduler._LRScheduler: The scheduler. I.e. ReduceLROnPlateau, etc.
@@ -112,14 +142,9 @@ class Trainer:
                     + ", ".join([e.name for e in Scheduler])
                 )
             scheduler_function_class = Scheduler[scheduler.upper()].value
-            scheduler = scheduler_function_class(
-                optimizer,
-                **(
-                    self._config.scheduler_kwargs
-                    if self._config.scheduler_kwargs
-                    else {}
-                ),
-            )
+            # Use the passed-in kwargs, with a fallback to an empty dict
+            kwargs = scheduler_kwargs or {}
+            scheduler = scheduler_function_class(optimizer, **kwargs)
         elif not isinstance(scheduler, torch.optim.lr_scheduler._LRScheduler):
             raise ValueError(
                 "Scheduler must be a string or an instance of torch.optim.lr_scheduler._LRScheduler."
@@ -212,9 +237,9 @@ class Trainer:
         # Returns the model state dict.
         return self._model.state_dict()
 
-    def _assign_device_to_optimizer_state(self):
-        # Default implementation
-        for state in self._optimizer.state.values():
+    def _assign_device_to_optimizer_state(self, optimizer: optim.Optimizer):
+        # Pass optimizer as an argument since self._optimizer might not be the one we want yet
+        for state in optimizer.state.values():
             for k, v in state.items():
                 if isinstance(v, torch.Tensor):
                     state[k] = v.to(self._device)
@@ -233,7 +258,7 @@ class Trainer:
         if self._config.save_checkpoint_name:
             return self._config.save_checkpoint_name
         else:
-            return f"{self._config.model._model_name}_{self._config.train_loader.dataset.__class__.__name__}_checkpoint"
+            return f"{self._config.model._model_name}_{self._train_loader.dataset.__class__.__name__}_checkpoint"
 
     def _save_checkpoint(self, epoch: int, optimizer: optim.Optimizer) -> None:
         """
@@ -298,8 +323,8 @@ class Trainer:
             else "model"
         )
         dataset_name = (
-            self._config.train_loader.dataset.name
-            if hasattr(self._config.train_loader.dataset, "name")
+            self._train_loader.dataset.name
+            if hasattr(self._train_loader.dataset, "name")
             else "dataset"
         )
 
@@ -352,13 +377,13 @@ class Trainer:
         """
         total_loss = 0.0
         for _, (source, targets) in enumerate(
-            tqdm(self._config.train_loader, leave=False)
+            tqdm(self._train_loader, leave=False)
         ):
             source, targets = source.to(self._device), targets.to(self._device)
             loss = self._run_batch(source, targets)
             total_loss += loss
 
-        total_loss /= len(self._config.train_loader)
+        total_loss /= len(self._train_loader)
         click.echo(
             click.style(f"Epoch {epoch} - Average loss: {total_loss:.4f}", fg="blue")
         )
@@ -373,6 +398,16 @@ class Trainer:
         if self._should_save_final_model():
             self._save_final_model()
 
+        if self._privacy_engine:
+            delta = self._config.differential_privacy.delta
+            epsilon = self._privacy_engine.get_epsilon(delta)
+            click.echo(
+                click.style(
+                    f"\nTraining finished. Final privacy budget: (ε = {epsilon:.2f}, δ = {delta})",
+                    fg="green",
+                )
+            )
+
     def _log_loss(
         self, epoch: int, loss: float, dir: str = None, filename: str = "loss.log"
     ) -> None:
@@ -385,3 +420,38 @@ class Trainer:
                 f.write("epoch,loss\n")
         with open(path, "a", encoding="utf-8") as f:
             f.write(f"{epoch},{loss}\n")
+
+    
+    @staticmethod
+    def _load_checkpoint_data(
+        load_checkpoint: bool, checkpoint_path: Optional[str], device: torch.device
+    ) -> Optional[dict]:
+        """
+        Loads checkpoint data from a file. This is a static utility method.
+
+        Args:
+            load_checkpoint (bool): Flag indicating if loading a checkpoint is enabled.
+            checkpoint_path (Optional[str]): The path to the checkpoint file.
+            device (torch.device): The device to map the loaded checkpoint to.
+
+        Returns:
+            Optional[dict]: The loaded checkpoint dictionary, or None if not loaded.
+        """
+        if not load_checkpoint or not checkpoint_path:
+            return None
+
+        if not os.path.isfile(checkpoint_path):
+            logger.warning("Checkpoint file not found at %s. Not loading.", checkpoint_path)
+            return None
+        
+        try:
+            logger.info("Loading checkpoint from %s", checkpoint_path)
+            checkpoint = torch.load(checkpoint_path, map_location=device)
+            # Basic validation to ensure essential keys exist
+            if "model_state_dict" not in checkpoint or "optimizer_state_dict" not in checkpoint or "epoch" not in checkpoint:
+                logger.error("Checkpoint is malformed or missing required keys. Not loading.")
+                return None
+            return checkpoint
+        except Exception as e:
+            logger.error("Failed to load checkpoint file from %s: %s", checkpoint_path, e)
+            return None
