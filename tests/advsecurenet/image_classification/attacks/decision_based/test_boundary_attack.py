@@ -9,7 +9,7 @@ from advsecurenet.computer_vision.image_classification.attacks.decision_based.bo
     DecisionBoundary,
 )
 from advsecurenet.shared.types.configs import attack_configs
-from advsecurenet.utils.device_manager import DeviceManager
+from advsecurenet.utils.device_utils import DeviceManager
 
 dummy_config = attack_configs.DecisionBoundaryAttackConfig()
 dummy_model = MagicMock()
