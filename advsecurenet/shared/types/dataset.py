@@ -15,6 +15,7 @@ class DatasetType(Enum):
     PASCAL_VOC = "PASCAL_VOC"
     COCO = "COCO"
     CUSTOM = "CUSTOM"
+    HUGGINGFACE = "HUGGINGFACE"
 
 
 class DataType(Enum):

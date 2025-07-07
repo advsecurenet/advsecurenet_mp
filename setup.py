@@ -33,6 +33,7 @@ setup(
         "einops",
         "filetype",
         "requests",
+        "transformers",
         "datasets",
         "mean_average_precision",
         "yolov5",

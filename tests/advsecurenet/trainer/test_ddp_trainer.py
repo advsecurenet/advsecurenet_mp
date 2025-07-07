@@ -31,10 +31,10 @@ def processor(request):
 def train_config(processor):
 
     model = ModelFactory.create_model(
-        model_name="resnet18", num_classes=10, pretrained=False
+        model_name="resnet18", architecture={"num_classes": 10}, pretrained=False
     )
-    dataset = DatasetFactory.create_dataset(dataset_type="cifar10")
-    test_data = dataset.load_dataset(train=False)
+    dataset = DatasetFactory.load_dataset(dataset_name="cifar10")
+    test_data = dataset["test"]
     dataloader = DataLoaderFactory.create_dataloader(dataset=test_data, batch_size=32)
 
     # Define the training config

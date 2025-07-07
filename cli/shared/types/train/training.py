@@ -3,7 +3,7 @@ from typing import Optional
 
 from advsecurenet.shared.types.configs.device_config import DeviceConfig
 from cli.shared.types.utils.dataloader import DataLoaderCliConfigType
-from cli.shared.types.utils.dataset import DatasetCliConfigType
+from cli.shared.types.utils.dataset import CreateDatasetCliConfig
 from cli.shared.types.utils.model import ModelCliConfigType
 
 
@@ -39,7 +39,7 @@ class TrainingCliConfigType:
     """
 
     model: ModelCliConfigType
-    dataset: DatasetCliConfigType
+    dataset: CreateDatasetCliConfig
     dataloader: DataLoaderCliConfigType
     training: Training
     device: DeviceConfig

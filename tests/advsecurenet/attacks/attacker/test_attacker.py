@@ -31,17 +31,16 @@ def config(device):
         model=ModelFactory.create_model(
             CreateModelConfig(
                 model_name="CustomMnistModel",
-                num_classes=10,
-                num_input_channels=1,
+                architecture={"num_classes": 10, "num_input_channels": 1},
                 pretrained=False,
             )
         ),
         attack=FGSM(config=FgsmAttackConfig(epsilon=0.3, device=device_cfg)),
         dataloader=DataLoaderConfig(
             # get the test dataset
-            dataset=DatasetFactory.create_dataset(
-                dataset_type="MNIST", return_loaded=True
-            )[1]
+            dataset=DatasetFactory.load_dataset(
+                dataset_name="MNIST"
+            )["test"]
         ),
         device=device_cfg,
         return_adversarial_images=True,
