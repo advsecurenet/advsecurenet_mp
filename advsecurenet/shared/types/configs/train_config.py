@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional, Union, Any
 
 from torch import nn
@@ -79,15 +79,14 @@ class FinalModelConfig:
 
 
 @dataclass
-class TrainConfig(
-    ModelConfig,
-    TrainingProcessConfig,
-    OptimizationConfig,
-    CheckpointConfig,
-    FinalModelConfig,
-    DeviceConfig,
-):
+class TrainConfig:
     """
     Dataclass to store the overall training configuration by aggregating other configurations.
     """
+    model_config: ModelConfig
+    training_process_config: TrainingProcessConfig
+    optimization_config: OptimizationConfig = field(default_factory=OptimizationConfig)
+    checkpoint_config: CheckpointConfig = field(default_factory=CheckpointConfig)
+    final_model_config: FinalModelConfig = field(default_factory=FinalModelConfig)
+    device_config: DeviceConfig = field(default_factory=DeviceConfig)
     differential_privacy: Optional[DifferentialPrivacyConfig] = None
