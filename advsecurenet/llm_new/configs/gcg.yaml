@@ -1,0 +1,40 @@
+attack:
+  type: gcg
+  n_steps: 1000
+  batch_size: 512
+  test_steps: 50
+  topk: 256
+  temp: 1.0
+  control_init: "! ! ! ! ! ! ! ! ! ! ! !"
+  target_weight: 1.0
+  control_weight: 0.0
+  filter_cand: true
+  allow_non_ascii: false
+  verbose: true
+  anneal: false
+  incr_control: false
+  opt_only: false
+
+  # For transfer or multi-prompt modes
+  progressive_goals: false
+  progressive_models: false
+  stop_on_success: false
+  num_train_models: 1
+
+  
+train_data: advsecurenet/llm_new/datasets/advbench/harmful_behaviors.csv
+n_train_data: 10
+n_test_data: 0
+data_offset: 0  # can be overridden via CLI
+
+model:
+  name: llama2  # just the key from model_registry.yaml
+  provider: huggingface
+  device: cpu
+
+logging:
+  result_prefix: results/gcg_run
+  save_suffix: default
+  logfile: null
+
+transfer: false

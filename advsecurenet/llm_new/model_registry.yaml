@@ -1,0 +1,29 @@
+llama2:
+  path: ${LLAMA2_PATH}
+  tokenizer: ${LLAMA2_PATH}
+  template: llama-2
+
+vicuna:
+  path: ${VICUNA_PATH}
+  tokenizer: ${VICUNA_PATH}
+  template: vicuna
+
+wizardlm:
+  path: ${WIZARDLM_PATH}
+  tokenizer: ${WIZARDLM_PATH}
+  template: wizardlm
+
+guanaco:
+  path: ${GUANACO_PATH}
+  tokenizer: ${GUANACO_PATH}
+  template: guanaco
+
+falcon:
+  path: ${FALCON_PATH}
+  tokenizer: ${FALCON_PATH}
+  template: falcon
+
+mpt-chat:
+  path: ${MPT_CHAT_PATH}
+  tokenizer: ${MPT_CHAT_PATH}
+  template: mpt-chat
