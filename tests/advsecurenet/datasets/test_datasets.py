@@ -15,6 +15,7 @@ from advsecurenet.datasets.Custom.CustomDataset import CustomDataset
 from advsecurenet.datasets.ImageNet.imagenet_dataset import ImageNetDataset
 from advsecurenet.datasets.MNIST.mnist_dataset import FashionMNISTDataset, MNISTDataset
 from advsecurenet.datasets.svhn.svhn_dataset import SVHNDataset
+from advsecurenet.datasets.COCO.coco_dataset import COCODataset
 from advsecurenet.shared.types.configs.preprocess_config import (
     PreprocessConfig,
     PreprocessStep,
@@ -253,3 +254,24 @@ def test_custom_dataset(temp_dataset_dir):
     # Verify the labels
     assert dataset[0][1] == 0, "Label does not match"
     assert dataset[1][1] == 1, "Label does not match"
+
+
+@pytest.mark.advsecurenet
+@pytest.mark.essential
+def test_coco_dataset():
+    preprocess_steps = [
+        PreprocessStep(name="Resize", params={"size": (224, 224)}),
+        PreprocessStep(name="CenterCrop", params={"size": (224, 224)}),
+    ]
+    preprocess_config = PreprocessConfig(steps=preprocess_steps)
+    dataset = COCODataset(preprocess_config)
+
+    # Assertions
+    assert dataset.mean == [0.485, 0.456, 0.406], "Mean values do not match"
+    assert dataset.std == [0.229, 0.224, 0.225], "Standard deviation values do not match"
+    assert dataset.input_size == (224, 224), "Input size does not match"
+    assert dataset.name == "coco", "Dataset name does not match"
+    assert dataset.num_classes == 80, "Number of classes does not match"
+    assert dataset.num_input_channels == 3, "Number of input channels does not match"
+    assert dataset._preprocess_config == preprocess_config, "Preprocess config does not match"
+    assert isinstance(dataset, BaseDataset), "Instance is not of type BaseDataset"

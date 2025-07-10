@@ -30,6 +30,17 @@ class COCODataset(BaseDataset):
         self.mean = params.mean
         self.std = params.std
 
+        # set input_size from preprocess_config if available, else default
+        if preprocess_config and getattr(preprocess_config, 'steps', None):
+            for step in preprocess_config.steps:
+                if step.name.lower() == "resize" and "size" in step.params:
+                    self.input_size = tuple(step.params["size"])
+                    break
+            else:
+                self.input_size = (224, 224) # COCO default
+        else:
+            self.input_size = (224, 224)
+
     @staticmethod
     def _maybe_download_coco(root: str, train: bool):
         split = "train2017" if train else "val2017"

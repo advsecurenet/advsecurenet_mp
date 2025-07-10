@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader as TorchDataLoader
 from torch.utils.data import Dataset as TorchDataset
 from torch.utils.data.sampler import RandomSampler
 
-from advsecurenet.dataloader.data_loader_factory import DataLoaderFactory
+from advsecurenet.dataloader.data_loader_factory import DataLoaderFactory, od_collate_fn
 from advsecurenet.shared.types.configs.dataloader_config import DataLoaderConfig
 
 
@@ -119,3 +119,55 @@ def test_create_dataloader_with_sampler_and_no_shuffle(mock_dataset):
     assert dataloader.drop_last is True
     assert dataloader.pin_memory is True
     assert isinstance(dataloader.sampler, Mock)
+
+
+def test_od_collate_fn_basic():
+    # Simulate a batch of two images with two objects each
+    img1 = torch.zeros((3, 32, 32))
+    img2 = torch.ones((3, 32, 32))
+    annots1 = [
+        {"bbox": [0, 0, 10, 10], "category_id": 1},
+        {"bbox": [5, 5, 10, 10], "category_id": 2},
+    ]
+    annots2 = [
+        {"bbox": [1, 1, 5, 5], "category_id": 3}
+    ]
+    batch = [(img1, annots1), (img2, annots2)]
+    images, targets = od_collate_fn(batch)
+    assert images.shape == (2, 3, 32, 32)
+    assert "boxes" in targets and "labels" in targets and "scores" in targets
+    assert len(targets["boxes"]) == 2
+    assert len(targets["labels"]) == 2
+    assert len(targets["scores"]) == 2
+    # Check that boxes and labels are tensors
+    assert all(isinstance(b, torch.Tensor) for b in targets["boxes"])
+    assert all(isinstance(l, torch.Tensor) for l in targets["labels"])
+    assert all(isinstance(s, torch.Tensor) for s in targets["scores"])
+
+def test_od_collate_fn_empty_annots():
+    img = torch.zeros((3, 32, 32))
+    batch = [(img, [])]
+    images, targets = od_collate_fn(batch)
+    assert images.shape == (1, 3, 32, 32)
+    assert targets["boxes"][0].shape == (0, 4)
+    assert targets["labels"][0].shape == (0,)
+    assert targets["scores"][0].shape == (0,)
+
+def test_create_od_dataloader(mock_dataset):
+    config = DataLoaderConfig(
+        dataset=mock_dataset,
+        batch_size=2,
+        num_workers=0,
+        shuffle=True,
+        drop_last=False,
+        pin_memory=False,
+        sampler=None,
+    )
+    dataloader = DataLoaderFactory.create_od_dataloader(config)
+    assert hasattr(dataloader, "collate_fn") or hasattr(dataloader, "_collate_fn")
+    # The collate_fn should be od_collate_fn or a wrapper
+    # We can't check for exact function equality due to DataLoader internals, but we can check it runs
+    batch = [(torch.zeros((3, 32, 32)), [])]
+    images, targets = dataloader.collate_fn(batch)
+    assert images.shape == (1, 3, 32, 32)
+    assert "boxes" in targets
