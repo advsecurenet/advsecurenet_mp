@@ -53,11 +53,6 @@ class MeanAveragePrecisionEvaluator(BaseEvaluator):
                 metric_builder.add(np.array(preds_formatted), np.array(gts_formatted))
             except Exception as e:
                 print(f"Error processing prediction {pred_idx}: {e}")
-                print(f"Prediction type: {type(pred)}")
-                if isinstance(pred, dict):
-                    print(f"Keys: {pred.keys()}")
-                elif isinstance(pred, torch.Tensor):
-                    print(f"Shape: {pred.shape}")
 
     def tensor_to_numpy_images(self, images: torch.Tensor):
         # images: [B, C, H, W], values in [0, 1] or [0, 255]

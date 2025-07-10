@@ -1,0 +1,10 @@
+# Description: Configuration file for the evaluation
+evaluation_config:
+  attack:  
+    name: "tog" # Name of the attack.
+    config: "../attacks/tog_attack_config.yml" # Path to the attack configuration file.
+  evaluators: # list of strings
+    - "mean_average_precision"
+  target_models: # needed to evaluate the transferability of the attack
+    - name: "custom_yolov5_model"
+      config: "../shared/model_config.yml"

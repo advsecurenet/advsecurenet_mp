@@ -10,6 +10,7 @@ from advsecurenet.evaluation.od_adversarial_evaluator import ObjectDetectorAdver
 from advsecurenet.shared.types.configs.attack_configs.od_attacker_config import ODAttackerConfig
 from advsecurenet.computer_vision.object_detection.attacks.attacker.od_attacker import ODAttacker
 from advsecurenet.computer_vision.object_detection.attacks.pixel_perturbation_based.tog import TOGAttackType
+from advsecurenet.utils.move_batch_to_device import move_batch_to_device
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +35,7 @@ class PixelPerturbationODAttacker(ODAttacker):
                 colour="red",
             ):
                 images, targets_dict = data_batch
-                images, targets_dict = self._move_batch_to_device(images, targets_dict)
+                images, targets_dict = move_batch_to_device(images, targets_dict, self._device)
                 images_np_for_dpatch = (images.detach().cpu().numpy() * 255.0).astype(np.float32)
                 images_np_for_dpatch = np.clip(images_np_for_dpatch, 0, 255)
                 boxes  = targets_dict["boxes"]

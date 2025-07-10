@@ -357,7 +357,6 @@ class CustomYolov5ODWrapper(ODWrapper):
         # Use the total loss, which now only consists of the classification component
         loss_components, _ = self._get_losses(x=x_torch, y=target_labels_list)
         total_loss = loss_components['loss_total']
-        print(f"[DEBUG] Loss Components: {loss_components}")
         self.model.zero_grad()
         grad_tensor = torch.autograd.grad(
             outputs=total_loss,

@@ -53,15 +53,3 @@ class ODAttacker(abc.ABC):
         Must be overridden in subclasses.
         """
         raise NotImplementedError("Subclasses of ODAttackerBase must implement execute().")
-
-    def _move_batch_to_device(self, images, targets_dict):
-        def move_to_device(x):
-            if isinstance(x, torch.Tensor):
-                return x.to(self._device)
-            elif isinstance(x, dict):
-                return {k: move_to_device(v) for k, v in x.items()}
-            elif isinstance(x, list):
-                return [move_to_device(v) for v in x]
-            else:
-                return x
-        return move_to_device(images), move_to_device(targets_dict)

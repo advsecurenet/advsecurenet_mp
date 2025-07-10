@@ -120,6 +120,7 @@ class TOG(ObjectDetectionAttack):
 
 
     def tog_vanishing(self, x_query, n_iter=10, eps=8/255., eps_iter=2/255.):
+        print(f"Running TOG vanishing attack with n_iter={n_iter}, eps={eps}, eps_iter={eps_iter}")
         eta = np.random.uniform(-eps, eps, size=x_query.shape)
         x_adv = np.clip(x_query + eta, 0.0, 1.0)
         for _ in range(n_iter):
@@ -132,6 +133,7 @@ class TOG(ObjectDetectionAttack):
     
 
     def tog_fabrication(self, x_query, n_iter=10, eps=8/255., eps_iter=2/255.):
+        print(f"Running TOG fabrication attack with n_iter={n_iter}, eps={eps}, eps_iter={eps_iter}")
         eta = np.random.uniform(-eps, eps, size=x_query.shape)
         x_adv = np.clip(x_query + eta, 0.0, 1.0)
         for _ in range(n_iter):
@@ -143,6 +145,7 @@ class TOG(ObjectDetectionAttack):
         return x_adv
     
     def tog_mislabeling(self, x_query, mode, n_iter=10, eps=8/255., eps_iter=2/255.):
+        print(f"Running TOG mislabeling attack with n_iter={n_iter}, eps={eps}, eps_iter={eps_iter}, mode={mode}")
         if mode.lower() not in ["ml", "ll"]:
             print(f"Warning: Unknown mode '{mode}'. Using 'ml' instead.")
             mode = "ml"
@@ -167,6 +170,7 @@ class TOG(ObjectDetectionAttack):
 
 
     def tog_untargeted(self, x_query, n_iter=10, eps=8/255., eps_iter=2/255.):
+        print(f"Running TOG untargeted attack with n_iter={n_iter}, eps={eps}, eps_iter={eps_iter}")
         x_uint8 = (x_query * 255.0).clip(0,255).astype(np.uint8)
         detections_list = self.object_detector.predict(x_uint8)
         eta = np.random.uniform(-eps, eps, size=x_query.shape)
