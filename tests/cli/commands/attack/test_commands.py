@@ -61,3 +61,20 @@ def test_attack_lots_help(runner):
     assert result.exit_code == 0
     assert "Usage:" in result.output
     assert "Command to execute a LOTS attack." in result.output
+
+
+@pytest.mark.cli
+@pytest.mark.essential
+def test_attack_dpatch_help(runner):
+    result = runner.invoke(attack, ["dpatch", "--help"])
+    assert result.exit_code == 0
+    assert "Usage:" in result.output
+    assert "Command to execute a DPATCH adversarial patch attack for object detection." in result.output
+
+@pytest.mark.cli
+@pytest.mark.essential
+def test_attack_tog_help(runner):
+    result = runner.invoke(attack, ["tog", "--help"])
+    assert result.exit_code == 0
+    assert "Usage:" in result.output
+    assert "Command to execute a TOG adversarial attack for object detection." in result.output

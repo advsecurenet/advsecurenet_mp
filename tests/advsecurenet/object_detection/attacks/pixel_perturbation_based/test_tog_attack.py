@@ -35,7 +35,7 @@ class DummyObjectDetector:
 @pytest.fixture
 def tog_config():
     return TOGAttackConfig(
-        object_detector=DummyObjectDetector(),
+        object_detector=DummyObjectDetector(),  # type: ignore
         max_iter=2,
         eps=0.03,
         eps_iter=0.01,
@@ -141,4 +141,137 @@ def test_tog_untargeted(tog_config):
     x = make_dummy_images()
     out = tog.tog_untargeted(x)
     assert isinstance(out, np.ndarray)
+    assert out.shape == x.shape
+
+def test_generate_attack_targets_empty():
+    arr = TOG.generate_attack_targets([], mode="ml")
+    assert arr.shape == (0, 7)
+
+def test_generate_attack_targets_no_boxes():
+    detections = [{"boxes": np.zeros((0, 4)), "labels": np.zeros((0,)), "scores": np.zeros((0,)), "logits": np.ones((0, 3))}]
+    arr = TOG.generate_attack_targets(detections, mode="ml")
+    assert arr.shape == (0, 7)
+
+def test_generate_attack_targets_out_of_bounds_label():
+    # This test expects ValueError due to shape mismatch when skipping out-of-bounds label
+    detections = [{"boxes": np.array([[0, 0, 1, 1]]), "labels": np.array([99]), "scores": np.array([1.0]), "logits": np.ones((1, 3))}]
+    with pytest.raises(ValueError):
+        TOG.generate_attack_targets(detections, mode="ml")
+
+def test_generate_attack_targets_background_class():
+    detections = [{"boxes": np.array([[0, 0, 1, 1]]), "labels": np.array([0]), "scores": np.array([1.0]), "logits": np.ones((1, 11))}]
+    arr = TOG.generate_attack_targets(detections, mode="ll")
+    assert arr.shape == (1, 7)
+
+def test_generate_attack_targets_class_id_not_present():
+    detections = make_dummy_detections()
+    arr = TOG.generate_attack_targets(detections, mode="ml", class_id=99)
+    assert arr.shape == (0, 7)
+
+def test_generate_attack_targets_class_id_present():
+    detections = make_dummy_detections()
+    arr = TOG.generate_attack_targets(detections, mode="ml", class_id=1)
+    assert arr.shape[1] == 7
+
+def test_generate_attack_targets_logits_shape():
+    detections = [{"boxes": np.array([[0, 0, 1, 1]]), "labels": np.array([1]), "scores": np.array([1.0]), "logits": np.ones((1, 5))}]
+    arr = TOG.generate_attack_targets(detections, mode="ml")
+    assert arr.shape == (1, 7)
+
+# --- Attack input variations ---
+def test_tog_attack_x_range_0_255(tog_config):
+    tog = TOG(tog_config)
+    x = (make_dummy_images() * 255).astype(np.float32)
+    out = tog.attack(x, mask=None, tog_variant=TOGAttackType.VANISHING)
+    assert out.max() <= 1.0
+    assert out.min() >= 0.0
+
+def test_tog_attack_x_range_0_1(tog_config):
+    tog = TOG(tog_config)
+    x = make_dummy_images()
+    out = tog.attack(x, mask=None, tog_variant=TOGAttackType.VANISHING)
+    assert out.max() <= 1.0
+    assert out.min() >= 0.0
+
+def test_tog_attack_batch_size_1(tog_config):
+    tog = TOG(tog_config)
+    x = make_dummy_images(batch=1)
+    out = tog.attack(x, mask=None, tog_variant=TOGAttackType.FABRICATION)
+    assert out.shape[0] == 1
+
+def test_tog_attack_batch_size_3(tog_config):
+    tog = TOG(tog_config)
+    x = make_dummy_images(batch=3)
+    out = tog.attack(x, mask=None, tog_variant=TOGAttackType.FABRICATION)
+    assert out.shape[0] == 3
+
+def test_tog_attack_noncontiguous_input(tog_config):
+    tog = TOG(tog_config)
+    x = make_dummy_images()[..., ::-1].copy()
+    out = tog.attack(x, mask=None, tog_variant=TOGAttackType.FABRICATION)
+    assert out.shape == x.shape
+
+def test_tog_attack_with_mask_ignored(tog_config):
+    tog = TOG(tog_config)
+    x = make_dummy_images()
+    mask = np.ones_like(x)
+    out = tog.attack(x, mask=mask, tog_variant=TOGAttackType.FABRICATION)
+    assert out.shape == x.shape
+
+def test_tog_attack_unknown_variant(tog_config):
+    tog = TOG(tog_config)
+    x = make_dummy_images()
+    class FakeVariant:
+        pass
+    result = tog.attack(x, mask=None, tog_variant=FakeVariant())  # type: ignore
+    assert result is None
+
+# --- Mislabeling mode and gradient edge cases ---
+def test_tog_mislabeling_unknown_mode(tog_config):
+    tog = TOG(tog_config)
+    x = make_dummy_images()
+    # Should fallback to 'ml' and not raise
+    out = tog.tog_mislabeling(x, mode="unknown")
+    assert out.shape == x.shape
+
+def test_tog_mislabeling_small_gradient_breaks_early(tog_config):
+    tog = TOG(tog_config)
+    x = make_dummy_images()
+    # Patch object_detector to return very small gradients
+    tog.object_detector.compute_object_mislabeling_gradient = lambda *a, **kw: np.zeros_like(x)  # type: ignore
+    out = tog.tog_mislabeling(x, mode="ml")
+    assert out.shape == x.shape
+
+def test_tog_mislabeling_empty_initial_detections(tog_config):
+    tog = TOG(tog_config)
+    x = make_dummy_images()
+    # Patch object_detector to return empty detections
+    tog.object_detector.predict = lambda x: [{"boxes": np.zeros((0, 4)), "labels": np.zeros((0,)), "scores": np.zeros((0,)), "logits": np.ones((0, 3))} for _ in range(x.shape[0])]  # type: ignore
+    out = tog.tog_mislabeling(x, mode="ml")
+    assert out.shape == x.shape
+
+# --- Error handling ---
+def test_tog_object_detector_raises(tog_config):
+    tog = TOG(tog_config)
+    x = make_dummy_images()
+    tog.object_detector.compute_object_vanishing_gradient = MagicMock(side_effect=RuntimeError("fail"))  # type: ignore
+    with pytest.raises(RuntimeError):
+        tog.tog_vanishing(x)
+    tog.object_detector.compute_object_fabrication_gradient = MagicMock(side_effect=RuntimeError("fail"))  # type: ignore
+    with pytest.raises(RuntimeError):
+        tog.tog_fabrication(x)
+    tog.object_detector.compute_object_mislabeling_gradient = MagicMock(side_effect=RuntimeError("fail"))  # type: ignore
+    with pytest.raises(RuntimeError):
+        tog.tog_mislabeling(x, mode="ml")
+    tog.object_detector.compute_object_untargeted_gradient = MagicMock(side_effect=RuntimeError("fail"))  # type: ignore
+    with pytest.raises(RuntimeError):
+        tog.tog_untargeted(x)
+
+def test_tog_missing_keys_in_detection(tog_config):
+    tog = TOG(tog_config)
+    x = make_dummy_images()
+    # Remove 'logits' key
+    tog.object_detector.predict = lambda x: [{"boxes": np.array([[0, 0, 1, 1]]), "labels": np.array([1]), "scores": np.array([1.0])} for _ in range(x.shape[0])]  # type: ignore
+    # Should not raise, just skip or return zeros
+    out = tog.tog_mislabeling(x, mode="ml")
     assert out.shape == x.shape
