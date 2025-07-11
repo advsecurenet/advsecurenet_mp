@@ -17,7 +17,6 @@ class NormalizationParameters:
     - SVHN
     - Fashion-MNIST
     - COCO
-    - Pascal VOC
     """
 
     DATASETS = {
@@ -42,10 +41,6 @@ class NormalizationParameters:
         DatasetType.COCO: {
             "mean": [0.485, 0.456, 0.406], # same as IMAGENET
             "std": [0.229, 0.224, 0.225], # same as IMAGENET
-        },
-        DatasetType.PASCAL_VOC: {
-            "mean": [None, None, None], #TODO - update with correct values
-            "std": [None, None, None], #TODO - update with correct values
         },
     }
 

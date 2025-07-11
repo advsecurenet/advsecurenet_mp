@@ -6,7 +6,6 @@ from advsecurenet.datasets.Cifar10 import CIFAR10Dataset, CIFAR100Dataset
 from advsecurenet.datasets.Custom import CustomDataset
 from advsecurenet.datasets.ImageNet import ImageNetDataset
 from advsecurenet.datasets.MNIST import FashionMNISTDataset, MNISTDataset
-#from advsecurenet.datasets.PascalVOC import PascalVOCDataset
 from advsecurenet.datasets.COCO import COCODataset
 from advsecurenet.datasets.svhn import SVHNDataset
 from advsecurenet.datasets.HuggingFace import HuggingFaceDataset
@@ -23,7 +22,6 @@ DATASET_MAP = {
     DatasetType.FASHION_MNIST: FashionMNISTDataset,
     DatasetType.CIFAR100: CIFAR100Dataset,
     DatasetType.SVHN: SVHNDataset,
-    #DatasetType.PASCAL_VOC: PascalVOCDataset,
     DatasetType.COCO: COCODataset,
     DatasetType.CUSTOM: CustomDataset,
     DatasetType.HUGGINGFACE: HuggingFaceDataset

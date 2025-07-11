@@ -76,4 +76,38 @@ def test_execute_abstract_raises(config):
 
 def test_execute_dummy_subclass(config):
     attacker = DummyODAttacker(config)
-    assert attacker.execute() == "executed" 
+    assert attacker.execute() == "executed"
+
+def test_eval_model_to_and_eval_called(config):
+    # Patch model to check .to and .eval calls
+    mock_model = MagicMock()
+    config.model = mock_model
+    config.device.processor = "cpu"
+    DummyODAttacker(config)
+    mock_model.to.assert_called_once_with(torch.device("cpu"))
+    mock_model.to().eval.assert_called_once()
+
+
+def test_create_dataloader_with_real_dataloader(config):
+    from torch.utils.data import DataLoader
+    dataset = DummyDataset()
+    real_dl = DataLoader(dataset)
+    config.dataloader = real_dl
+    attacker = DummyODAttacker(config)
+    assert attacker._dataloader is real_dl
+
+
+def test_invalid_processor_string_raises():
+    # DeviceConfig with invalid processor string should raise from torch.device
+    from advsecurenet.shared.types.configs.device_config import DeviceConfig
+    from advsecurenet.shared.types.configs.attack_configs.od_attacker_config import ODAttackerConfig
+    device_cfg = DeviceConfig(processor="not_a_real_device")
+    config = ODAttackerConfig(
+        model=MagicMock(),
+        attack=MagicMock(),
+        dataloader=MagicMock(),
+        device=device_cfg,
+        return_adversarial_images=True,
+    )
+    with pytest.raises(Exception):
+        DummyODAttacker(config) 

@@ -105,3 +105,29 @@ def test_update_with_empty_targets(evaluator, mock_model):
     targets = [{"boxes": [], "labels": []}]
     # Should not raise
     evaluator.update(mock_model, original_images, adversarial_images, targets)
+
+def test_process_and_update_empty_detections(evaluator):
+    metric = MagicMock()
+    predictions = []
+    targets = [{"boxes": [], "labels": []}]
+    # Should not raise
+    evaluator._process_and_update(metric, predictions, targets)
+
+def test_process_and_update_empty_targets(evaluator):
+    metric = MagicMock()
+    predictions = [{"boxes": [[0,0,1,1]], "labels": [1], "scores": [0.9]}]
+    targets = []
+    # Should not raise
+    evaluator._process_and_update(metric, predictions, targets)
+
+def test_get_results_missing_keys(evaluator):
+    evaluator.clean_metric.value.return_value = {}
+    evaluator.adv_metric.value.return_value = {}
+    with pytest.raises(KeyError):
+        evaluator.get_results()
+
+def test_get_results_none_values(evaluator):
+    evaluator.clean_metric.value.return_value = None
+    evaluator.adv_metric.value.return_value = None
+    with pytest.raises(TypeError):
+        evaluator.get_results()
