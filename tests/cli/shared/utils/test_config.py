@@ -204,7 +204,8 @@ def test_read_yml_file(mock_open):
 def test_get_default_config_yml(mock_os_walk, mock_path_exists):
     config_name = "test_config.yml"
     result = get_default_config_yml(config_name)
-    assert result == "dirpath/test_config.yml"
+    expected = os.path.normpath("dirpath/test_config.yml")
+    assert os.path.normpath(result) == expected
 
 
 @pytest.fixture
@@ -228,9 +229,12 @@ def node():
 def test_include_yaml_success(mock_yaml_load, mock_file_open, loader, node):
     result = _include_yaml(loader, node)
 
-    mock_file_open.assert_called_once_with(
-        "/path/to/current/included.yaml", "r", encoding="utf-8"
-    )
+    expected_path = os.path.normpath(os.path.join("/path/to/current", "included.yaml"))
+    # Instead of assert_called_once_with, check the call args for platform independence
+    call_args = mock_file_open.call_args[0]
+    assert os.path.normpath(call_args[0]) == expected_path
+    assert call_args[1] == "r"
+    assert mock_file_open.call_args[1]["encoding"] == "utf-8"
     mock_yaml_load.assert_called_once()
     assert result == {"key": "value"}
 
@@ -242,9 +246,11 @@ def test_include_yaml_file_not_found(mock_file_open, loader, node):
     with mock.patch.object(logger, "error") as mock_logging_error:
         result = _include_yaml(loader, node)
 
-        mock_file_open.assert_called_once_with(
-            "/path/to/current/included.yaml", "r", encoding="utf-8"
-        )
+        expected_path = os.path.normpath(os.path.join("/path/to/current", "included.yaml"))
+        call_args = mock_file_open.call_args[0]
+        assert os.path.normpath(call_args[0]) == expected_path
+        assert call_args[1] == "r"
+        assert mock_file_open.call_args[1]["encoding"] == "utf-8"
         mock_logging_error.assert_called_once()
         assert result is None
 
@@ -256,9 +262,11 @@ def test_include_yaml_general_exception(mock_file_open, loader, node):
     with mock.patch.object(logger, "error") as mock_logging_error:
         result = _include_yaml(loader, node)
 
-        mock_file_open.assert_called_once_with(
-            "/path/to/current/included.yaml", "r", encoding="utf-8"
-        )
+        expected_path = os.path.normpath(os.path.join("/path/to/current", "included.yaml"))
+        call_args = mock_file_open.call_args[0]
+        assert os.path.normpath(call_args[0]) == expected_path
+        assert call_args[1] == "r"
+        assert mock_file_open.call_args[1]["encoding"] == "utf-8"
         mock_logging_error.assert_called_once_with(
             "Error loading file: %s", "Test Exception"
         )
@@ -291,34 +299,40 @@ def config_list():
     ]
 
 
+@pytest.mark.cli
+@pytest.mark.essential
 @patch("os.path.exists", return_value=True)
 @patch("os.path.abspath", side_effect=lambda x: os.path.join("/absolute", x.strip("/")))
 def test_make_paths_absolute_dict(mock_abspath, mock_exists, base_path, config_dict):
     make_paths_absolute(base_path, config_dict)
 
-    assert config_dict["relative_path"] == "/absolute/base/path/relative/path/to/file"
-    assert config_dict["absolute_path"] == "/absolute/path/to/file"
+    expected = os.path.normpath("/absolute/base/path/relative/path/to/file")
+    assert os.path.normpath(config_dict["relative_path"]) == expected
+    assert os.path.normpath(config_dict["absolute_path"]) == os.path.normpath("/absolute/path/to/file")
     assert (
-        config_dict["nested"]["relative_dir"]
-        == "/absolute/base/path/relative/path/to/dir"
+        os.path.normpath(config_dict["nested"]["relative_dir"])
+        == os.path.normpath("/absolute/base/path/relative/path/to/dir")
     )
 
 
+@pytest.mark.cli
+@pytest.mark.essential
 @patch("os.path.exists", return_value=True)
 @patch("os.path.abspath", side_effect=lambda x: os.path.join("/absolute", x.strip("/")))
 def test_make_paths_absolute_list(mock_abspath, mock_exists, base_path, config_list):
     make_paths_absolute(base_path, config_list)
 
+    expected = os.path.normpath("/absolute/base/path/relative/path/to/file")
+    assert os.path.normpath(config_list[0]["relative_path"]) == expected
+    assert os.path.normpath(config_list[1]["absolute_path"]) == os.path.normpath("/absolute/path/to/file")
     assert (
-        config_list[0]["relative_path"] == "/absolute/base/path/relative/path/to/file"
-    )
-    assert config_list[1]["absolute_path"] == "/absolute/path/to/file"
-    assert (
-        config_list[2]["nested"]["relative_dir"]
-        == "/absolute/base/path/relative/path/to/dir"
+        os.path.normpath(config_list[2]["nested"]["relative_dir"])
+        == os.path.normpath("/absolute/base/path/relative/path/to/dir")
     )
 
 
+@pytest.mark.cli
+@pytest.mark.essential
 @patch("os.path.exists", side_effect=lambda x: x.endswith("file"))
 @patch("os.path.abspath", side_effect=lambda x: os.path.join("/absolute", x.strip("/")))
 def test_make_paths_absolute_mixed(mock_abspath, mock_exists, base_path, config_dict):
@@ -328,6 +342,8 @@ def test_make_paths_absolute_mixed(mock_abspath, mock_exists, base_path, config_
 
     make_paths_absolute(base_path, config_dict)
 
-    assert config_dict["file_check"] == "/absolute/base/path/relative/path/to/file"
-    assert config_dict["dir_check"] == "/absolute/base/path/relative/path/to/dir"
+    expected_file = os.path.normpath("/absolute/base/path/relative/path/to/file")
+    expected_dir = os.path.normpath("/absolute/base/path/relative/path/to/dir")
+    assert os.path.normpath(config_dict["file_check"]) == expected_file
+    assert os.path.normpath(config_dict["dir_check"]) == expected_dir
     assert config_dict["should_not_fix"] == "should_not_fix"
