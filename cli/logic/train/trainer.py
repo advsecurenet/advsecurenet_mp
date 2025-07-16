@@ -6,7 +6,7 @@ import torch
 
 from advsecurenet.distributed.ddp_coordinator import DDPCoordinator
 from advsecurenet.models.base_model import BaseModel
-from advsecurenet.shared.types.configs import TrainConfig
+from advsecurenet.shared.types.configs.train_config import TrainConfig, ModelConfig, TrainingProcessConfig, OptimizationConfig, DifferentialPrivacyConfig, CheckpointConfig, FinalModelConfig
 from advsecurenet.trainer.ddp_trainer import DDPTrainer
 from advsecurenet.trainer.trainer import Trainer
 from advsecurenet.utils.ddp import set_visible_gpus
@@ -138,10 +138,54 @@ class CLITrainer:
         """
         Prepare the training config.
         """
-        config = TrainConfig(
-            model=model,
+        training_process_config = TrainingProcessConfig(
             train_loader=train_data_loader,
-            **asdict(self.config.training),
-            **asdict(self.config.device),
+            criterion=self.config.training.training_hyperparameter.criterion,
+            epochs=self.config.training.training_hyperparameter.epochs,
+            learning_rate=self.config.training.training_hyperparameter.learning_rate,
+            verbose=self.config.training.training_hyperparameter.verbose,
+        )
+
+        optimization_config = OptimizationConfig(
+            optimizer=self.config.training.optimization.optimizer,
+            optimizer_kwargs=self.config.training.optimization.optimizer_kwargs,
+            scheduler=self.config.training.optimization.scheduler,
+            scheduler_kwargs=self.config.training.optimization.scheduler_kwargs,
+        )
+
+        if not self.config.training.differential_privacy:
+            differential_privacy_config = None
+        else:
+            differential_privacy_config = DifferentialPrivacyConfig(
+                enable=self.config.training.differential_privacy.enable,
+                noise_multiplier=self.config.training.differential_privacy.noise_multiplier,
+                max_grad_norm=self.config.training.differential_privacy.max_grad_norm,
+                delta=self.config.training.differential_privacy.delta,
+                kwargs=self.config.training.differential_privacy.kwargs,
+            )
+
+        checkpoint_config = CheckpointConfig(
+            save_checkpoint=self.config.training.checkpoint.save_checkpoint,
+            save_checkpoint_path=self.config.training.checkpoint.save_checkpoint_path,
+            save_checkpoint_name=self.config.training.checkpoint.save_checkpoint_name,
+            checkpoint_interval=self.config.training.checkpoint.checkpoint_interval,
+            load_checkpoint=self.config.training.checkpoint.load_checkpoint,
+            load_checkpoint_path=self.config.training.checkpoint.load_checkpoint_path,
+        )
+
+        final_model_config = FinalModelConfig(
+            save_final_model=self.config.training.final_model.save_final_model,
+            save_model_path=self.config.training.final_model.save_model_path,
+            save_model_name=self.config.training.final_model.save_model_name,
+        )
+
+        config = TrainConfig(
+            model_config=ModelConfig(model),
+            training_process_config=training_process_config,
+            device_config=self.config.device,
+            optimization_config=optimization_config,
+            checkpoint_config=checkpoint_config,
+            final_model_config=final_model_config,
+            differential_privacy_config=differential_privacy_config,
         )
         return config

@@ -89,4 +89,4 @@ class TrainConfig:
     checkpoint_config: CheckpointConfig = field(default_factory=CheckpointConfig)
     final_model_config: FinalModelConfig = field(default_factory=FinalModelConfig)
     device_config: DeviceConfig = field(default_factory=DeviceConfig)
-    differential_privacy: Optional[DifferentialPrivacyConfig] = None
+    differential_privacy_config: Optional[DifferentialPrivacyConfig] = None
