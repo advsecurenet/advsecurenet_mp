@@ -3,6 +3,7 @@ import torch
 from torch import nn, optim
 from torch.utils.data import DataLoader
 from opacus import PrivacyEngine
+from opacus.validators import ModuleValidator
 
 from advsecurenet.shared.types.configs.train_config import DifferentialPrivacyConfig
 

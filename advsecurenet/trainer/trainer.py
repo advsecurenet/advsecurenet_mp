@@ -8,7 +8,7 @@ from torch import nn, optim
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm, trange
 
-from opacus import PrivacyEngine
+from opacus.validators import ModuleValidator
 
 from advsecurenet.shared.optimizer import Optimizer
 from advsecurenet.shared.scheduler import Scheduler
@@ -40,6 +40,10 @@ class Trainer:
 
         model = config.model_config.model.to(self._device)
         train_loader = self._config.training_process_config.train_loader
+
+        if (config.differential_privacy_config):
+            if not ModuleValidator.is_valid(model):
+                model = ModuleValidator.fix(model)
 
         optimizer_kwargs = config.optimization_config.optimizer_kwargs or {}
         optimizer = self._get_optimizer(config.optimization_config.optimizer, model, config.training_process_config.learning_rate, **optimizer_kwargs)
