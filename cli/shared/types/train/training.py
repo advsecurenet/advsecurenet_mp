@@ -8,28 +8,52 @@ from cli.shared.types.utils.model import ModelCliConfigType
 
 
 @dataclass
+class TrainingHyperparameter:
+    criterion: str
+    epochs: int = 10
+    learning_rate: float = 0.001
+    verbose: bool = False
+
+@dataclass
+class Optimization:
+    optimizer: str
+    optimizer_kwargs: Optional[dict] = None
+    scheduler: Optional[str] = None
+    scheduler_kwargs: Optional[dict] = None
+
+@dataclass
+class Checkpoint:
+    save_checkpoint: bool = False
+    save_checkpoint_path: Optional[str] = None
+    save_checkpoint_name: Optional[str] = None
+    checkpoint_interval: int = 1
+    load_checkpoint: bool = False
+    load_checkpoint_path: Optional[str] = None
+
+@dataclass
+class FinalModel:
+    save_final_model: bool = False
+    save_model_path: Optional[str] = None
+    save_model_name: Optional[str] = None
+
+@dataclass
+class DifferentialPrivacy:
+    enable: bool = False
+    noise_multiplier: float = 1.0
+    max_grad_norm: float = 1.0
+    delta: float = 1e-5
+    kwargs: Optional[dict] = None
+
+@dataclass
 class Training:
     """
     This dataclass is used to store the configuration of the training.
     """
-
-    epochs: int
-    learning_rate: float
-    optimizer: str
-    criterion: str
-    save_final_model: bool
-    save_model_path: str
-    save_model_name: str
-    save_checkpoint: bool
-    save_checkpoint_path: str
-    save_checkpoint_name: str
-    checkpoint_interval: int
-    load_checkpoint: bool
-    load_checkpoint_path: str
-    verbose: bool
-    scheduler: Optional[str] = None
-    scheduler_kwargs: Optional[dict] = None
-    optimizer_kwargs: Optional[dict] = None
+    training_hyperparameter: TrainingHyperparameter
+    optimization: Optimization
+    checkpoint: Checkpoint
+    final_model: FinalModel
+    differential_privacy: Optional[DifferentialPrivacy] = None
 
 
 @dataclass

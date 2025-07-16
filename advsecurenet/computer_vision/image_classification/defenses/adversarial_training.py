@@ -28,7 +28,7 @@ class AdversarialTraining(Trainer):
         self._check_config(config)
         self.config: AdversarialTrainingConfig = config
         self.adversarial_target_generator = AdversarialTargetGenerator()
-        super().__init__(config)
+        super().__init__(config.train_config)
 
     # Helper function to shuffle the combined clean and adversarial data
 
@@ -40,18 +40,18 @@ class AdversarialTraining(Trainer):
 
     def _check_config(self, config: AdversarialTrainingConfig) -> None:
         # Check configuration validity
-        if not isinstance(config.model, BaseModel):
+        if not isinstance(config.train_config.model_config.model, BaseModel):
             raise ValueError("Target model must be a subclass of BaseModel!")
         if not all(isinstance(model, BaseModel) for model in config.models):
             raise ValueError("All models must be a subclass of BaseModel!")
         if not all(isinstance(attack, AdversarialAttack) for attack in config.attacks):
             raise ValueError("All attacks must be a subclass of AdversarialAttack!")
-        if not isinstance(config.train_loader, DataLoader):
+        if not isinstance(config.train_config.training_process_config.train_loader, DataLoader):
             raise ValueError("train_dataloader must be a DataLoader!")
 
         # check if any of the attacks are targeted and if so, check if the dataloader dataset is an instance of AdversarialDataset
         if any(attack.targeted for attack in config.attacks) and not isinstance(
-            config.train_loader.dataset, AdversarialDataset
+            config.train_config.training_process_config.train_loader.dataset, AdversarialDataset
         ):
             raise ValueError(
                 "If any of the attacks are targeted, the train_loader dataset must be an instance of AdversarialDataset!"
@@ -59,8 +59,8 @@ class AdversarialTraining(Trainer):
         # if any of the attacks is LOTS, check if the dataset contains target images and target labels
         if (
             any(attack.name == "LOTS" for attack in config.attacks)
-            and not isinstance(config.train_loader.dataset, AdversarialDataset)
-            and len(config.train_loader) != 4
+            and not isinstance(config.train_config.training_process_config.train_loader.dataset, AdversarialDataset)
+            and len(config.train_config.training_process_config.train_loader) != 4
         ):
             raise ValueError(
                 "If the LOTS attack is used, the train_loader dataset must be an instance of AdversarialDataset and must contain target images and target labels!"
@@ -87,8 +87,8 @@ class AdversarialTraining(Trainer):
 
     def _pre_training(self):
         # add target model to list of models if not already present
-        if self.config.model not in self.config.models:
-            self.config.models.append(self.config.model)
+        if self.config.train_config.model_config.model not in self.config.train_config.model_config.models:
+            self.config.models.append(self.config.train_config.model_config.model)
 
         # set each model to train mode
         self.config.models = [model.train() for model in self.config.models]
@@ -226,7 +226,7 @@ class AdversarialTraining(Trainer):
 
     def _get_train_loader(self, epoch: int):
         return tqdm(
-            self.config.train_loader,
+            self.config.train_config.training_process_config.train_loader,
             desc="Adversarial Training",
             leave=False,
             position=1,
@@ -241,4 +241,4 @@ class AdversarialTraining(Trainer):
         return [arg.to(self._device) for arg in args if arg is not None]
 
     def _get_loss_divisor(self):
-        return len(self.config.train_loader)
+        return len(self.config.train_config.training_process_config.train_loader)

@@ -61,8 +61,8 @@ class Trainer:
         self.start_epoch = start_epoch
 
         if (
-            not config.differential_privacy
-            or not config.differential_privacy.enable
+            not config.differential_privacy_config
+            or not config.differential_privacy_config.enable
         ):
             self.model = model
             self.optimizer = optimizer
@@ -79,7 +79,7 @@ class Trainer:
                 model, 
                 optimizer,
                 train_loader,
-                config.differential_privacy
+                config.differential_privacy_config
             )
 
             if private_loss_fn:
@@ -92,7 +92,7 @@ class Trainer:
         )
 
     @staticmethod
-    def train(self, epochs, start_epoch, optimizer, model, checkpoint_path, train_loader, device, loss_fn, scheduler, save_checkpoint, checkpoint_interval, save_final_model, save_path, save_name, model_name, dataset_name, use_ddp, privacy_engine, delta) -> None:
+    def train(epochs, start_epoch, optimizer, model, checkpoint_path, train_loader, device, loss_fn, scheduler, save_checkpoint, checkpoint_interval, save_final_model, save_path, save_name, model_name, dataset_name, use_ddp, privacy_engine, delta) -> None:
         """
         Public method for training the model.
         """

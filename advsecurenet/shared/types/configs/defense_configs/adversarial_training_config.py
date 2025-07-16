@@ -7,10 +7,10 @@ from advsecurenet.shared.types.configs.train_config import TrainConfig
 
 
 @dataclass(kw_only=True)
-class AdversarialTrainingConfig(TrainConfig):
+class AdversarialTrainingConfig():
     """
     This class is used to store the configuration of the adversarial training defense.
     """
-
+    train_config: TrainConfig
     models: List[BaseModel]
     attacks: List[AdversarialAttack]
