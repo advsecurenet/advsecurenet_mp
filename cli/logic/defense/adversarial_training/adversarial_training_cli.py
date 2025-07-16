@@ -154,7 +154,7 @@ class ATCLITrainer(CLITrainer):
 
 
     @staticmethod
-    def _execute_static_train(trainer_instance, config) -> None:
+    def _execute_static_train(trainer_instance, config: AdversarialTrainingConfig) -> None:
         """
         Calls the static Trainer.train method with arguments unpacked from the trainer instance and its config.
         This function's job is to map the config fields to the train method's arguments.
@@ -166,18 +166,18 @@ class ATCLITrainer(CLITrainer):
         
         # This assumes AdversarialTraining inherits from Trainer, so we can call train on its type.
         type(trainer_instance).train(
-            epochs=train_config.training_hyperparameters_config.epochs,
-            start_epoch=trainer_instance.start_epoch,
-            optimizer=trainer_instance.optimizer,
-            model=trainer_instance.model,
-            train_loader=trainer_instance.train_loader,
-            device=trainer_instance.device,
-            loss_fn=trainer_instance.loss_fn,
-            scheduler=trainer_instance.scheduler,
+            epochs=train_config.training_process_config.epochs,
+            start_epoch=0,
+            optimizer=train_config.optimization_config.optimizer,
+            model=train_config.model_config.model,
+            train_loader=train_config.training_process_config.train_loader,
+            device=train_config.device_config.processor,
+            loss_fn=train_config.training_process_config.criterion,
+            scheduler=train_config.optimization_config.scheduler,
             save_checkpoint=train_config.checkpoint_config.save_checkpoint,
             checkpoint_interval=train_config.checkpoint_config.checkpoint_interval,
             save_final_model=train_config.final_model_config.save_final_model,
-            privacy_engine=trainer_instance.privacy_engine,
+            privacy_engine=train_config.differential_pri,
             # Pass the config objects for path/name generation inside the static method
             checkpoint_config=train_config.checkpoint_config,
             final_model_config=train_config.final_model_config,
