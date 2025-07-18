@@ -73,6 +73,7 @@ class CLIODAttacker:
             detector_config = self._config.model.object_detector_config
         detector = get_object_detector(attack_config.object_detector, detector_config)
         attack_config.object_detector = detector
+        attack_config.device = self._config.device
 
         extra_kwargs = {}
         if self.od_main_attack_type.name.upper() == "DPATCH":
