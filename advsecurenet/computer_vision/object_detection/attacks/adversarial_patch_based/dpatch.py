@@ -7,13 +7,14 @@ https://github.com/Trusted-AI/adversarial-robustness-toolbox/blob/main/art/attac
 
 import math
 import random
+import warnings
 import numpy as np
 import torch
 from tqdm.auto import trange, tqdm
 
 from advsecurenet.shared.types.configs.attack_configs.dpatch_attack_config import DPatchAttackConfig
 from advsecurenet.computer_vision.object_detection.attacks.base.object_detection_attack import ObjectDetectionAttack
-from advsecurenet.utils.move_batch_to_device import move_batch_to_device
+from advsecurenet.utils.device_utils import move_batch_to_device
 
 
 class DPatch(ObjectDetectionAttack):
@@ -43,7 +44,7 @@ class DPatch(ObjectDetectionAttack):
                 print(f"Training Step: {i_step + 1}/{self.max_iterations}")
 
             patch_gradients_sum = torch.zeros_like(self._patch, device=device)
-            self._patch = self._patch.to(device)  # Ensure patch is on the correct device
+            self._patch = self.device_manager.to_device(self._patch) # Ensure patch is on the correct device
             
             for data_batch in tqdm(
                     dataloader,
@@ -68,8 +69,9 @@ class DPatch(ObjectDetectionAttack):
                     x=images_np_for_dpatch,
                     y=targets,
                     mask=mask,
+                    device=device,
                 )
-                patch_gradients = patch_gradients.to(device)  # Ensure gradients are on the correct device
+                patch_gradients = self.device_manager.to_device(patch_gradients) # Ensure gradients are on the correct device
                 patch_gradients_sum += patch_gradients
 
             # Update patch using accumulated gradients
@@ -91,6 +93,7 @@ class DPatch(ObjectDetectionAttack):
             x: torch.tensor,  # (batch_size, channels, height, width)
             y: torch.tensor,  # (batch_size, num_boxes, 4) (x1, y1, x2, y2)
             mask: torch.tensor,
+            device: torch.device,
             *args,
             **kwargs
     ) -> tuple[torch.Tensor, bool]:
@@ -98,7 +101,7 @@ class DPatch(ObjectDetectionAttack):
         Performs a single gradient update step for the patch based on a single batch of data.
         """
         if self._target_label is not None and y is not None:
-            print(f"[DPATCH] Both target_label and y have been provided at the same time. Removing y to avoid conflict.")
+            warnings.warn(f"[DPATCH] Both target_label and y have been provided at the same time. Removing y to avoid conflict.")
             y = None  # Remove y to avoid conflict with target_label
         if isinstance(x, np.ndarray):
             x = torch.tensor(x)
@@ -116,6 +119,84 @@ class DPatch(ObjectDetectionAttack):
         )       
         transforms = transforms_initial.copy()  # Copy the transforms for later use
         patched_images = patched_images_initial.clone().detach().requires_grad_(True)
+        patched_images = self.device_manager.to_device(patched_images)  # Ensure patched_images is on the correct device
+        patch_target = self._prepare_patch_targets(patched_images=patched_images, transforms=transforms, y=y)
+        _untargeted_attack_should_suppress_from_empty_initial = False
+        if not self._target_label and y is None:
+            # This condition means patch_target was derived from self.object_detector(patched_images)
+            # where patched_images were based on the initial_patch_for_target_determination.
+            all_initial_targets_empty = True
+            for pt_entry in patch_target:
+                # Check if the 'labels' key exists and has entries
+                if pt_entry.get("labels") is not None and len(pt_entry["labels"]) > 0:
+                    all_initial_targets_empty = False
+                    break
+            if all_initial_targets_empty:
+                _untargeted_attack_should_suppress_from_empty_initial = True
+        current_step_patched_images, _ = self._augment_images_with_patch(
+            x,                       # Original clean images
+            self._patch,             # Current adversarial patch
+            random_location=False,   # Assuming fixed location based on initial transforms
+            mask=mask,               # Original mask
+            transforms=transforms,   # Transforms derived from transforms_initial
+        )
+        # Use the actual batch size from the input tensor
+        actual_batch_size = x.shape[0]
+        patch_gradients = torch.zeros_like(self._patch, device=device)
+        i_batch_start = 0
+        i_batch_end = min(actual_batch_size, patched_images.shape[0])
+        gradients = self._prepare_data_and_compute_patch_gradients(patched_images, current_step_patched_images, i_batch_start, i_batch_end, patch_target)
+        for i_image in range(gradients.shape[0]):
+            i_x_1 = transforms[i_batch_start + i_image]["i_x_1"]
+            i_x_2 = transforms[i_batch_start + i_image]["i_x_2"]
+            i_y_1 = transforms[i_batch_start + i_image]["i_y_1"]
+            i_y_2 = transforms[i_batch_start + i_image]["i_y_2"]
+            patch_gradients_i = gradients[
+                i_image,           # batch index
+                :,                 # channels
+                i_x_1:i_x_2,       # height slice
+                i_y_1:i_y_2        # width slice
+            ]
+            patch_gradients_i = self.device_manager.to_device(torch.from_numpy(patch_gradients_i))  # Ensure gradients are on the correct device
+            patch_gradients += patch_gradients_i  # now both are (C, patch_h, patch_w)
+        patch_gradients = self.device_manager.to_device(patch_gradients)
+        return patch_gradients, _untargeted_attack_should_suppress_from_empty_initial
+
+
+    def apply_patch(
+        self,
+        x: np.ndarray,
+        patch_external: np.ndarray | None = None,
+        random_location: bool = False,
+        mask: np.ndarray | None = None,
+    ) -> np.ndarray:
+        """
+        Apply the adversarial patch to images.
+
+        :param x: Images to be patched.
+        :param patch_external: External patch to apply to images `x`. If None the attacks patch will be applied.
+        :param random_location: True if patch location should be random.
+        :param mask: A boolean array of shape equal to the shape of a single samples (1, H, W) or the shape of `x`
+                     (N, H, W) without their channel dimensions. Any features for which the mask is True can be the
+                     center location of the patch during sampling.
+        :return: The patched images.
+        """
+        if patch_external is not None:
+            patch_local = patch_external
+        else:
+            patch_local = self._patch
+        patched_images, _ = self._augment_images_with_patch(
+            x=x,
+            patch=patch_local,
+            random_location=random_location,
+            mask=mask,
+        )
+        return patched_images
+
+
+# === Attack Step helpers ===
+
+    def _prepare_patch_targets(self, patched_images, transforms, y):
         patch_target: list[dict[str, np.ndarray]] = []
         if (self._target_label is not None) and (y is None): # targetted attack
             print(f"[DPATCH] targetted attack - target_label: {self._target_label}")
@@ -166,34 +247,10 @@ class DPatch(ObjectDetectionAttack):
                 target_dict["labels"] = predictions[i_image]["labels"]
                 target_dict["scores"] = predictions[i_image]["scores"]
                 patch_target.append(target_dict)
-        # Flag to determine if the untargeted attack started with no detections
-        # and should therefore aim to suppress any new detections.
-        _untargeted_attack_should_suppress_from_empty_initial = False
-        if not self._target_label and y is None:
-            # This condition means patch_target was derived from self.object_detector(patched_images)
-            # where patched_images were based on the initial_patch_for_target_determination.
-            all_initial_targets_empty = True
-            for pt_entry in patch_target:
-                # Check if the 'labels' key exists and has entries
-                if pt_entry.get("labels") is not None and len(pt_entry["labels"]) > 0:
-                    all_initial_targets_empty = False
-                    break
-            if all_initial_targets_empty:
-                _untargeted_attack_should_suppress_from_empty_initial = True
-        
-        # This is now a single step, not a loop
-        current_step_patched_images, _ = self._augment_images_with_patch(
-            x,                       # Original clean images
-            self._patch,             # Current adversarial patch
-            random_location=False,   # Assuming fixed location based on initial transforms
-            mask=mask,               # Original mask
-            transforms=transforms,   # Transforms derived from transforms_initial
-        )
-        # Use the actual batch size from the input tensor
-        actual_batch_size = x.shape[0]
-        patch_gradients = torch.zeros_like(self._patch, device=x.device)
-        i_batch_start = 0
-        i_batch_end = min(actual_batch_size, patched_images.shape[0])
+        return patch_target
+
+
+    def _prepare_data_and_compute_patch_gradients(self, patched_images, current_step_patched_images, i_batch_start, i_batch_end, patch_target):
         img_batch = current_step_patched_images[i_batch_start:i_batch_end].detach().cpu().numpy()
         input_batch_np = img_batch.astype(np.float32)
         res = self.object_detector.predict(input_batch_np)
@@ -231,21 +288,111 @@ class DPatch(ObjectDetectionAttack):
             y=patch_target[i_batch_start:i_batch_end],
             standardise_output=True,
         )
-        for i_image in range(gradients.shape[0]):
-            i_x_1 = transforms[i_batch_start + i_image]["i_x_1"]
-            i_x_2 = transforms[i_batch_start + i_image]["i_x_2"]
-            i_y_1 = transforms[i_batch_start + i_image]["i_y_1"]
-            i_y_2 = transforms[i_batch_start + i_image]["i_y_2"]
-            patch_gradients_i = gradients[
-                i_image,           # batch index
-                :,                 # channels
-                i_x_1:i_x_2,       # height slice
-                i_y_1:i_y_2        # width slice
-            ]
-            patch_gradients += torch.from_numpy(patch_gradients_i).to(patch_gradients.device)  # now both are (C, patch_h, patch_w)
+        return gradients
+
+
+# === Apply Patch To Images static method & its helpers ===
+
+    @staticmethod
+    def _augment_images_with_patch_transforms_provided(transforms, i_image, img_width, img_height, patch_width, patch_height, x_copy):
+        i_x_1 = transforms[i_image]["i_x_1"]
+        i_x_2 = transforms[i_image]["i_x_2"]
+        i_y_1 = transforms[i_image]["i_y_1"]
+        i_y_2 = transforms[i_image]["i_y_2"]
+        # Basic validation
+        if not (0 <= i_x_1 < i_x_2 <= img_height and 0 <= i_y_1 < i_y_2 <= img_width):
+                raise ValueError(f"Invalid transform coordinates for image {i_image}: {transforms[i_image]} with image shape {x_copy.shape}")
+        if (i_x_2 - i_x_1) != patch_height or (i_y_2 - i_y_1) != patch_width:
+                raise ValueError(f"Transform dimensions ({i_x_2 - i_x_1}, {i_y_2 - i_y_1}) do not match patch dimensions ({patch_height}, {patch_width}) for image {i_image}")
+        return i_x_1, i_x_2, i_y_1, i_y_2
         
-        return patch_gradients, _untargeted_attack_should_suppress_from_empty_initial
     
+    @staticmethod
+    def _augment_images_with_patch_random_location_no_mask(img_width, img_height, patch_width, patch_height):
+        # Calculate random top-left corner for height (i_x_1) and width (i_y_1)
+        if img_height < patch_height or img_width < patch_width:
+                raise ValueError("Patch dimensions are larger than image dimensions.")
+        # Ensure upper bound is not less than lower bound
+        max_h_start = img_height - patch_height
+        max_w_start = img_width - patch_width
+        if max_h_start < 0 or max_w_start < 0:
+                raise ValueError(f"Patch (H={patch_height}, W={patch_width}) is larger than image (H={img_height}, W={img_width}).")
+        i_x_1 = random.randint(0, max_h_start) # Use height
+        i_y_1 = random.randint(0, max_w_start)   # Use width
+        return i_x_1, i_y_1
+
+
+    @staticmethod
+    def _augment_images_with_patch_random_location_with_mask(mask, img_width, img_height, patch_width, patch_height, i_image):
+        # Assuming mask is (H, W) or (N, H, W)
+        if mask.ndim == 3:
+            if mask.shape[0] == 1:
+                mask_2d = mask[0, :, :]
+            else:
+                mask_2d = mask[i_image, :, :]
+        elif mask.ndim == 2:
+                mask_2d = mask
+        else:
+                raise ValueError(f"Unexpected mask dimension: {mask.ndim}")
+        # Ensure mask is boolean numpy array
+        if isinstance(mask_2d, torch.Tensor):
+            mask_2d = mask_2d.cpu().numpy()
+        mask_2d = mask_2d.astype(bool)
+        if mask_2d.shape[0] != img_height or mask_2d.shape[1] != img_width:
+            raise ValueError(f"Mask shape {mask_2d.shape} does not match image spatial dimensions ({img_height}, {img_width})")
+        # Calculate patch center offsets
+        edge_x_0 = patch_height // 2
+        edge_x_1 = patch_height - edge_x_0
+        edge_y_0 = patch_width // 2
+        edge_y_1 = patch_width - edge_y_0
+        # Create a valid mask for patch *center* placement
+        # A center at (cx, cy) is valid if the patch fits entirely within the image
+        # Top-left corner: (cx - edge_x_0, cy - edge_y_0)
+        # Bottom-right corner: (cx + edge_x_1 - 1, cy + edge_y_1 - 1)
+        # Conditions:
+        # cx - edge_x_0 >= 0  => cx >= edge_x_0
+        # cy - edge_y_0 >= 0  => cy >= edge_y_0
+        # cx + edge_x_1 - 1 < img_height => cx < img_height - edge_x_1 + 1
+        # cy + edge_y_1 - 1 < img_width  => cy < img_width - edge_y_1 + 1
+        valid_center_mask = np.zeros_like(mask_2d, dtype=bool)
+        valid_center_mask[edge_x_0 : img_height - edge_x_1 + 1, edge_y_0 : img_width - edge_y_1 + 1] = True
+        # Combine with the user-provided mask
+        final_mask = mask_2d & valid_center_mask
+        # Find valid center positions
+        valid_indices = np.argwhere(final_mask)
+        if valid_indices.shape[0] == 0:
+            raise ValueError("No valid locations found in the mask to place the patch center such that the patch remains within image bounds.")
+        else:
+            # Choose a random valid center position
+            pos_id = np.random.choice(valid_indices.shape[0], size=1)
+            center_x, center_y = valid_indices[pos_id[0]]
+            # Calculate top-left corner based on center
+            i_x_1 = center_x - edge_x_0
+            i_y_1 = center_y - edge_y_0
+            # Ensure calculated top-left is valid (should be guaranteed by valid_center_mask, but good for sanity check)
+            if not (0 <= i_x_1 <= img_height - patch_height and 0 <= i_y_1 <= img_width - patch_width):
+                raise RuntimeError(f"Internal error: Calculated invalid patch start ({i_x_1}, {i_y_1}) from center ({center_x}, {center_y})")
+            return i_x_1, i_y_1
+    
+    
+    @staticmethod
+    def _augment_images_with_patch_no_transforms(random_location, mask, img_width, img_height, patch_width, patch_height, i_image):
+        if random_location:
+            if mask is None:
+                i_x_1, i_y_1 = DPatch._augment_images_with_patch_random_location_no_mask(img_width, img_height, patch_width, patch_height)
+            else:
+                # Mask logic needs adjustment for channels-first if used
+                i_x_1, i_y_1 = DPatch._augment_images_with_patch_random_location_with_mask(mask, img_width, img_height, patch_width, patch_height, i_image)
+        else: # Not random location
+            i_x_1 = 0
+            i_y_1 = 0
+            if patch_height > img_height or patch_width > img_width:
+                    raise ValueError(f"Patch (H={patch_height}, W={patch_width}) is larger than image (H={img_height}, W={img_width}) and cannot be placed at origin.")
+        # Calculate bottom-right corner (exclusive index for slicing)
+        i_x_2 = i_x_1 + patch_height
+        i_y_2 = i_y_1 + patch_width
+        return i_x_1, i_x_2, i_y_1, i_y_2
+
 
     @staticmethod
     def _augment_images_with_patch(
@@ -288,87 +435,12 @@ class DPatch(ObjectDetectionAttack):
             raise ValueError(f"Image channels ({img_channels}) and patch channels ({patch_channels}) must match.")
         for i_image in range(x_copy.shape[0]):
             if transforms is None:
-                if random_location:
-                    if mask is None:
-                        # Calculate random top-left corner for height (i_x_1) and width (i_y_1)
-                        if img_height < patch_height or img_width < patch_width:
-                             raise ValueError("Patch dimensions are larger than image dimensions.")
-                        # Ensure upper bound is not less than lower bound
-                        max_h_start = img_height - patch_height
-                        max_w_start = img_width - patch_width
-                        if max_h_start < 0 or max_w_start < 0:
-                             raise ValueError(f"Patch (H={patch_height}, W={patch_width}) is larger than image (H={img_height}, W={img_width}).")
-                        i_x_1 = random.randint(0, max_h_start) # Use height
-                        i_y_1 = random.randint(0, max_w_start)   # Use width
-                    else:
-                        # Mask logic needs adjustment for channels-first if used
-                        # Assuming mask is (H, W) or (N, H, W)
-                        if mask.ndim == 3:
-                            if mask.shape[0] == 1:
-                                mask_2d = mask[0, :, :]
-                            else:
-                                mask_2d = mask[i_image, :, :]
-                        elif mask.ndim == 2:
-                             mask_2d = mask
-                        else:
-                             raise ValueError(f"Unexpected mask dimension: {mask.ndim}")
-                        # Ensure mask is boolean numpy array
-                        if isinstance(mask_2d, torch.Tensor):
-                            mask_2d = mask_2d.cpu().numpy()
-                        mask_2d = mask_2d.astype(bool)
-                        if mask_2d.shape[0] != img_height or mask_2d.shape[1] != img_width:
-                            raise ValueError(f"Mask shape {mask_2d.shape} does not match image spatial dimensions ({img_height}, {img_width})")
-                        # Calculate patch center offsets
-                        edge_x_0 = patch_height // 2
-                        edge_x_1 = patch_height - edge_x_0
-                        edge_y_0 = patch_width // 2
-                        edge_y_1 = patch_width - edge_y_0
-                        # Create a valid mask for patch *center* placement
-                        # A center at (cx, cy) is valid if the patch fits entirely within the image
-                        # Top-left corner: (cx - edge_x_0, cy - edge_y_0)
-                        # Bottom-right corner: (cx + edge_x_1 - 1, cy + edge_y_1 - 1)
-                        # Conditions:
-                        # cx - edge_x_0 >= 0  => cx >= edge_x_0
-                        # cy - edge_y_0 >= 0  => cy >= edge_y_0
-                        # cx + edge_x_1 - 1 < img_height => cx < img_height - edge_x_1 + 1
-                        # cy + edge_y_1 - 1 < img_width  => cy < img_width - edge_y_1 + 1
-                        valid_center_mask = np.zeros_like(mask_2d, dtype=bool)
-                        valid_center_mask[edge_x_0 : img_height - edge_x_1 + 1, edge_y_0 : img_width - edge_y_1 + 1] = True
-                        # Combine with the user-provided mask
-                        final_mask = mask_2d & valid_center_mask
-                        # Find valid center positions
-                        valid_indices = np.argwhere(final_mask)
-                        if valid_indices.shape[0] == 0:
-                            raise ValueError("No valid locations found in the mask to place the patch center such that the patch remains within image bounds.")
-                        else:
-                            # Choose a random valid center position
-                            pos_id = np.random.choice(valid_indices.shape[0], size=1)
-                            center_x, center_y = valid_indices[pos_id[0]]
-                            # Calculate top-left corner based on center
-                            i_x_1 = center_x - edge_x_0
-                            i_y_1 = center_y - edge_y_0
-                            # Ensure calculated top-left is valid (should be guaranteed by valid_center_mask, but good for sanity check)
-                            if not (0 <= i_x_1 <= img_height - patch_height and 0 <= i_y_1 <= img_width - patch_width):
-                                raise RuntimeError(f"Internal error: Calculated invalid patch start ({i_x_1}, {i_y_1}) from center ({center_x}, {center_y})")
-                else: # Not random location
-                    i_x_1 = 0
-                    i_y_1 = 0
-                    if patch_height > img_height or patch_width > img_width:
-                         raise ValueError(f"Patch (H={patch_height}, W={patch_width}) is larger than image (H={img_height}, W={img_width}) and cannot be placed at origin.")
-                # Calculate bottom-right corner (exclusive index for slicing)
-                i_x_2 = i_x_1 + patch_height
-                i_y_2 = i_y_1 + patch_width
+                i_x_1, i_x_2, i_y_1, i_y_2 = DPatch._augment_images_with_patch_no_transforms(random_location, mask, img_width, img_height, 
+                                                                                             patch_width, patch_height, i_image)
                 random_transformations.append({"i_x_1": i_x_1, "i_y_1": i_y_1, "i_x_2": i_x_2, "i_y_2": i_y_2})
             else: # Use provided transforms
-                i_x_1 = transforms[i_image]["i_x_1"]
-                i_x_2 = transforms[i_image]["i_x_2"]
-                i_y_1 = transforms[i_image]["i_y_1"]
-                i_y_2 = transforms[i_image]["i_y_2"]
-                # Basic validation
-                if not (0 <= i_x_1 < i_x_2 <= img_height and 0 <= i_y_1 < i_y_2 <= img_width):
-                     raise ValueError(f"Invalid transform coordinates for image {i_image}: {transforms[i_image]} with image shape {x_copy.shape}")
-                if (i_x_2 - i_x_1) != patch_height or (i_y_2 - i_y_1) != patch_width:
-                     raise ValueError(f"Transform dimensions ({i_x_2 - i_x_1}, {i_y_2 - i_y_1}) do not match patch dimensions ({patch_height}, {patch_width}) for image {i_image}")
+                i_x_1, i_x_2, i_y_1, i_y_2 = DPatch._augment_images_with_patch_transforms_provided(transforms, i_image, img_width, img_height,
+                                                                                                   patch_width, patch_height, x_copy)
             # Apply patch using channels-first indexing (N, C, H, W)
             try:
                 target_slice = x_copy[i_image, :, i_x_1:i_x_2, i_y_1:i_y_2]
@@ -383,34 +455,3 @@ class DPatch(ObjectDetectionAttack):
                  print(f"  Calculated slice shape: ({x_copy.shape[1]}, {i_x_2 - i_x_1}, {i_y_2 - i_y_1})")
                  raise e
         return x_copy, random_transformations
-
-
-    def apply_patch(
-        self,
-        x: np.ndarray,
-        patch_external: np.ndarray | None = None,
-        random_location: bool = False,
-        mask: np.ndarray | None = None,
-    ) -> np.ndarray:
-        """
-        Apply the adversarial patch to images.
-
-        :param x: Images to be patched.
-        :param patch_external: External patch to apply to images `x`. If None the attacks patch will be applied.
-        :param random_location: True if patch location should be random.
-        :param mask: A boolean array of shape equal to the shape of a single samples (1, H, W) or the shape of `x`
-                     (N, H, W) without their channel dimensions. Any features for which the mask is True can be the
-                     center location of the patch during sampling.
-        :return: The patched images.
-        """
-        if patch_external is not None:
-            patch_local = patch_external
-        else:
-            patch_local = self._patch
-        patched_images, _ = self._augment_images_with_patch(
-            x=x,
-            patch=patch_local,
-            random_location=random_location,
-            mask=mask,
-        )
-        return patched_images

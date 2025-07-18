@@ -153,6 +153,17 @@ def test_od_collate_fn_empty_annots():
     assert targets["labels"][0].shape == (0,)
     assert targets["scores"][0].shape == (0,)
 
+def test_od_collate_fn_raises_on_missing_bbox_or_category_id():
+    img = torch.zeros((3, 32, 32))
+    # Missing 'bbox'
+    batch_missing_bbox = [(img, [{"category_id": 1}])]
+    with pytest.raises(ValueError, match="Malformed annotation object"):
+        od_collate_fn(batch_missing_bbox)
+    # Missing 'category_id'
+    batch_missing_category = [(img, [{"bbox": [0, 0, 10, 10]}])]
+    with pytest.raises(ValueError, match="Malformed annotation object"):
+        od_collate_fn(batch_missing_category)
+
 def test_create_od_dataloader(mock_dataset):
     config = DataLoaderConfig(
         dataset=mock_dataset,

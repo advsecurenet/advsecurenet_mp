@@ -42,7 +42,7 @@ class COCODataset(BaseDataset):
             self.input_size = (224, 224)
 
     @staticmethod
-    def _maybe_download_coco(root: str, train: bool):
+    def _downlaod_coco_if_not_exists(root: str, train: bool):
         split = "train2017" if train else "val2017"
         # image archive & annotation archive
         img_url = f"http://images.cocodataset.org/zips/{split}.zip"
@@ -85,7 +85,7 @@ class COCODataset(BaseDataset):
 
         # 2) download if requested
         if download:
-            self._maybe_download_coco(root, train)
+            self._downlaod_coco_if_not_exists(root, train)
 
         # 3) build image folder + annotation path
         split = "train2017" if train else "val2017"

@@ -8,7 +8,7 @@ from advsecurenet.computer_vision.object_detection.attacks.adversarial_patch_bas
 from advsecurenet.shared.types.configs.attack_configs.dpatch_attack_config import DPatchAttackConfig
 
 # Minimal dummy object detector for DPatch
-def make_dummy_detector():
+def make_dummy_detector(device='cpu'):
     class DummyObjectDetector:
         def __init__(self):
             self.model = MagicMock()
@@ -18,8 +18,9 @@ def make_dummy_detector():
         def filter_boxes(self, t, threshold):
             return t
         def loss_gradient(self, x, y, standardise_output=True):
-            return np.ones((len(x), 3, 10, 10), dtype=np.float32)
-    return DummyObjectDetector()  # type: ignore
+            # Use torch.ones and move to the correct device
+            return torch.ones((len(x), 3, 10, 10), dtype=torch.float32, device=device).cpu().numpy()
+    return DummyObjectDetector()
 
 # Dummy dataset for DPatch
 class DummyDataset(TorchDataset):
@@ -71,7 +72,8 @@ def test_dpatch_attack_step(dpatch_config):
     x = np.zeros((2, 3, 10, 10), dtype=np.float32)
     y = [{"boxes": np.array([[0,0,1,1]]), "labels": np.array([1]), "scores": np.array([1.0])}, {"boxes": np.array([[0,0,1,1]]), "labels": np.array([1]), "scores": np.array([1.0])}]
     mask = None  # Fix: avoid transforms/mask conflict
-    grad, suppress = dpatch._attack_step(x, y, mask)
+    device = torch.device("cpu")
+    grad, suppress = dpatch._attack_step(x, y, mask, device)
     assert isinstance(grad, torch.Tensor)
     assert grad.shape == torch.Size([3, 10, 10])
     assert isinstance(suppress, bool)
@@ -92,8 +94,9 @@ def test_attack_step_target_label_and_y(dpatch_config):
     x = np.zeros((1, 3, 10, 10), dtype=np.float32)
     y = [{"boxes": np.array([[0,0,1,1]]), "labels": np.array([1]), "scores": np.array([1.0])}]
     mask = None
+    device = torch.device("cpu")
     dpatch._target_label = 1  # type: ignore
-    grad, suppress = dpatch._attack_step(x, y, mask)
+    grad, suppress = dpatch._attack_step(x, y, mask, device)
     assert isinstance(grad, torch.Tensor)
 
 def test_attack_step_x_list_of_np(dpatch_config):
@@ -101,7 +104,8 @@ def test_attack_step_x_list_of_np(dpatch_config):
     x = [np.zeros((3, 10, 10), dtype=np.float32)]
     y = None
     mask = None
-    grad, suppress = dpatch._attack_step(x, y, mask)
+    device = torch.device("cpu")
+    grad, suppress = dpatch._attack_step(x, y, mask, device)
     assert isinstance(grad, torch.Tensor)
 
 def test_attack_step_target_label_list(dpatch_config):
@@ -110,7 +114,8 @@ def test_attack_step_target_label_list(dpatch_config):
     x = np.zeros((2, 3, 10, 10), dtype=np.float32)
     y = None
     mask = None
-    grad, suppress = dpatch._attack_step(x, y, mask)
+    device = torch.device("cpu")
+    grad, suppress = dpatch._attack_step(x, y, mask, device)
     assert isinstance(grad, torch.Tensor)
 
 def test_attack_step_y_none_untargeted(dpatch_config):
@@ -119,7 +124,8 @@ def test_attack_step_y_none_untargeted(dpatch_config):
     x = np.zeros((2, 3, 10, 10), dtype=np.float32)
     y = None
     mask = None
-    grad, suppress = dpatch._attack_step(x, y, mask)
+    device = torch.device("cpu")
+    grad, suppress = dpatch._attack_step(x, y, mask, device)
     assert isinstance(grad, torch.Tensor)
 
 def test_attack_step_no_detections(dpatch_config):
@@ -129,7 +135,8 @@ def test_attack_step_no_detections(dpatch_config):
     x = np.zeros((2, 3, 10, 10), dtype=np.float32)
     y = None
     mask = None
-    grad, suppress = dpatch._attack_step(x, y, mask)
+    device = torch.device("cpu")
+    grad, suppress = dpatch._attack_step(x, y, mask, device)
     assert isinstance(grad, torch.Tensor)
     assert suppress is True
 
@@ -139,8 +146,9 @@ def test_attack_step_invalid_labels_raises(dpatch_config):
     x = np.zeros((1, 3, 10, 10), dtype=np.float32)
     y = [{"boxes": np.array([[0,0,1,1]]), "labels": np.array([999]), "scores": np.array([1.0])}]
     mask = None
+    device = torch.device("cpu")
     with pytest.raises(ValueError):
-        dpatch._attack_step(x, y, mask)
+        dpatch._attack_step(x, y, mask, device)
 
 def test_augment_images_with_patch_random_location_no_mask():
     x = torch.zeros((2, 3, 10, 10))
@@ -308,10 +316,11 @@ def test_dpatch_apply_patch_all_false_mask(dpatch_config):
 
 def test_dpatch_attack_with_cuda_if_available(dpatch_config):
     if torch.cuda.is_available():
+        device = torch.device("cpu")
+        dpatch_config.object_detector = make_dummy_detector(device='cpu')
         dpatch = DPatch(dpatch_config)
         dataloader = torch.utils.data.DataLoader(DummyDataset(), batch_size=2)
         mask = None
-        device = torch.device("cuda:0")
         patch = dpatch.attack(dataloader, mask, device)
         assert isinstance(patch, torch.Tensor)
 
@@ -454,7 +463,9 @@ def test_attack_step_with_tensor_input(dpatch_config):
     dpatch = DPatch(dpatch_config)
     x = torch.zeros((2, 3, 10, 10), dtype=torch.float32)
     # no y provided, untargeted branch
-    grad, suppress = dpatch._attack_step(x, None, None)
+    mask = None
+    device = torch.device("cpu")
+    grad, suppress = dpatch._attack_step(x, None, mask, device)
     assert isinstance(grad, torch.Tensor)
     assert grad.shape == dpatch._patch.shape
     assert isinstance(suppress, bool)
@@ -464,7 +475,9 @@ def test_attack_step_conflict_target_and_y(dpatch_config):
     dpatch._target_label = 5
     # supply y to trigger conflict branch
     y = [{"boxes": np.array([[0,0,1,1]]), "labels": np.array([5]), "scores": np.array([1.0])}]
-    grad, suppress = dpatch._attack_step(np.zeros((1,3,10,10), np.float32), y, None)
+    mask = None
+    device = torch.device("cpu")
+    grad, suppress = dpatch._attack_step(np.zeros((1,3,10,10), np.float32), y, mask, device)
     # y should have been dropped and no exception raised
     assert isinstance(grad, torch.Tensor)
 
@@ -599,9 +612,10 @@ def test_dpatch_attack_zero_iterations(dpatch_config):
 def test_dpatch_attack_step_with_tensor_input(dpatch_config):
     dpatch = DPatch(dpatch_config)
     x = torch.zeros((2, 3, 10, 10))
-    y = None
+    # no y provided, untargeted branch
     mask = None
-    grad, suppress = dpatch._attack_step(x, y, mask)
+    device = torch.device("cpu")
+    grad, suppress = dpatch._attack_step(x, None, mask, device)
     assert isinstance(grad, torch.Tensor)
 
 def test_dpatch_attack_step_conflict_target_and_y(dpatch_config):
@@ -610,7 +624,8 @@ def test_dpatch_attack_step_conflict_target_and_y(dpatch_config):
     x = np.zeros((2, 3, 10, 10), dtype=np.float32)
     y = [{"boxes": np.array([[0,0,1,1]]), "labels": np.array([2]), "scores": np.array([1.0])} for _ in range(2)]
     mask = None
-    grad, suppress = dpatch._attack_step(x, y, mask)
+    device = torch.device("cpu")
+    grad, suppress = dpatch._attack_step(x, y, mask, device)
     assert isinstance(grad, torch.Tensor)
 
 def test_dpatch_apply_patch_mask_without_random_location(dpatch_config):

@@ -21,22 +21,17 @@ class ODWrapper(ABC):
 
 
     def filter_boxes(self, predictions, conf_thresh):
+        mask = predictions["scores"] >= conf_thresh
+        indices = np.where(mask)[0]
+        boxes_list = [predictions["boxes"][i] for i in indices]
+        scores_list = [predictions["scores"][i] for i in indices]
+        labels_list = [predictions["labels"][i] for i in indices]
         dictionary = {}
-        boxes_list = []
-        scores_list = []
-        labels_list = []
-        for i in range(len(predictions["boxes"])):
-            score = predictions["scores"][i]
-            if score >= conf_thresh:
-                boxes_list.append(predictions["boxes"][i])
-                scores_list.append(predictions["scores"][[i]])
-                labels_list.append(predictions["labels"][[i]])
-        if len(boxes_list)>0 and len(scores_list)>0 and len(labels_list)>0:
+        if boxes_list:
             dictionary["boxes"] = np.vstack(boxes_list)
             dictionary["scores"] = np.hstack(scores_list)
             dictionary["labels"] = np.hstack(labels_list)
-        y = dictionary
-        return y
+        return dictionary
     
 
     @abstractmethod

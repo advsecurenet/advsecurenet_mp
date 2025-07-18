@@ -567,7 +567,7 @@ def lots(config, **kwargs):
     "--target-label",
     default=None,
     type=click.INT,
-    help="Target label for targeted attacks (classification or detection).",
+    help="Target label for targeted attack version.",
 )
 def dpatch(config, **kwargs):
     """
@@ -590,6 +590,7 @@ def dpatch(config, **kwargs):
         patch_shape (str, optional): Shape of the adversarial patch, e.g., '3,200,200'.
         learning_rate (float, optional): Learning rate for patch optimization.
         max_iter (int, optional): Maximum number of optimization iterations.
+        target_label (int, optional): Target label for targeted attack version.
 
     Examples:
 
@@ -660,6 +661,8 @@ def tog(config, **kwargs):
         max_iter (int, optional): Maximum number of optimization iterations.
         eps (float, optional): Maximum perturbation (epsilon) for the attack.
         eps_iter (float, optional): Step size (epsilon per iteration) for the attack.
+        attack_type (str, optional): TOG attack type: vanishing, untargeted, fabrication or mislabeling.
+        mislabeling_mode (str, optional): Mislabeling mode for TOG mislabeling: ml (most likely) or ll (least likely).
 
     Examples:
 

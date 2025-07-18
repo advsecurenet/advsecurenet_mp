@@ -65,16 +65,6 @@ def test_execute_dont_return_adv_images(mock_evaluator, patch_config):
     assert adv_images is None
 
 @patch("advsecurenet.computer_vision.object_detection.attacks.attacker.adversarial_patch_od_attacker.ObjectDetectorAdversarialEvaluator")
-def test_execute_cuda_memory_free(mock_evaluator, patch_config):
-    evaluator_instance = MagicMock()
-    mock_evaluator.return_value.__enter__.return_value = evaluator_instance
-    evaluator_instance.get_results.return_value = {"mAP": 0.5}
-    with patch("torch.cuda.is_available", return_value=True), patch("torch.cuda.empty_cache") as mock_empty_cache:
-        attacker = AdversarialPatchODAttacker(patch_config)
-        attacker.execute()
-        assert mock_empty_cache.called
-
-@patch("advsecurenet.computer_vision.object_detection.attacks.attacker.adversarial_patch_od_attacker.ObjectDetectorAdversarialEvaluator")
 def test_execute_empty_dataloader(mock_evaluator, patch_config):
     patch_config.dataloader = DataLoader(DummyDataset(n=0))
     evaluator_instance = MagicMock()

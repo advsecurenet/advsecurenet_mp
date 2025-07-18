@@ -25,7 +25,7 @@ def device(request):
 @pytest.fixture
 def config(device):
     device_cfg = DeviceConfig(
-        processor=device,
+        processor=str(device) if device is not None else None,
     )
     return AttackerConfig(
         model=ModelFactory.create_model(

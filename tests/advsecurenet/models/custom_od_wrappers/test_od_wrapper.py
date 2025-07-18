@@ -89,13 +89,8 @@ def test_filter_boxes_mismatched_lengths():
         'scores': np.array([0.6, 0.7]),
         'labels': np.array([1])
     }
-    # Should not raise, but output will be based on min length (boxes)
-    result = wrapper.filter_boxes(predictions, conf_thresh=0.5)
-    # Only the first box and score considered
-    assert 'boxes' in result and 'scores' in result and 'labels' in result
-    np.testing.assert_array_equal(result['boxes'], np.array([[1,2,3,4]]))
-    np.testing.assert_array_equal(result['scores'], np.array([0.6]))
-    np.testing.assert_array_equal(result['labels'], np.array([1]))
+    with pytest.raises(IndexError):
+        wrapper.filter_boxes(predictions, conf_thresh=0.5)
 
 def test_filter_boxes_non_numpy_types():
     wrapper = DummyODWrapper(None, 0.5, 'cpu', (0, 1), (3, 224, 224))

@@ -1,6 +1,8 @@
 import torch
 import pytest
-from advsecurenet.utils.move_batch_to_device import move_batch_to_device
+from advsecurenet.utils.device_utils import move_batch_to_device, setup_device
+from unittest.mock import patch
+
 
 def test_move_tensor_to_device():
     x = torch.zeros(2, 3)
@@ -45,3 +47,26 @@ def test_move_non_tensor_leaves():
     x_out, y_out = move_batch_to_device(x, y, device)
     assert x_out == 123
     assert y_out == 'abc'
+
+# --- Tests for setup_device ---
+def test_setup_device_cpu():
+    device = setup_device('cpu')
+    assert isinstance(device, torch.device)
+    assert device.type == 'cpu'
+
+def test_setup_device_cuda():
+    device = setup_device('cuda')
+    assert isinstance(device, torch.device)
+    assert device.type == 'cuda'
+
+def test_setup_device_none_cuda_available():
+    with patch('torch.cuda.is_available', return_value=True):
+        device = setup_device(None)
+        assert isinstance(device, torch.device)
+        assert device.type == 'cuda'
+
+def test_setup_device_none_cuda_not_available():
+    with patch('torch.cuda.is_available', return_value=False):
+        device = setup_device(None)
+        assert isinstance(device, torch.device)
+        assert device.type == 'cpu'

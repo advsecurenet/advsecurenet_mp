@@ -362,14 +362,14 @@ def test_coco_dataset_load_dataset(tmp_path):
     with patch("advsecurenet.datasets.COCO.coco_dataset.datasets.CocoDetection") as mock_coco:
         mock_coco.return_value = MagicMock()
         dataset = COCODataset()
-        # Patch _maybe_download_coco to avoid download
-        with patch.object(dataset, "_maybe_download_coco") as mock_dl:
+        # Patch _downlaod_coco_if_not_exists to avoid download
+        with patch.object(dataset, "_downlaod_coco_if_not_exists") as mock_dl:
             wrapper = dataset.load_dataset(root=str(tmp_path), train=True, download=True)
             assert dataset.data_type is not None
             assert wrapper.dataset == mock_coco.return_value
             mock_dl.assert_called_once()
         # Test with download=False
-        with patch.object(dataset, "_maybe_download_coco") as mock_dl:
+        with patch.object(dataset, "_downlaod_coco_if_not_exists") as mock_dl:
             wrapper = dataset.load_dataset(root=str(tmp_path), train=False, download=False)
             assert dataset.data_type is not None
             mock_dl.assert_not_called()
@@ -381,7 +381,7 @@ def test_coco_dataset_maybe_download(tmp_path):
         # Case: both dirs missing
         dataset = COCODataset()
         root = str(tmp_path)
-        dataset._maybe_download_coco(root, train=True)
+        dataset._downlaod_coco_if_not_exists(root, train=True)
         assert mock_dl.call_count == 2
         # Case: dirs exist
         img_dir = os.path.join(root, "train2017")
@@ -389,7 +389,7 @@ def test_coco_dataset_maybe_download(tmp_path):
         os.makedirs(img_dir, exist_ok=True)
         os.makedirs(ann_dir, exist_ok=True)
         mock_dl.reset_mock()
-        dataset._maybe_download_coco(root, train=False)
+        dataset._downlaod_coco_if_not_exists(root, train=False)
         # Allow for 0 or 1 call depending on which dir exists
         assert mock_dl.call_count in (0, 1)
 

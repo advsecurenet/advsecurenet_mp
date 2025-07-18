@@ -10,7 +10,7 @@ from advsecurenet.evaluation.od_adversarial_evaluator import ObjectDetectorAdver
 from advsecurenet.shared.types.configs.attack_configs.od_attacker_config import ODAttackerConfig
 from advsecurenet.computer_vision.object_detection.attacks.attacker.od_attacker import ODAttacker
 from advsecurenet.computer_vision.object_detection.attacks.pixel_perturbation_based.tog import TOGAttackType
-from advsecurenet.utils.move_batch_to_device import move_batch_to_device
+from advsecurenet.utils.device_utils import move_batch_to_device
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +69,7 @@ class PixelPerturbationODAttacker(ODAttacker):
                     adversarial_images.append(patched.detach().cpu())
                     #adversarial_images.append(images.detach().cpu())
                 # free up GPU memory if needed
-                if torch.cuda.is_available():
+                if torch.cuda.is_available() and self._device.type == 'cuda':
                     torch.cuda.empty_cache()
             # summary logging
             results = evaluator.get_results()

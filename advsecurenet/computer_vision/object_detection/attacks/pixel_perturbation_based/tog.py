@@ -7,6 +7,7 @@ The TOG-universal and TOG-patch attacks have been skipped in this implementation
 import numpy as np
 
 import torch
+import warnings
 from scipy.special import softmax
 from enum import Enum
 
@@ -60,7 +61,7 @@ class TOG(ObjectDetectionAttack):
                     label = orig_class[i]
                     print(f"Detection {i}: label={label}, logits.shape={logits[i].shape}, logits.shape[1]={logits.shape[1]}")
                     if label >= logits.shape[1]:
-                        print(f"WARNING: label {label} is out of bounds for logits with shape {logits.shape}")
+                        warnings.warn(f"Label {label} is out of bounds for logits with shape {logits.shape}")
                         continue  # Skip this detection
                     logit_row = logits[i].copy()
                     logit_row[label] = -np.inf  # Exclude original class
@@ -147,7 +148,7 @@ class TOG(ObjectDetectionAttack):
     def tog_mislabeling(self, x_query, mode, n_iter=10, eps=8/255., eps_iter=2/255.):
         print(f"Running TOG mislabeling attack with n_iter={n_iter}, eps={eps}, eps_iter={eps_iter}, mode={mode}")
         if mode.lower() not in ["ml", "ll"]:
-            print(f"Warning: Unknown mode '{mode}'. Using 'ml' instead.")
+            warnings.warn(f"Unknown mode '{mode}'. Using 'ml' instead.")
             mode = "ml"
         x_uint8 = (x_query * 255.0).clip(0, 255).astype(np.uint8)
         x_tensor = torch.from_numpy(x_uint8).float().to(next(self.object_detector.model.parameters()).device)
@@ -160,7 +161,7 @@ class TOG(ObjectDetectionAttack):
             if i % 50 == 0:  # Log every 50 iterations
                 print(f"Iteration {i}: Gradient norm = {grad_norm:.6f}")
             if grad_norm < 1e-8:
-                print("Warning: Very small gradients detected, stopping early")
+                warnings.warn(f"Very small gradients detected, stopping early")
                 break
             signed_grad = np.sign(grad)
             x_adv -= eps_iter * signed_grad

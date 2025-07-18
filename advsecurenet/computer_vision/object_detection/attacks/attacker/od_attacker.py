@@ -7,6 +7,7 @@ from tqdm.auto import tqdm
 from advsecurenet.evaluation.adversarial_evaluator import AdversarialEvaluator
 from advsecurenet.dataloader import DataLoaderFactory
 from advsecurenet.shared.types.configs.attack_configs.od_attacker_config import ODAttackerConfig
+from advsecurenet.utils.device_utils import setup_device
 
 logger = logging.getLogger(__name__)
 
@@ -18,20 +19,9 @@ class ODAttacker(abc.ABC):
     """
     def __init__(self, config: ODAttackerConfig):
         self._config       = config
-        self._device       = self._setup_device()
+        self._device       = setup_device(config.device.processor)
         self._eval_model   = config.model.to(self._device).eval()
         self._dataloader   = self._create_dataloader()
-
-
-    def _setup_device(self):
-        """
-        Sets up the device for computation based on the configuration.
-        Returns:
-            torch.device: The device to be used for computation.
-        """
-        if self._config.device.processor:
-            return torch.device(self._config.device.processor)
-        return torch.device("cuda" if torch.cuda.is_available() else "cpu") # replace with setup device utility function - TODO
 
 
     def _create_dataloader(self):

@@ -7,6 +7,7 @@ from yolov5.utils.general import xywh2xyxy
 import numpy as np
 from torch.utils.data import TensorDataset, DataLoader
 from advsecurenet.models.CustomODWrappers.ODWrapper import ODWrapper
+from pathlib import Path
 
 class CustomYolov5ODWrapper(ODWrapper):
     def __init__(
@@ -26,7 +27,7 @@ class CustomYolov5ODWrapper(ODWrapper):
             clip_values=clip_values,
             input_shape=input_shape,
             )
-        self.inference_model = yolov5.load('model_weights\yolov5s.pt', device=device_type, autoshape=True)
+        self.inference_model = yolov5.load(str(Path("model_weights") / "yolov5s.pt"), device=device_type, autoshape=True)
         self.inference_model.conf = conf_thresh
         self.input_shape=input_shape
         self.channels_first=True
@@ -49,6 +50,11 @@ class CustomYolov5ODWrapper(ODWrapper):
             N = len(label_dict["boxes"])
             # create 2D tensor to encode labels and bounding boxes
             label_xcycwh = torch.zeros((N, 6), device=self.device)
+            # xcycwh stands for:
+            # x_center: the x-coordinate of the center of the bounding box.
+            # y_center: the y-coordinate of the center of the bounding box.
+            # w: the width of the bounding box.
+            # h: the height of the bounding box.
             label_xcycwh[:, 0] = i # image index
             # class labels
             raw_lbls = label_dict["labels"]
@@ -66,6 +72,7 @@ class CustomYolov5ODWrapper(ODWrapper):
             # boxes are [x1, y1, x2, y2]
             label_xcycwh[:, 2:6] = boxes
             # normalize bounding boxes to [0, 1]
+            assert width > 0 and height > 0, f"Invalid input dimension: {self.input_shape}"
             label_xcycwh[:, 2:6:2] /= width
             label_xcycwh[:, 3:6:2] /= height
             # convert from x1y1x2y2 to xcycwh

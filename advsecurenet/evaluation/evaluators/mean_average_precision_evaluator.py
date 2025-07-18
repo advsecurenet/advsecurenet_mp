@@ -2,6 +2,7 @@ from advsecurenet.evaluation.base_evaluator import BaseEvaluator
 from advsecurenet.models.base_model import BaseModel
 from mean_average_precision import MetricBuilder
 import torch
+import warnings
 import numpy as np
 from typing import List, Dict, Any
 
@@ -52,7 +53,7 @@ class MeanAveragePrecisionEvaluator(BaseEvaluator):
                 gts_formatted = [list(b) + [int(l), 0, 0] for b, l in zip(gt_boxes, gt_labels)]
                 metric_builder.add(np.array(preds_formatted), np.array(gts_formatted))
             except Exception as e:
-                print(f"Error processing prediction {pred_idx}: {e}")
+                warnings.warn(f"Error processing prediction {pred_idx}: {e}")
 
     def tensor_to_numpy_images(self, images: torch.Tensor):
         # images: [B, C, H, W], values in [0, 1] or [0, 255]

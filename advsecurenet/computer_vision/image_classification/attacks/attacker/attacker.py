@@ -10,6 +10,7 @@ from advsecurenet.evaluation.adversarial_evaluator import AdversarialEvaluator
 from advsecurenet.shared.types.configs.attack_configs.attacker_config import (
     AttackerConfig,
 )
+from advsecurenet.utils.device_utils import setup_device
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,7 @@ class Attacker:
 
     def __init__(self, config: AttackerConfig, **kwargs):
         self._config = config
-        self._device = self._setup_device()
+        self._device = setup_device(config.device.processor)
         self._model = self._setup_model()
         self._dataloader = self._create_dataloader()
         self._kwargs = kwargs
@@ -31,20 +32,6 @@ class Attacker:
         Entry point for the attacker module. This function executes the attack.
         """
         return self._execute_attack()
-
-    def _setup_device(self) -> torch.device:
-        """
-        Setup the device.
-        """
-
-        if self._config.device.processor:
-            device = torch.device(self._config.device.processor)
-        else:
-            if torch.cuda.is_available():
-                device = torch.device("cuda")
-            else:
-                device = torch.device("cpu")
-        return device
 
     def _create_dataloader(self):
         """

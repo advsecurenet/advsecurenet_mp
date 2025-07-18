@@ -448,6 +448,31 @@ def make_minimal_odwrapper():
             return x
     return MinimalODWrapper(model=None, conf_thresh=0.5, device_type='cpu', clip_values=(0,255), input_shape=(3,224,224))
 
+def test_default_model_weights_path():
+    from advsecurenet.models.CustomODWrappers.CustomYolov5ODWrapper import CustomYolov5ODWrapper
+    from unittest.mock import patch, MagicMock
+    with patch('yolov5.load') as mock_load:
+        mock_inference = MagicMock()
+        mock_inference.conf = 0.7
+        mock_inference.model = MagicMock()
+        mock_inference.model.names = [str(i) for i in range(80)]
+        mock_inference.__call__ = MagicMock()
+        mock_inference.xyxy = [torch.zeros((0, 6))]
+        mock_inference.pred = [torch.zeros((0, 85))]
+        mock_load.return_value = mock_inference
+        CustomYolov5ODWrapper(
+            model=MagicMock(),
+            input_shape=(3, 224, 224),
+            clip_values=(0, 255),
+            attack_losses=('loss_total', 'loss_cls', 'loss_box', 'loss_obj'),
+            device_type='cpu',
+            conf_thresh=0.7,
+        )
+        # Should call yolov5.load with the correct path
+        from pathlib import Path
+        expected_path = str(Path("model_weights") / "yolov5s.pt")
+        mock_load.assert_called_with(expected_path, device='cpu', autoshape=True)
+
 def test_filter_boxes_all_above_conf():
     wrapper = make_minimal_odwrapper()
     preds = {

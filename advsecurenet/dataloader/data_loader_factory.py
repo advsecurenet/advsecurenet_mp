@@ -42,6 +42,8 @@ def od_collate_fn(batch):
         # turn COCO bboxes [x, y, w, h] → [x1, y1, x2, y2]
         img_boxes, img_labels, img_scores  = [], [], []
         for obj in annots:
+            if "bbox" not in obj or "category_id" not in obj:
+                raise ValueError(f"Malformed annotation object: {obj}") 
             x, y, w, h = obj['bbox']
             img_boxes.append([x, y, x + w, y + h])
             img_labels.append(map_raw_to_contiguous(obj['category_id']))
