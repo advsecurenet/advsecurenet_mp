@@ -5,6 +5,7 @@ import torch
 
 import transformers
 from transformers import AutoModel, AutoConfig
+from torch import nn
 
 from advsecurenet.models.base_model import BaseModel, check_model_loaded
 from advsecurenet.shared.types.configs.model_config import (
@@ -61,7 +62,6 @@ class HuggingFaceModel(BaseModel):
                 self._determine_model_class_and_config()
             )
             self.model = self._instantiate_model(ModelClass, config_object)
-
         except Exception as e:
             # Re-raise specific ValueErrors from manual override if they match the pattern
             if isinstance(e, ValueError) and (
