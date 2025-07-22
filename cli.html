@@ -245,6 +245,7 @@
 <li class="toctree-l3"><a class="reference internal" href="cli.logic.utils.html#module-cli.logic.utils.model">cli.logic.utils.model module</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="cli.logic.utils.html#cli.logic.utils.model.cli_available_weights"><code class="docutils literal notranslate"><span class="pre">cli_available_weights()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="cli.logic.utils.html#cli.logic.utils.model.cli_download_weights"><code class="docutils literal notranslate"><span class="pre">cli_download_weights()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cli.logic.utils.html#cli.logic.utils.model.cli_huggingface_model"><code class="docutils literal notranslate"><span class="pre">cli_huggingface_model()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="cli.logic.utils.html#cli.logic.utils.model.cli_model_layers"><code class="docutils literal notranslate"><span class="pre">cli_model_layers()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="cli.logic.utils.html#cli.logic.utils.model.cli_models"><code class="docutils literal notranslate"><span class="pre">cli_models()</span></code></a></li>
 </ul>
@@ -446,22 +447,51 @@
 </ul>
 </li>
 <li class="toctree-l4"><a class="reference internal" href="cli.shared.types.utils.html#module-cli.shared.types.utils.dataset">cli.shared.types.utils.dataset module</a><ul>
-<li class="toctree-l5"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.dataset.AttacksDatasetCliConfigType"><code class="docutils literal notranslate"><span class="pre">AttacksDatasetCliConfigType</span></code></a><ul>
-<li class="toctree-l6"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.dataset.AttacksDatasetCliConfigType.dataset_part"><code class="docutils literal notranslate"><span class="pre">AttacksDatasetCliConfigType.dataset_part</span></code></a></li>
-<li class="toctree-l6"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.dataset.AttacksDatasetCliConfigType.random_sample_size"><code class="docutils literal notranslate"><span class="pre">AttacksDatasetCliConfigType.random_sample_size</span></code></a></li>
-<li class="toctree-l6"><a class="reference internal" href="cli.shared.types.utils.html#id0"><code class="docutils literal notranslate"><span class="pre">AttacksDatasetCliConfigType.dataset_part</span></code></a></li>
-<li class="toctree-l6"><a class="reference internal" href="cli.shared.types.utils.html#id1"><code class="docutils literal notranslate"><span class="pre">AttacksDatasetCliConfigType.random_sample_size</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.dataset.AttacksDatasetCliConfig"><code class="docutils literal notranslate"><span class="pre">AttacksDatasetCliConfig</span></code></a><ul>
+<li class="toctree-l6"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.dataset.AttacksDatasetCliConfig.random_sample_size"><code class="docutils literal notranslate"><span class="pre">AttacksDatasetCliConfig.random_sample_size</span></code></a></li>
 </ul>
 </li>
-<li class="toctree-l5"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.dataset.DatasetCliConfigType"><code class="docutils literal notranslate"><span class="pre">DatasetCliConfigType</span></code></a><ul>
-<li class="toctree-l6"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.dataset.DatasetCliConfigType.dataset_name"><code class="docutils literal notranslate"><span class="pre">DatasetCliConfigType.dataset_name</span></code></a></li>
-<li class="toctree-l6"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.dataset.DatasetCliConfigType.download"><code class="docutils literal notranslate"><span class="pre">DatasetCliConfigType.download</span></code></a></li>
-<li class="toctree-l6"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.dataset.DatasetCliConfigType.num_classes"><code class="docutils literal notranslate"><span class="pre">DatasetCliConfigType.num_classes</span></code></a></li>
-<li class="toctree-l6"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.dataset.DatasetCliConfigType.preprocessing"><code class="docutils literal notranslate"><span class="pre">DatasetCliConfigType.preprocessing</span></code></a></li>
-<li class="toctree-l6"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.dataset.DatasetCliConfigType.test_dataset_path"><code class="docutils literal notranslate"><span class="pre">DatasetCliConfigType.test_dataset_path</span></code></a></li>
-<li class="toctree-l6"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.dataset.DatasetCliConfigType.train_dataset_path"><code class="docutils literal notranslate"><span class="pre">DatasetCliConfigType.train_dataset_path</span></code></a></li>
+<li class="toctree-l5"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.dataset.BaseDatasetCliConfig"><code class="docutils literal notranslate"><span class="pre">BaseDatasetCliConfig</span></code></a><ul>
+<li class="toctree-l6"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.dataset.BaseDatasetCliConfig.dataset_name"><code class="docutils literal notranslate"><span class="pre">BaseDatasetCliConfig.dataset_name</span></code></a></li>
+<li class="toctree-l6"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.dataset.BaseDatasetCliConfig.num_classes"><code class="docutils literal notranslate"><span class="pre">BaseDatasetCliConfig.num_classes</span></code></a></li>
+<li class="toctree-l6"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.dataset.BaseDatasetCliConfig.preprocessing"><code class="docutils literal notranslate"><span class="pre">BaseDatasetCliConfig.preprocessing</span></code></a></li>
 </ul>
 </li>
+<li class="toctree-l5"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.dataset.CreateDatasetCliConfig"><code class="docutils literal notranslate"><span class="pre">CreateDatasetCliConfig</span></code></a><ul>
+<li class="toctree-l6"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.dataset.CreateDatasetCliConfig.constructor_args"><code class="docutils literal notranslate"><span class="pre">CreateDatasetCliConfig.constructor_args</span></code></a></li>
+<li class="toctree-l6"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.dataset.CreateDatasetCliConfig.dataset_kwargs"><code class="docutils literal notranslate"><span class="pre">CreateDatasetCliConfig.dataset_kwargs</span></code></a></li>
+<li class="toctree-l6"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.dataset.CreateDatasetCliConfig.identifier"><code class="docutils literal notranslate"><span class="pre">CreateDatasetCliConfig.identifier</span></code></a></li>
+<li class="toctree-l6"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.dataset.CreateDatasetCliConfig.load_splits"><code class="docutils literal notranslate"><span class="pre">CreateDatasetCliConfig.load_splits</span></code></a></li>
+<li class="toctree-l6"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.dataset.CreateDatasetCliConfig.random_sample_size"><code class="docutils literal notranslate"><span class="pre">CreateDatasetCliConfig.random_sample_size</span></code></a></li>
+<li class="toctree-l6"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.dataset.CreateDatasetCliConfig.split_config"><code class="docutils literal notranslate"><span class="pre">CreateDatasetCliConfig.split_config</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l5"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.dataset.ResolvedDatasetConfig"><code class="docutils literal notranslate"><span class="pre">ResolvedDatasetConfig</span></code></a><ul>
+<li class="toctree-l6"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.dataset.ResolvedDatasetConfig.dataset_name"><code class="docutils literal notranslate"><span class="pre">ResolvedDatasetConfig.dataset_name</span></code></a></li>
+<li class="toctree-l6"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.dataset.ResolvedDatasetConfig.random_sample_size"><code class="docutils literal notranslate"><span class="pre">ResolvedDatasetConfig.random_sample_size</span></code></a></li>
+<li class="toctree-l6"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.dataset.ResolvedDatasetConfig.splits"><code class="docutils literal notranslate"><span class="pre">ResolvedDatasetConfig.splits</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l5"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.dataset.ResolvedSplitConfig"><code class="docutils literal notranslate"><span class="pre">ResolvedSplitConfig</span></code></a><ul>
+<li class="toctree-l6"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.dataset.ResolvedSplitConfig.constructor_args"><code class="docutils literal notranslate"><span class="pre">ResolvedSplitConfig.constructor_args</span></code></a></li>
+<li class="toctree-l6"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.dataset.ResolvedSplitConfig.identifier"><code class="docutils literal notranslate"><span class="pre">ResolvedSplitConfig.identifier</span></code></a></li>
+<li class="toctree-l6"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.dataset.ResolvedSplitConfig.kwargs"><code class="docutils literal notranslate"><span class="pre">ResolvedSplitConfig.kwargs</span></code></a></li>
+<li class="toctree-l6"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.dataset.ResolvedSplitConfig.num_classes"><code class="docutils literal notranslate"><span class="pre">ResolvedSplitConfig.num_classes</span></code></a></li>
+<li class="toctree-l6"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.dataset.ResolvedSplitConfig.path"><code class="docutils literal notranslate"><span class="pre">ResolvedSplitConfig.path</span></code></a></li>
+<li class="toctree-l6"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.dataset.ResolvedSplitConfig.preprocessing"><code class="docutils literal notranslate"><span class="pre">ResolvedSplitConfig.preprocessing</span></code></a></li>
+<li class="toctree-l6"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.dataset.ResolvedSplitConfig.source_split_name"><code class="docutils literal notranslate"><span class="pre">ResolvedSplitConfig.source_split_name</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l5"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.dataset.UserSplitConfig"><code class="docutils literal notranslate"><span class="pre">UserSplitConfig</span></code></a><ul>
+<li class="toctree-l6"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.dataset.UserSplitConfig.constructor_args"><code class="docutils literal notranslate"><span class="pre">UserSplitConfig.constructor_args</span></code></a></li>
+<li class="toctree-l6"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.dataset.UserSplitConfig.dataset_kwargs"><code class="docutils literal notranslate"><span class="pre">UserSplitConfig.dataset_kwargs</span></code></a></li>
+<li class="toctree-l6"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.dataset.UserSplitConfig.identifier"><code class="docutils literal notranslate"><span class="pre">UserSplitConfig.identifier</span></code></a></li>
+<li class="toctree-l6"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.dataset.UserSplitConfig.path"><code class="docutils literal notranslate"><span class="pre">UserSplitConfig.path</span></code></a></li>
+<li class="toctree-l6"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.dataset.UserSplitConfig.preprocessing"><code class="docutils literal notranslate"><span class="pre">UserSplitConfig.preprocessing</span></code></a></li>
+<li class="toctree-l6"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.dataset.UserSplitConfig.split_name"><code class="docutils literal notranslate"><span class="pre">UserSplitConfig.split_name</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l5"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.dataset.resolve_dataset_config"><code class="docutils literal notranslate"><span class="pre">resolve_dataset_config()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l4"><a class="reference internal" href="cli.shared.types.utils.html#module-cli.shared.types.utils.device">cli.shared.types.utils.device module</a><ul>
@@ -475,11 +505,10 @@
 </li>
 <li class="toctree-l4"><a class="reference internal" href="cli.shared.types.utils.html#module-cli.shared.types.utils.model">cli.shared.types.utils.model module</a><ul>
 <li class="toctree-l5"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.model.ModelCliConfigType"><code class="docutils literal notranslate"><span class="pre">ModelCliConfigType</span></code></a><ul>
+<li class="toctree-l6"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.model.ModelCliConfigType.architecture"><code class="docutils literal notranslate"><span class="pre">ModelCliConfigType.architecture</span></code></a></li>
 <li class="toctree-l6"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.model.ModelCliConfigType.is_external"><code class="docutils literal notranslate"><span class="pre">ModelCliConfigType.is_external</span></code></a></li>
 <li class="toctree-l6"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.model.ModelCliConfigType.model_name"><code class="docutils literal notranslate"><span class="pre">ModelCliConfigType.model_name</span></code></a></li>
 <li class="toctree-l6"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.model.ModelCliConfigType.norm_config"><code class="docutils literal notranslate"><span class="pre">ModelCliConfigType.norm_config</span></code></a></li>
-<li class="toctree-l6"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.model.ModelCliConfigType.num_classes"><code class="docutils literal notranslate"><span class="pre">ModelCliConfigType.num_classes</span></code></a></li>
-<li class="toctree-l6"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.model.ModelCliConfigType.num_input_channels"><code class="docutils literal notranslate"><span class="pre">ModelCliConfigType.num_input_channels</span></code></a></li>
 <li class="toctree-l6"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.model.ModelCliConfigType.path_configs"><code class="docutils literal notranslate"><span class="pre">ModelCliConfigType.path_configs</span></code></a></li>
 <li class="toctree-l6"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.model.ModelCliConfigType.pretrained"><code class="docutils literal notranslate"><span class="pre">ModelCliConfigType.pretrained</span></code></a></li>
 <li class="toctree-l6"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.model.ModelCliConfigType.random_seed"><code class="docutils literal notranslate"><span class="pre">ModelCliConfigType.random_seed</span></code></a></li>

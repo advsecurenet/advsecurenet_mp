@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>advsecurenet.defenses package &mdash; AdvSecureNet  documentation</title>
+  <title>advsecurenet.computer_vision.image_classification.defenses package &mdash; AdvSecureNet  documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
 
@@ -18,9 +18,7 @@
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
-    <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="advsecurenet.distributed package" href="advsecurenet.distributed.html" />
-    <link rel="prev" title="advsecurenet.datasets.svhn package" href="advsecurenet.datasets.svhn.html" /> 
+    <link rel="search" title="Search" href="search.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -65,9 +63,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
-          <li class="breadcrumb-item"><a href="api.html">API Documentation</a></li>
-          <li class="breadcrumb-item"><a href="advsecurenet.html">AdvSecureNet Package</a></li>
-      <li class="breadcrumb-item active">advsecurenet.defenses package</li>
+      <li class="breadcrumb-item active">advsecurenet.computer_vision.image_classification.defenses package</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/advsecurenet.defenses.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -77,14 +73,14 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="advsecurenet-defenses-package">
-<h1>advsecurenet.defenses package<a class="headerlink" href="#advsecurenet-defenses-package" title="Link to this heading"></a></h1>
+  <section id="advsecurenet-computer-vision-image-classification-defenses-package">
+<h1>advsecurenet.computer_vision.image_classification.defenses package<a class="headerlink" href="#advsecurenet-computer-vision-image-classification-defenses-package" title="Link to this heading"></a></h1>
 <hr class="docutils" />
-<section id="module-advsecurenet.defenses.adversarial_training">
-<span id="advsecurenet-defenses-adversarial-training-module"></span><h2>advsecurenet.defenses.adversarial_training module<a class="headerlink" href="#module-advsecurenet.defenses.adversarial_training" title="Link to this heading"></a></h2>
-<dl class="py class">
-<dt class="sig sig-object py" id="advsecurenet.defenses.adversarial_training.AdversarialTraining">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">advsecurenet.defenses.adversarial_training.</span></span><span class="sig-name descname"><span class="pre">AdversarialTraining</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="advsecurenet.shared.types.configs.defense_configs.html#advsecurenet.shared.types.configs.defense_configs.adversarial_training_config.AdversarialTrainingConfig" title="advsecurenet.shared.types.configs.defense_configs.adversarial_training_config.AdversarialTrainingConfig"><span class="pre">AdversarialTrainingConfig</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#advsecurenet.defenses.adversarial_training.AdversarialTraining" title="Link to this definition"></a></dt>
+<section id="advsecurenet-computer-vision-image-classification-defenses-adversarial-training-module">
+<h2>advsecurenet.computer_vision.image_classification.defenses.adversarial_training module<a class="headerlink" href="#advsecurenet-computer-vision-image-classification-defenses-adversarial-training-module" title="Link to this heading"></a></h2>
+<dl class="py class" id="module-advsecurenet.computer_vision.image_classification.defenses.adversarial_training">
+<dt class="sig sig-object py" id="advsecurenet.computer_vision.image_classification.defenses.adversarial_training.AdversarialTraining">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">advsecurenet.computer_vision.image_classification.defenses.adversarial_training.</span></span><span class="sig-name descname"><span class="pre">AdversarialTraining</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="advsecurenet.shared.types.configs.defense_configs.html#advsecurenet.shared.types.configs.defense_configs.adversarial_training_config.AdversarialTrainingConfig" title="advsecurenet.shared.types.configs.defense_configs.adversarial_training_config.AdversarialTrainingConfig"><span class="pre">AdversarialTrainingConfig</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#advsecurenet.computer_vision.image_classification.defenses.adversarial_training.AdversarialTraining" title="Link to this definition"></a></dt>
 <dd><p>Bases: <a class="reference internal" href="advsecurenet.trainer.html#advsecurenet.trainer.trainer.Trainer" title="advsecurenet.trainer.trainer.Trainer"><code class="xref py py-class docutils literal notranslate"><span class="pre">Trainer</span></code></a></p>
 <p>Adversarial Training class. This module implements the Adversarial Training defense.</p>
 <dl class="field-list simple">
@@ -95,12 +91,12 @@
 </dd></dl>
 
 </section>
-<section id="module-advsecurenet.defenses.ddp_adversarial_training">
-<span id="advsecurenet-defenses-ddp-adversarial-training-module"></span><h2>advsecurenet.defenses.ddp_adversarial_training module<a class="headerlink" href="#module-advsecurenet.defenses.ddp_adversarial_training" title="Link to this heading"></a></h2>
-<dl class="py class">
-<dt class="sig sig-object py" id="advsecurenet.defenses.ddp_adversarial_training.DDPAdversarialTraining">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">advsecurenet.defenses.ddp_adversarial_training.</span></span><span class="sig-name descname"><span class="pre">DDPAdversarialTraining</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="advsecurenet.shared.types.configs.defense_configs.html#advsecurenet.shared.types.configs.defense_configs.adversarial_training_config.AdversarialTrainingConfig" title="advsecurenet.shared.types.configs.defense_configs.adversarial_training_config.AdversarialTrainingConfig"><span class="pre">AdversarialTrainingConfig</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">rank</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">world_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#advsecurenet.defenses.ddp_adversarial_training.DDPAdversarialTraining" title="Link to this definition"></a></dt>
-<dd><p>Bases: <a class="reference internal" href="advsecurenet.trainer.html#advsecurenet.trainer.ddp_trainer.DDPTrainer" title="advsecurenet.trainer.ddp_trainer.DDPTrainer"><code class="xref py py-class docutils literal notranslate"><span class="pre">DDPTrainer</span></code></a>, <a class="reference internal" href="#advsecurenet.defenses.adversarial_training.AdversarialTraining" title="advsecurenet.defenses.adversarial_training.AdversarialTraining"><code class="xref py py-class docutils literal notranslate"><span class="pre">AdversarialTraining</span></code></a></p>
+<section id="advsecurenet-computer-vision-image-classification-defenses-ddp-adversarial-training-module">
+<h2>advsecurenet.computer_vision.image_classification.defenses.ddp_adversarial_training module<a class="headerlink" href="#advsecurenet-computer-vision-image-classification-defenses-ddp-adversarial-training-module" title="Link to this heading"></a></h2>
+<dl class="py class" id="module-advsecurenet.computer_vision.image_classification.defenses.ddp_adversarial_training">
+<dt class="sig sig-object py" id="advsecurenet.computer_vision.image_classification.defenses.ddp_adversarial_training.DDPAdversarialTraining">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">advsecurenet.computer_vision.image_classification.defenses.ddp_adversarial_training.</span></span><span class="sig-name descname"><span class="pre">DDPAdversarialTraining</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="advsecurenet.shared.types.configs.defense_configs.html#advsecurenet.shared.types.configs.defense_configs.adversarial_training_config.AdversarialTrainingConfig" title="advsecurenet.shared.types.configs.defense_configs.adversarial_training_config.AdversarialTrainingConfig"><span class="pre">AdversarialTrainingConfig</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">rank</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">world_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#advsecurenet.computer_vision.image_classification.defenses.ddp_adversarial_training.DDPAdversarialTraining" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="advsecurenet.trainer.html#advsecurenet.trainer.ddp_trainer.DDPTrainer" title="advsecurenet.trainer.ddp_trainer.DDPTrainer"><code class="xref py py-class docutils literal notranslate"><span class="pre">DDPTrainer</span></code></a>, <a class="reference internal" href="#advsecurenet.computer_vision.image_classification.defenses.adversarial_training.AdversarialTraining" title="advsecurenet.computer_vision.image_classification.defenses.adversarial_training.AdversarialTraining"><code class="xref py py-class docutils literal notranslate"><span class="pre">AdversarialTraining</span></code></a></p>
 <p>Adversarial Training class. This class is used to train a model using adversarial training.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
@@ -109,16 +105,13 @@
 </dd></dl>
 
 <hr class="docutils" />
-<span class="target" id="module-advsecurenet.defenses"></span></section>
+<span class="target" id="module-advsecurenet.computer_vision.image_classification.defenses"></span></section>
 </section>
 
 
            </div>
           </div>
-          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="advsecurenet.datasets.svhn.html" class="btn btn-neutral float-left" title="advsecurenet.datasets.svhn package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="advsecurenet.distributed.html" class="btn btn-neutral float-right" title="advsecurenet.distributed package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
-    </div>
+          <footer>
 
   <hr/>
 

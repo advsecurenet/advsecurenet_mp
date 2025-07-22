@@ -143,6 +143,26 @@
 </dd></dl>
 
 <dl class="py function">
+<dt class="sig sig-object py" id="cli.logic.utils.model.cli_huggingface_model">
+<span class="sig-prename descclassname"><span class="pre">cli.logic.utils.model.</span></span><span class="sig-name descname"><span class="pre">cli_huggingface_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model_identifier</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pretrained</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">revision</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trust_remote_code</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_class_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="advsecurenet.dataloader.html#advsecurenet.dataloader.data_loader_factory.DataLoaderFactory.None" title="advsecurenet.dataloader.data_loader_factory.DataLoaderFactory.None"><span class="pre">None</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">architecture</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="advsecurenet.dataloader.html#advsecurenet.dataloader.data_loader_factory.DataLoaderFactory.None" title="advsecurenet.dataloader.data_loader_factory.DataLoaderFactory.None"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#cli.logic.utils.model.cli_huggingface_model" title="Link to this definition"></a></dt>
+<dd><p>Load and inspect a Hugging Face model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model_identifier</strong> (<em>str</em>) – Hugging Face model URL.</p></li>
+<li><p><strong>architecture</strong> (<em>Dict</em><em>, </em><em>optional</em>) – Architecture specification of model</p></li>
+<li><p><strong>pretrained</strong> (<em>bool</em>) – Whether to use pretrained weights.</p></li>
+<li><p><strong>revision</strong> (<em>str</em><em>, </em><em>optional</em>) – Specific model version to use.</p></li>
+<li><p><strong>trust_remote_code</strong> (<em>bool</em>) – Whether to trust remote code when loading the model.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>ValueError</strong> – If the model ID is not provided or is invalid.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
 <dt class="sig sig-object py" id="cli.logic.utils.model.cli_model_layers">
 <span class="sig-prename descclassname"><span class="pre">cli.logic.utils.model.</span></span><span class="sig-name descname"><span class="pre">cli_model_layers</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">add_normalization</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#cli.logic.utils.model.cli_model_layers" title="Link to this definition"></a></dt>
 <dd><p>List layers of a model.</p>

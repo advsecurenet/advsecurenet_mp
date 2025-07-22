@@ -1,4 +1,4 @@
-advsecurenet.attacks package
+advsecurenet.computer_vision.image_classification.attacks package
 ============================
 
 -----------
@@ -6,14 +6,14 @@ advsecurenet.attacks package
 .. toctree::
    :maxdepth: 4
 
-   advsecurenet.attacks.attacker
-   advsecurenet.attacks.base
-   advsecurenet.attacks.decision_based
-   advsecurenet.attacks.gradient_based
+   advsecurenet.computer_vision.image_classification.attacks.attacker
+   advsecurenet.computer_vision.image_classification.attacks.base
+   advsecurenet.computer_vision.image_classification.attacks.decision_based
+   advsecurenet.computer_vision.image_classification.attacks.gradient_based
 
 ---------------
 
-.. automodule:: advsecurenet.attacks
+.. automodule:: advsecurenet.computer_vision.image_classification.attacks
    :members:
    :undoc-members:
    :show-inheritance:

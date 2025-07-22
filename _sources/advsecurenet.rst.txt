@@ -6,10 +6,10 @@ AdvSecureNet Package
 .. toctree::
    :maxdepth: 6
 
-   advsecurenet.attacks
+   advsecurenet.computer_vision.image_classification.attacks
    advsecurenet.dataloader
    advsecurenet.datasets
-   advsecurenet.defenses
+   advsecurenet.computer_vision.image_classification.defenses
    advsecurenet.distributed
    advsecurenet.evaluation
    advsecurenet.models

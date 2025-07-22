@@ -1,19 +1,19 @@
-advsecurenet.attacks.decision\_based package
+advsecurenet.computer_vision.image_classification.attacks.decision\_based package
 ============================================
 
 ----------
 
-advsecurenet.attacks.decision\_based.boundary module
+advsecurenet.computer_vision.image_classification.attacks.decision\_based.boundary module
 ----------------------------------------------------
 
-.. automodule:: advsecurenet.attacks.decision_based.boundary
+.. automodule:: advsecurenet.computer_vision.image_classification.attacks.decision_based.boundary
    :members:
    :undoc-members:
    :show-inheritance:
 
 ---------------
 
-.. automodule:: advsecurenet.attacks.decision_based
+.. automodule:: advsecurenet.computer_vision.image_classification.attacks.decision_based
    :members:
    :undoc-members:
    :show-inheritance:

@@ -1,27 +1,27 @@
-advsecurenet.attacks.attacker package
+advsecurenet.computer_vision.image_classification.attacks.attacker package
 =====================================
 
 ----------
 
-advsecurenet.attacks.attacker.attacker module
+advsecurenet.computer_vision.image_classification.attacks.attacker.attacker module
 ---------------------------------------------
 
-.. automodule:: advsecurenet.attacks.attacker.attacker
+.. automodule:: advsecurenet.computer_vision.image_classification.attacks.attacker.attacker
    :members:
    :undoc-members:
    :show-inheritance:
 
-advsecurenet.attacks.attacker.ddp\_attacker module
+advsecurenet.computer_vision.image_classification.attacks.attacker.ddp\_attacker module
 --------------------------------------------------
 
-.. automodule:: advsecurenet.attacks.attacker.ddp_attacker
+.. automodule:: advsecurenet.computer_vision.image_classification.attacks.attacker.ddp_attacker
    :members:
    :undoc-members:
    :show-inheritance:
 
 ---------------
 
-.. automodule:: advsecurenet.attacks.attacker
+.. automodule:: advsecurenet.computer_vision.image_classification.attacks.attacker
    :members:
    :undoc-members:
    :show-inheritance:

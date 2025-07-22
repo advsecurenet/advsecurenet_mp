@@ -132,7 +132,7 @@ Follow these steps to create a new attack:
 
 .. code:: python
 
-   from advsecurenet.attacks.base import AdversarialAttack
+   from advsecurenet.computer_vision.image_classification.attacks.base import AdversarialAttack
    from advsecurenet.shared.types.configs.attack_configs import AttackConfig
    from advsecurenet.models.base_model import BaseModel
    from dataclasses import dataclass, field

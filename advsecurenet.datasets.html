@@ -290,16 +290,12 @@
 
 <dl class="py method">
 <dt class="sig sig-object py" id="advsecurenet.datasets.base_dataset.BaseDataset.load_dataset">
-<span class="sig-name descname"><span class="pre">load_dataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">root</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="advsecurenet.dataloader.html#advsecurenet.dataloader.data_loader_factory.DataLoaderFactory.None" title="advsecurenet.dataloader.data_loader_factory.DataLoaderFactory.None"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">train</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="advsecurenet.dataloader.html#advsecurenet.dataloader.data_loader_factory.DataLoaderFactory.None" title="advsecurenet.dataloader.data_loader_factory.DataLoaderFactory.None"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">download</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="advsecurenet.dataloader.html#advsecurenet.dataloader.data_loader_factory.DataLoaderFactory.None" title="advsecurenet.dataloader.data_loader_factory.DataLoaderFactory.None"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#advsecurenet.datasets.base_dataset.DatasetWrapper" title="advsecurenet.datasets.base_dataset.DatasetWrapper"><span class="pre">DatasetWrapper</span></a></span></span><a class="headerlink" href="#advsecurenet.datasets.base_dataset.BaseDataset.load_dataset" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">load_dataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#advsecurenet.datasets.base_dataset.DatasetWrapper" title="advsecurenet.datasets.base_dataset.DatasetWrapper"><span class="pre">DatasetWrapper</span></a></span></span><a class="headerlink" href="#advsecurenet.datasets.base_dataset.BaseDataset.load_dataset" title="Link to this definition"></a></dt>
 <dd><p>Loads the dataset.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>root</strong> (<em>str</em><em>, </em><em>optional</em>) – The root directory where the dataset should be stored. Defaults to ‘./data’.</p></li>
-<li><p><strong>train</strong> (<em>bool</em><em>, </em><em>optional</em>) – If True, loads the training data. Otherwise, loads the test data. Defaults to True.</p></li>
-<li><p><strong>download</strong> (<em>bool</em><em>, </em><em>optional</em>) – If True, downloads the dataset from the internet. Defaults to True.</p></li>
-<li><p><strong>**kwargs</strong> – Arbitrary keyword arguments for the dataset.</p></li>
-</ul>
+<dd class="field-odd"><p><strong>**kwargs</strong> – Arbitrary keyword arguments for the dataset.
+Common ones: root, train, download, split, etc.</p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>The dataset loaded into memory.</p>
@@ -308,6 +304,18 @@
 <dd class="field-odd"><p><a class="reference internal" href="#advsecurenet.datasets.base_dataset.DatasetWrapper" title="advsecurenet.datasets.base_dataset.DatasetWrapper">DatasetWrapper</a></p>
 </dd>
 </dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="advsecurenet.datasets.base_dataset.BaseDataset.process_dataset_kwargs">
+<span class="sig-name descname"><span class="pre">process_dataset_kwargs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="headerlink" href="#advsecurenet.datasets.base_dataset.BaseDataset.process_dataset_kwargs" title="Link to this definition"></a></dt>
+<dd><p>Processes and maps generic dataset kwargs to dataset-specific arguments.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="advsecurenet.datasets.base_dataset.BaseDataset.process_kwargs_load_dataset">
+<span class="sig-name descname"><span class="pre">process_kwargs_load_dataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="headerlink" href="#advsecurenet.datasets.base_dataset.BaseDataset.process_kwargs_load_dataset" title="Link to this definition"></a></dt>
+<dd><p>Processes kwargs for loading the dataset, mapping generic keys to dataset-specific ones.</p>
 </dd></dl>
 
 </dd></dl>
@@ -339,10 +347,27 @@
 <dt class="sig sig-object py" id="advsecurenet.datasets.dataset_factory.DatasetFactory">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">advsecurenet.datasets.dataset_factory.</span></span><span class="sig-name descname"><span class="pre">DatasetFactory</span></span><a class="headerlink" href="#advsecurenet.datasets.dataset_factory.DatasetFactory" title="Link to this definition"></a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
-<p>A factory class to create datasets.</p>
+<p>A factory class to create and load datasets based on configuration.</p>
 <dl class="py method">
-<dt class="sig sig-object py" id="advsecurenet.datasets.dataset_factory.DatasetFactory.available_datasets">
-<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">available_datasets</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span></span></span><a class="headerlink" href="#advsecurenet.datasets.dataset_factory.DatasetFactory.available_datasets" title="Link to this definition"></a></dt>
+<dt class="sig sig-object py" id="advsecurenet.datasets.dataset_factory.DatasetFactory.load_dataset">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">load_dataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">runtime_kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#advsecurenet.datasets.dataset_factory.DatasetFactory.load_dataset" title="Link to this definition"></a></dt>
+<dd><p>Loads datasets based on runtime arguments, which are expected to be
+passed from the command line or other runtime sources.</p>
+<p>This method is a convenience wrapper around <cite>load_dataset_from_config</cite>
+that resolves the configuration internally.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="advsecurenet.datasets.dataset_factory.DatasetFactory.load_dataset_from_config">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">load_dataset_from_config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">resolved_config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="cli.shared.types.utils.html#cli.shared.types.utils.dataset.ResolvedDatasetConfig" title="cli.shared.types.utils.dataset.ResolvedDatasetConfig"><span class="pre">ResolvedDatasetConfig</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">runtime_kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#advsecurenet.datasets.base_dataset.BaseDataset" title="advsecurenet.datasets.base_dataset.BaseDataset"><span class="pre">BaseDataset</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="advsecurenet.dataloader.html#advsecurenet.dataloader.data_loader_factory.DataLoaderFactory.None" title="advsecurenet.dataloader.data_loader_factory.DataLoaderFactory.None"><span class="pre">None</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#advsecurenet.datasets.dataset_factory.DatasetFactory.load_dataset_from_config" title="Link to this definition"></a></dt>
+<dd><p>The main entry point for loading datasets from a resolved configuration.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="advsecurenet.datasets.dataset_factory.available_datasets">
+<span class="sig-prename descclassname"><span class="pre">advsecurenet.datasets.dataset_factory.</span></span><span class="sig-name descname"><span class="pre">available_datasets</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span></span></span><a class="headerlink" href="#advsecurenet.datasets.dataset_factory.available_datasets" title="Link to this definition"></a></dt>
 <dd><p>Returns a list of available datasets.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns<span class="colon">:</span></dt>
@@ -352,29 +377,6 @@
 <dd class="field-even"><p>list</p>
 </dd>
 </dl>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="advsecurenet.datasets.dataset_factory.DatasetFactory.create_dataset">
-<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">create_dataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset_type</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="advsecurenet.shared.types.html#advsecurenet.shared.types.dataset.DatasetType" title="advsecurenet.shared.types.dataset.DatasetType"><span class="pre">DatasetType</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">preprocess_config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="advsecurenet.shared.types.configs.html#advsecurenet.shared.types.configs.preprocess_config.PreprocessConfig" title="advsecurenet.shared.types.configs.preprocess_config.PreprocessConfig"><span class="pre">PreprocessConfig</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="advsecurenet.dataloader.html#advsecurenet.dataloader.data_loader_factory.DataLoaderFactory.None" title="advsecurenet.dataloader.data_loader_factory.DataLoaderFactory.None"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_loaded</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="advsecurenet.dataloader.html#advsecurenet.dataloader.data_loader_factory.DataLoaderFactory.None" title="advsecurenet.dataloader.data_loader_factory.DataLoaderFactory.None"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#advsecurenet.datasets.base_dataset.BaseDataset" title="advsecurenet.datasets.base_dataset.BaseDataset"><span class="pre">BaseDataset</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#advsecurenet.datasets.base_dataset.BaseDataset" title="advsecurenet.datasets.base_dataset.BaseDataset"><span class="pre">BaseDataset</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#advsecurenet.datasets.base_dataset.BaseDataset" title="advsecurenet.datasets.base_dataset.BaseDataset"><span class="pre">BaseDataset</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#advsecurenet.datasets.dataset_factory.DatasetFactory.create_dataset" title="Link to this definition"></a></dt>
-<dd><p>Returns a dataset for the given dataset type.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>dataset_type</strong> (<em>Union</em><em>[</em><a class="reference internal" href="advsecurenet.shared.types.html#advsecurenet.shared.types.dataset.DatasetType" title="advsecurenet.shared.types.dataset.DatasetType"><em>DatasetType</em></a><em>, </em><em>str</em><em>]</em>) – The dataset type to create.</p></li>
-<li><p><strong>return_loaded</strong> (<em>bool</em>) – Whether to load the train and test datasets and return them immediately. Default is False.</p></li>
-<li><p><strong>**kwargs</strong> – Arbitrary keyword arguments to be passed to the dataset class.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>The dataset for the given dataset type.</p>
-</dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference internal" href="#advsecurenet.datasets.base_dataset.BaseDataset" title="advsecurenet.datasets.base_dataset.BaseDataset">BaseDataset</a></p>
-</dd>
-</dl>
-</dd></dl>
-
 </dd></dl>
 
 </section>

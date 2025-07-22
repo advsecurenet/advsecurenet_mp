@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>advsecurenet.attacks.attacker package &mdash; AdvSecureNet  documentation</title>
+  <title>advsecurenet.computer_vision.image_classification.attacks.attacker package &mdash; AdvSecureNet  documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
 
@@ -18,9 +18,7 @@
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
-    <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="advsecurenet.attacks.base package" href="advsecurenet.attacks.base.html" />
-    <link rel="prev" title="advsecurenet.attacks package" href="advsecurenet.attacks.html" /> 
+    <link rel="search" title="Search" href="search.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -65,10 +63,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
-          <li class="breadcrumb-item"><a href="api.html">API Documentation</a></li>
-          <li class="breadcrumb-item"><a href="advsecurenet.html">AdvSecureNet Package</a></li>
-          <li class="breadcrumb-item"><a href="advsecurenet.attacks.html">advsecurenet.attacks package</a></li>
-      <li class="breadcrumb-item active">advsecurenet.attacks.attacker package</li>
+      <li class="breadcrumb-item active">advsecurenet.computer_vision.image_classification.attacks.attacker package</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/advsecurenet.attacks.attacker.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -78,31 +73,31 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="advsecurenet-attacks-attacker-package">
-<h1>advsecurenet.attacks.attacker package<a class="headerlink" href="#advsecurenet-attacks-attacker-package" title="Link to this heading"></a></h1>
+  <section id="advsecurenet-computer-vision-image-classification-attacks-attacker-package">
+<h1>advsecurenet.computer_vision.image_classification.attacks.attacker package<a class="headerlink" href="#advsecurenet-computer-vision-image-classification-attacks-attacker-package" title="Link to this heading"></a></h1>
 <hr class="docutils" />
-<section id="module-advsecurenet.attacks.attacker.attacker">
-<span id="advsecurenet-attacks-attacker-attacker-module"></span><h2>advsecurenet.attacks.attacker.attacker module<a class="headerlink" href="#module-advsecurenet.attacks.attacker.attacker" title="Link to this heading"></a></h2>
-<dl class="py class">
-<dt class="sig sig-object py" id="advsecurenet.attacks.attacker.attacker.Attacker">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">advsecurenet.attacks.attacker.attacker.</span></span><span class="sig-name descname"><span class="pre">Attacker</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="advsecurenet.shared.types.configs.attack_configs.html#advsecurenet.shared.types.configs.attack_configs.attacker_config.AttackerConfig" title="advsecurenet.shared.types.configs.attack_configs.attacker_config.AttackerConfig"><span class="pre">AttackerConfig</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#advsecurenet.attacks.attacker.attacker.Attacker" title="Link to this definition"></a></dt>
+<section id="advsecurenet-computer-vision-image-classification-attacks-attacker-attacker-module">
+<h2>advsecurenet.computer_vision.image_classification.attacks.attacker.attacker module<a class="headerlink" href="#advsecurenet-computer-vision-image-classification-attacks-attacker-attacker-module" title="Link to this heading"></a></h2>
+<dl class="py class" id="module-advsecurenet.computer_vision.image_classification.attacks.attacker.attacker">
+<dt class="sig sig-object py" id="advsecurenet.computer_vision.image_classification.attacks.attacker.attacker.Attacker">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">advsecurenet.computer_vision.image_classification.attacks.attacker.attacker.</span></span><span class="sig-name descname"><span class="pre">Attacker</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="advsecurenet.shared.types.configs.attack_configs.html#advsecurenet.shared.types.configs.attack_configs.attacker_config.AttackerConfig" title="advsecurenet.shared.types.configs.attack_configs.attacker_config.AttackerConfig"><span class="pre">AttackerConfig</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#advsecurenet.computer_vision.image_classification.attacks.attacker.attacker.Attacker" title="Link to this definition"></a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>Attacker module is specialized module for attacking a model.</p>
 <dl class="py method">
-<dt class="sig sig-object py" id="advsecurenet.attacks.attacker.attacker.Attacker.execute">
-<span class="sig-name descname"><span class="pre">execute</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#advsecurenet.attacks.attacker.attacker.Attacker.execute" title="Link to this definition"></a></dt>
+<dt class="sig sig-object py" id="advsecurenet.computer_vision.image_classification.attacks.attacker.attacker.Attacker.execute">
+<span class="sig-name descname"><span class="pre">execute</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#advsecurenet.computer_vision.image_classification.attacks.attacker.attacker.Attacker.execute" title="Link to this definition"></a></dt>
 <dd><p>Entry point for the attacker module. This function executes the attack.</p>
 </dd></dl>
 
 </dd></dl>
 
 </section>
-<section id="module-advsecurenet.attacks.attacker.ddp_attacker">
-<span id="advsecurenet-attacks-attacker-ddp-attacker-module"></span><h2>advsecurenet.attacks.attacker.ddp_attacker module<a class="headerlink" href="#module-advsecurenet.attacks.attacker.ddp_attacker" title="Link to this heading"></a></h2>
-<dl class="py class">
-<dt class="sig sig-object py" id="advsecurenet.attacks.attacker.ddp_attacker.DDPAttacker">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">advsecurenet.attacks.attacker.ddp_attacker.</span></span><span class="sig-name descname"><span class="pre">DDPAttacker</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="advsecurenet.shared.types.configs.attack_configs.html#advsecurenet.shared.types.configs.attack_configs.attacker_config.AttackerConfig" title="advsecurenet.shared.types.configs.attack_configs.attacker_config.AttackerConfig"><span class="pre">AttackerConfig</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">rank</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">world_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#advsecurenet.attacks.attacker.ddp_attacker.DDPAttacker" title="Link to this definition"></a></dt>
-<dd><p>Bases: <a class="reference internal" href="advsecurenet.distributed.html#advsecurenet.distributed.ddp_base_task.DDPBaseTask" title="advsecurenet.distributed.ddp_base_task.DDPBaseTask"><code class="xref py py-class docutils literal notranslate"><span class="pre">DDPBaseTask</span></code></a>, <a class="reference internal" href="#advsecurenet.attacks.attacker.attacker.Attacker" title="advsecurenet.attacks.attacker.attacker.Attacker"><code class="xref py py-class docutils literal notranslate"><span class="pre">Attacker</span></code></a></p>
+<section id="advsecurenet-computer-vision-image-classification-attacks-attacker-ddp-attacker-module">
+<h2>advsecurenet.computer_vision.image_classification.attacks.attacker.ddp_attacker module<a class="headerlink" href="#advsecurenet-computer-vision-image-classification-attacks-attacker-ddp-attacker-module" title="Link to this heading"></a></h2>
+<dl class="py class" id="module-advsecurenet.computer_vision.image_classification.attacks.attacker.ddp_attacker">
+<dt class="sig sig-object py" id="advsecurenet.computer_vision.image_classification.attacks.attacker.ddp_attacker.DDPAttacker">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">advsecurenet.computer_vision.image_classification.attacks.attacker.ddp_attacker.</span></span><span class="sig-name descname"><span class="pre">DDPAttacker</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="advsecurenet.shared.types.configs.attack_configs.html#advsecurenet.shared.types.configs.attack_configs.attacker_config.AttackerConfig" title="advsecurenet.shared.types.configs.attack_configs.attacker_config.AttackerConfig"><span class="pre">AttackerConfig</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">rank</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">world_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#advsecurenet.computer_vision.image_classification.attacks.attacker.ddp_attacker.DDPAttacker" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="advsecurenet.distributed.html#advsecurenet.distributed.ddp_base_task.DDPBaseTask" title="advsecurenet.distributed.ddp_base_task.DDPBaseTask"><code class="xref py py-class docutils literal notranslate"><span class="pre">DDPBaseTask</span></code></a>, <a class="reference internal" href="#advsecurenet.computer_vision.image_classification.attacks.attacker.attacker.Attacker" title="advsecurenet.computer_vision.image_classification.attacks.attacker.attacker.Attacker"><code class="xref py py-class docutils literal notranslate"><span class="pre">Attacker</span></code></a></p>
 <p>DDPAttacker module is specialized module for attacking a model using DistributedDataParallel in a multi-GPU setting.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -114,14 +109,14 @@
 </dd>
 </dl>
 <dl class="py method">
-<dt class="sig sig-object py" id="advsecurenet.attacks.attacker.ddp_attacker.DDPAttacker.execute">
-<span class="sig-name descname"><span class="pre">execute</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#advsecurenet.attacks.attacker.ddp_attacker.DDPAttacker.execute" title="Link to this definition"></a></dt>
+<dt class="sig sig-object py" id="advsecurenet.computer_vision.image_classification.attacks.attacker.ddp_attacker.DDPAttacker.execute">
+<span class="sig-name descname"><span class="pre">execute</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#advsecurenet.computer_vision.image_classification.attacks.attacker.ddp_attacker.DDPAttacker.execute" title="Link to this definition"></a></dt>
 <dd><p>Entry point for the attacker module. This function executes the attack.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="advsecurenet.attacks.attacker.ddp_attacker.DDPAttacker.gather_results">
-<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">gather_results</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">world_size</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span></span></span><a class="headerlink" href="#advsecurenet.attacks.attacker.ddp_attacker.DDPAttacker.gather_results" title="Link to this definition"></a></dt>
+<dt class="sig sig-object py" id="advsecurenet.computer_vision.image_classification.attacks.attacker.ddp_attacker.DDPAttacker.gather_results">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">gather_results</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">world_size</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span></span></span><a class="headerlink" href="#advsecurenet.computer_vision.image_classification.attacks.attacker.ddp_attacker.DDPAttacker.gather_results" title="Link to this definition"></a></dt>
 <dd><p>Static method to gather results from all the processes. Each process stores the results in a temporary file. The results are gathered and returned.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -139,16 +134,13 @@
 </dd></dl>
 
 <hr class="docutils" />
-<span class="target" id="module-advsecurenet.attacks.attacker"></span></section>
+<span class="target" id="module-advsecurenet.computer_vision.image_classification.attacks.attacker"></span></section>
 </section>
 
 
            </div>
           </div>
-          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="advsecurenet.attacks.html" class="btn btn-neutral float-left" title="advsecurenet.attacks package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="advsecurenet.attacks.base.html" class="btn btn-neutral float-right" title="advsecurenet.attacks.base package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
-    </div>
+          <footer>
 
   <hr/>
 
