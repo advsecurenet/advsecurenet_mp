@@ -1,8 +1,9 @@
 from typing import Dict, Any, Union, Callable
 
+
 def map_kwargs(
     kwargs: Dict[str, Any],
-    mapping: Dict[str, Union[str, Callable[[Dict[str, Any]], Dict[str, Any]]]]
+    mapping: Dict[str, Union[str, Callable[[Dict[str, Any]], Dict[str, Any]]]],
 ) -> Dict[str, Any]:
     """
     Processes a dictionary of kwargs based on a flexible mapping.

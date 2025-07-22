@@ -1,6 +1,13 @@
 from enum import Enum
 
-from advsecurenet.computer_vision.image_classification.attacks import FGSM, LOTS, PGD, CWAttack, DecisionBoundary, DeepFool
+from advsecurenet.computer_vision.image_classification.attacks import (
+    FGSM,
+    LOTS,
+    PGD,
+    CWAttack,
+    DecisionBoundary,
+    DeepFool,
+)
 
 
 class AttackType(Enum):

@@ -44,13 +44,17 @@ class StandardModel(BaseModel):
         model_fn = getattr(models, self._model_name)
         if self._pretrained:
             self.model = model_fn(weights=self._weights)
-            #Checks if the number of classes the config expects matches the number of classes the model outputs
-            if (self._architecture is not None and 
-                self._architecture.get("num_classes") is not None and 
-                self._architecture["num_classes"] != self.infer_num_classes()):
+            # Checks if the number of classes the config expects matches the number of classes the model outputs
+            if (
+                self._architecture is not None
+                and self._architecture.get("num_classes") is not None
+                and self._architecture["num_classes"] != self.infer_num_classes()
+            ):
                 self.modify_model()
         else:
-            filtered_architecture = filter_kwargs_for_callable(model_fn, self._architecture)
+            filtered_architecture = filter_kwargs_for_callable(
+                model_fn, self._architecture
+            )
             self.model = model_fn(**filtered_architecture)
 
     def modify_model(self):
@@ -62,7 +66,9 @@ class StandardModel(BaseModel):
         for name, module in reversed(named_children_list):
             if isinstance(module, nn.Linear):
                 setattr(
-                    self.model, name, nn.Linear(module.in_features, self._architecture["num_classes"])
+                    self.model,
+                    name,
+                    nn.Linear(module.in_features, self._architecture["num_classes"]),
                 )
                 break
 

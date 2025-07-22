@@ -1,7 +1,9 @@
 from dataclasses import dataclass
 from typing import List
 
-from advsecurenet.computer_vision.image_classification.attacks.base.adversarial_attack import AdversarialAttack
+from advsecurenet.computer_vision.image_classification.attacks.base.adversarial_attack import (
+    AdversarialAttack,
+)
 from advsecurenet.models.base_model import BaseModel
 from advsecurenet.shared.types.configs.train_config import TrainConfig
 

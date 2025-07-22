@@ -6,6 +6,7 @@ import torch
 from advsecurenet.datasets.HuggingFace.huggingface_dataset import HuggingFaceDataset
 from advsecurenet.shared.types.configs.preprocess_config import PreprocessConfig
 
+
 @pytest.mark.advsecurenet
 @pytest.mark.essential
 def test_huggingface_dataset_init_defaults():
@@ -17,6 +18,7 @@ def test_huggingface_dataset_init_defaults():
     assert ds._input_key == "image"
     assert ds._target_key == "label"
 
+
 @pytest.mark.advsecurenet
 @pytest.mark.essential
 def test_huggingface_dataset_init_custom():
@@ -26,7 +28,7 @@ def test_huggingface_dataset_init_custom():
         mean=[0.1],
         std=[0.2],
         input_key="img",
-        target_key="lbl"
+        target_key="lbl",
     )
     assert ds.num_classes == 5
     assert ds.num_input_channels == 1
@@ -35,9 +37,13 @@ def test_huggingface_dataset_init_custom():
     assert ds._input_key == "img"
     assert ds._target_key == "lbl"
 
+
 @pytest.mark.advsecurenet
 @pytest.mark.essential
-@patch("advsecurenet.datasets.HuggingFace.huggingface_dataset.filter_kwargs_for_callable", lambda f, k: k)
+@patch(
+    "advsecurenet.datasets.HuggingFace.huggingface_dataset.filter_kwargs_for_callable",
+    lambda f, k: k,
+)
 @patch("advsecurenet.datasets.HuggingFace.huggingface_dataset.hf_hub_load_dataset")
 def test_huggingface_dataset_load_dataset_success(mock_hf_load):
     mock_data = MagicMock()
@@ -49,15 +55,23 @@ def test_huggingface_dataset_load_dataset_success(mock_hf_load):
     assert result.name == ds.name
     assert isinstance(result, type(ds._dataset))
 
+
 @pytest.mark.advsecurenet
 @pytest.mark.essential
-@patch("advsecurenet.datasets.HuggingFace.huggingface_dataset.filter_kwargs_for_callable", lambda f, k: k)
-@patch("advsecurenet.datasets.HuggingFace.huggingface_dataset.hf_hub_load_dataset", side_effect=Exception("fail"))
+@patch(
+    "advsecurenet.datasets.HuggingFace.huggingface_dataset.filter_kwargs_for_callable",
+    lambda f, k: k,
+)
+@patch(
+    "advsecurenet.datasets.HuggingFace.huggingface_dataset.hf_hub_load_dataset",
+    side_effect=Exception("fail"),
+)
 def test_huggingface_dataset_load_dataset_error(mock_hf_load):
     ds = HuggingFaceDataset(num_classes=10)
     with pytest.raises(ValueError) as excinfo:
         ds.load_dataset(path="foo", split="train")
     assert "Error loading Hugging Face dataset" in str(excinfo.value)
+
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
@@ -73,6 +87,7 @@ def test_huggingface_dataset_len_and_getitem_success():
     assert torch.equal(x, torch.zeros(3, 32, 32))
     assert y.item() == 1
 
+
 @pytest.mark.advsecurenet
 @pytest.mark.essential
 def test_huggingface_dataset_len_not_loaded():
@@ -81,6 +96,7 @@ def test_huggingface_dataset_len_not_loaded():
     with pytest.raises(RuntimeError):
         len(ds)
 
+
 @pytest.mark.advsecurenet
 @pytest.mark.essential
 def test_huggingface_dataset_getitem_not_loaded():
@@ -88,6 +104,7 @@ def test_huggingface_dataset_getitem_not_loaded():
     ds._raw_hf_data = None
     with pytest.raises(RuntimeError):
         ds[0]
+
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
@@ -98,6 +115,7 @@ def test_huggingface_dataset_getitem_missing_input_key():
     with pytest.raises(KeyError):
         ds[0]
 
+
 @pytest.mark.advsecurenet
 @pytest.mark.essential
 def test_huggingface_dataset_getitem_missing_target_key():
@@ -106,6 +124,7 @@ def test_huggingface_dataset_getitem_missing_target_key():
     ds._transforms_to_apply = None
     with pytest.raises(KeyError):
         ds[0]
+
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
@@ -118,6 +137,7 @@ def test_huggingface_dataset_getitem_with_transform():
     assert x == "transformed"
     assert y.item() == 1
 
+
 @pytest.mark.advsecurenet
 @pytest.mark.essential
 def test_huggingface_dataset_process_dataset_kwargs():
@@ -128,6 +148,7 @@ def test_huggingface_dataset_process_dataset_kwargs():
     assert "dataset_name" not in processed
     assert "download" not in processed
     assert "root" not in processed
+
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
@@ -140,12 +161,13 @@ def test_huggingface_dataset_process_kwargs_load_dataset():
     assert "download" not in processed
     assert "root" not in processed
 
+
 @pytest.mark.advsecurenet
 @pytest.mark.essential
 @pytest.mark.integration
 def test_huggingface_dataset_with_real_data():
     # This will download a small split from HuggingFace (requires internet)
-    kwargs = {'split': 'train', 'path': 'uoft-cs/cifar10'}
+    kwargs = {"split": "train", "path": "uoft-cs/cifar10"}
     ds = HuggingFaceDataset(num_classes=10, input_key="img")
     dataset_wrapper = ds.load_dataset(**kwargs)
     # Check that the wrapper and dataset are not empty

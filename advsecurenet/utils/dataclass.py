@@ -112,6 +112,7 @@ def is_list_of_dataclass(field_type: Type, value) -> bool:
     args = get_args(field_type)
     return origin is list and is_dataclass(args[0]) and isinstance(value, list)
 
+
 def is_dict_of_dataclass(field_type: Type, value) -> bool:
     """
     Checks if a field type is a Dictionary of dataclasses and the value is a dictionary.
@@ -120,12 +121,12 @@ def is_dict_of_dataclass(field_type: Type, value) -> bool:
     origin = get_origin(field_type)
     if origin is not dict or not isinstance(value, dict):
         return False
-    
+
     args = get_args(field_type)
     # A valid Dict hint must have two arguments, e.g., Dict[key_type, value_type]
     if len(args) != 2:
         return False
-        
+
     value_type = args[1]
     return is_dataclass(value_type)
 
@@ -164,6 +165,7 @@ def merge_dataclasses(*dataclasses: object) -> object:
         flattened_data.update(flatten_dataclass(current_dataclass))
 
     return recursive_dataclass_instantiation(type(dataclasses[0]), flattened_data)
+
 
 def _instantiate_dict_of_dataclasses(
     dataclass_type: Type, value_dict: Dict[Any, Any]
