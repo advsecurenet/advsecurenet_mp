@@ -484,7 +484,7 @@ def test_create_model_huggingface_from_kwargs(mock_hf_dependencies):
 
 
 @pytest.mark.advsecurenet
-@pytest.mark.essential  
+@pytest.mark.essential
 def test_infer_model_type_huggingface():
     """Test that infer_model_type returns HUGGINGFACE for valid HF models"""
     with patch.object(StandardModel, "models", return_value=[]), patch.object(
@@ -497,13 +497,13 @@ def test_infer_model_type_huggingface():
         assert model_type == ModelType.HUGGINGFACE
 
 
-@pytest.mark.advsecurenet  
+@pytest.mark.advsecurenet
 @pytest.mark.essential
 def test_available_weights_custom_model_error():
     """Test that available_weights raises error for custom models"""
-    with patch.object(CustomModel, "models", return_value=["CustomMnistModel"]), patch.object(
-        StandardModel, "models", return_value=[]
-    ), patch(
+    with patch.object(
+        CustomModel, "models", return_value=["CustomMnistModel"]
+    ), patch.object(StandardModel, "models", return_value=[]), patch(
         "advsecurenet.utils.huggingface_utils.huggingface_model_utils.huggingface_model_hub_utils.verify_hf_model_identifier_exists",
         return_value=False,
     ):
@@ -521,7 +521,7 @@ def test_add_layer_non_sequential():
     model = nn.Linear(10, 5)  # Non-Sequential model
     new_layer = nn.ReLU()
     updated_model = ModelFactory.add_layer(model, new_layer)
-    
+
     assert isinstance(updated_model, nn.Sequential)
     assert len(updated_model) == 2
     assert isinstance(updated_model[0], nn.Linear)
@@ -534,12 +534,12 @@ def test_add_layer_position_out_of_bounds():
     """Test add_layer raises error for invalid positions"""
     model = nn.Sequential(nn.Linear(10, 20), nn.ReLU())
     new_layer = nn.Linear(20, 10)
-    
+
     # Test position too negative
     with pytest.raises(ValueError, match="Position out of bounds."):
         ModelFactory.add_layer(model, new_layer, -2)
-    
-    # Test position too large  
+
+    # Test position too large
     with pytest.raises(ValueError, match="Position out of bounds."):
         ModelFactory.add_layer(model, new_layer, 3)  # model has only 2 layers
 
@@ -551,27 +551,33 @@ def test_add_layer_insert_at_specific_position():
     model = nn.Sequential(nn.Linear(10, 20), nn.Linear(20, 30))
     new_layer = nn.ReLU()
     updated_model = ModelFactory.add_layer(model, new_layer, 1)
-    
+
     assert isinstance(updated_model, nn.Sequential)
     assert len(updated_model) == 3
     assert isinstance(updated_model[0], nn.Linear)  # Original first layer
-    assert isinstance(updated_model[1], nn.ReLU)    # New layer inserted at position 1
-    assert isinstance(updated_model[2], nn.Linear)  # Original second layer moved to position 2
+    assert isinstance(updated_model[1], nn.ReLU)  # New layer inserted at position 1
+    assert isinstance(
+        updated_model[2], nn.Linear
+    )  # Original second layer moved to position 2
 
 
 @pytest.mark.advsecurenet
-@pytest.mark.essential 
+@pytest.mark.essential
 def test_create_model_exception_handling():
     """Test that create_model properly handles and wraps exceptions"""
     # Create a config that will cause an exception during model creation
     with patch.object(StandardModel, "models", return_value=["resnet18"]), patch(
-        "advsecurenet.models.model_factory.set_seed", side_effect=RuntimeError("Random seed error")
+        "advsecurenet.models.model_factory.set_seed",
+        side_effect=RuntimeError("Random seed error"),
     ):
         config = CreateModelConfig(
             model_name="resnet18",
             architecture={"num_classes": 10},
             pretrained=False,  # No pretrained to allow random_seed
-            random_seed=42,    # This will trigger set_seed which we patch to raise exception
+            random_seed=42,  # This will trigger set_seed which we patch to raise exception
         )
-        with pytest.raises(ValueError, match="Error creating model. Please check the model_name and other arguments. Error: Random seed error"):
+        with pytest.raises(
+            ValueError,
+            match="Error creating model. Please check the model_name and other arguments. Error: Random seed error",
+        ):
             ModelFactory.create_model(config=config)

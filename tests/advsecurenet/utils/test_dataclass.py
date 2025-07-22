@@ -32,6 +32,7 @@ class NestedSample:
 class ListSample:
     samples: List[Sample]
 
+
 @dataclass
 class DictSample:
     samples: Dict[str, Sample]
@@ -44,11 +45,14 @@ class DictSample:
 class GenericSample:
     field: Sample
 
+
 T = TypeVar("T")
+
 
 @dataclass
 class RealGenericSample(Generic[T]):
     field: T
+
 
 @dataclass
 class Nested:
@@ -205,6 +209,7 @@ def test_process_generic_type():
     assert isinstance(result.field, Sample)
     assert result.field.value == 10
 
+
 @pytest.mark.advsecurenet
 @pytest.mark.essential
 def test_is_dict_of_dataclass():
@@ -231,6 +236,7 @@ def test_instantiate_dict_of_dataclasses():
     assert result["a"].value == 10
     assert isinstance(result["b"], Sample)
     assert result["b"].value == 20
+
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
@@ -335,6 +341,7 @@ def test_process_field_with_plain_dataclass():
     assert isinstance(result, Sample)
     assert result.value == 10
 
+
 @pytest.mark.advsecurenet
 @pytest.mark.essential
 def test_process_field_with_generic_dataclass_and_primitive_type():
@@ -352,6 +359,7 @@ def test_process_field_with_generic_dataclass_and_primitive_type():
 
     assert isinstance(result, RealGenericSample)
     assert result.field == 123
+
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential

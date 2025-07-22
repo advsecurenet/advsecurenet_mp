@@ -229,7 +229,10 @@ def test_get_models_standard():
         assert result == ["standard_model1", "standard_model2"]
         mock_available_standard_models.assert_called_once()
 
+
 pytest.mark.cli
+
+
 @pytest.mark.essential
 @pytest.mark.parametrize(
     "model_name, dataset_name",
@@ -242,7 +245,9 @@ def test_cli_download_weights_missing_names(model_name, dataset_name):
     """
     Covers: `cli_download_weights` -> `raise ValueError("Please provide both model name and dataset name!")`
     """
-    with pytest.raises(ValueError, match="Please provide both model name and dataset name!"):
+    with pytest.raises(
+        ValueError, match="Please provide both model name and dataset name!"
+    ):
         cli_download_weights(model_name, dataset_name, "filename", "save_path")
 
 
@@ -251,6 +256,7 @@ def test_cli_download_weights_missing_names(model_name, dataset_name):
 def test_get_models_invalid():
     with pytest.raises(ValueError):
         _get_models("invalid_type")
+
 
 @pytest.mark.cli
 @pytest.mark.essential
