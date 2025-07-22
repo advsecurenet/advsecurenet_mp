@@ -1,5 +1,5 @@
 import click
-
+from cli.logic.utils.model import cli_huggingface_model
 
 @click.group()
 def models():
@@ -10,7 +10,7 @@ def models():
 
 @models.command()
 @click.option(
-    "-m",
+    "-y",
     "--model-type",
     default="all",
     help="The type of model to list. 'custom' for custom models, 'standard' for standard models, and 'all' for all models. Default is 'all'.",
@@ -63,7 +63,7 @@ def layers(model_name: str, normalization: bool):
 
 @models.command()
 @click.option(
-    "-m",
+    "-i",
     "--model-identifier",
     required=True,
     help="Hugging Face model URL (e.g., 'https://huggingface.co/bert-base-uncased') .",
@@ -114,8 +114,6 @@ def huggingface(
     Raises:
         ValueError: If the model ID is not provided or is invalid.
     """
-    from cli.logic.utils.model import cli_huggingface_model
-
     cli_huggingface_model(
         model_identifier=model_identifier,
         pretrained=pretrained,

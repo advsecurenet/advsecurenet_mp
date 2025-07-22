@@ -387,3 +387,163 @@ def test_create_provider():
         _create_provider(cifar_split_config_extra, DatasetType.CIFAR10)
     except TypeError as e:
         pytest.fail(f"_create_provider raised an unexpected TypeError: {e}")
+
+
+@pytest.mark.advsecurenet
+@pytest.mark.unit
+def test_load_dataset_from_config_exception_handling():
+    """
+    Tests exception handling in load_dataset_from_config when dataset loading fails.
+    """
+    # Create a config that will cause an exception during loading
+    config_with_error = ResolvedDatasetConfig(
+        dataset_name="Test_error_dataset",
+        splits={
+            "train": ResolvedSplitConfig(
+                identifier="cifar10",  # Valid identifier
+                num_classes=10,
+                source_split_name="train",
+                constructor_args={},
+            ),
+        },
+    )
+    
+    # Mock the dataset provider to raise an exception during load_dataset
+    with patch('advsecurenet.datasets.dataset_factory._create_provider') as mock_create_provider:
+        mock_provider = MagicMock()
+        mock_provider.process_kwargs_load_dataset.return_value = {}
+        mock_provider.load_dataset.side_effect = Exception("Test exception during dataset loading")
+        mock_create_provider.return_value = mock_provider
+        
+        # Capture printed warnings
+        import io
+        import sys
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+        
+        try:
+            result = DatasetFactory.load_dataset_from_config(config_with_error)
+            
+            # Should return a dictionary with None for the failed split
+            assert isinstance(result, dict)
+            assert "train" in result
+            assert result["train"] is None
+            
+            # Check that warning was printed
+            output = captured_output.getvalue()
+            assert "Warning: Could not load dataset for split 'train'" in output
+            assert "Test exception during dataset loading" in output
+            
+        finally:
+            sys.stdout = sys.__stdout__
+
+
+@pytest.mark.advsecurenet
+@pytest.mark.unit  
+def test_load_dataset_from_config_multiple_splits_with_partial_failure():
+    """
+    Tests that when one split fails to load, other splits still load successfully.
+    """
+    config_with_mixed_results = ResolvedDatasetConfig(
+        dataset_name="Test_mixed_dataset",
+        splits={
+            "train": ResolvedSplitConfig(
+                identifier="cifar10",
+                num_classes=10,
+                source_split_name="train", 
+                constructor_args={},
+            ),
+            "test": ResolvedSplitConfig(
+                identifier="cifar10",
+                num_classes=10,
+                source_split_name="test",
+                constructor_args={},
+            ),
+        },
+    )
+    
+    # Mock the dataset provider creation
+    def mock_create_side_effect(split_config, dataset_type):
+        mock_provider = MagicMock()
+        mock_provider.process_kwargs_load_dataset.return_value = {}
+        
+        # Make train split fail, test split succeed
+        if split_config.source_split_name == "train":
+            mock_provider.load_dataset.side_effect = Exception("Train split failed")
+        else:
+            # Create a mock dataset for successful test split
+            mock_dataset = MagicMock()
+            mock_provider.load_dataset.return_value = mock_dataset
+            
+        return mock_provider
+    
+    with patch('advsecurenet.datasets.dataset_factory._create_provider', side_effect=mock_create_side_effect):
+        # Capture printed warnings
+        import io
+        import sys
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+        
+        try:
+            result = DatasetFactory.load_dataset_from_config(config_with_mixed_results)
+            
+            # Should return a dictionary with None for failed split, dataset for successful split
+            assert isinstance(result, dict)
+            assert "train" in result
+            assert "test" in result
+            assert result["train"] is None  # Failed
+            assert result["test"] is not None  # Succeeded
+            
+            # Check that warning was printed for the failed split
+            output = captured_output.getvalue()
+            assert "Warning: Could not load dataset for split 'train'" in output
+            assert "Train split failed" in output
+            
+        finally:
+            sys.stdout = sys.__stdout__
+
+
+@pytest.mark.advsecurenet
+@pytest.mark.unit
+def test_available_datasets_direct_call():
+    """
+    Additional test to ensure available_datasets function is properly covered.
+    """
+    # Test direct function call
+    from advsecurenet.datasets.dataset_factory import available_datasets
+    
+    available = available_datasets()
+    assert isinstance(available, list)
+    assert len(available) > 0
+    
+    # Test that it returns DatasetType enum values
+    from advsecurenet.shared.types.dataset import DatasetType
+    assert all(isinstance(item, DatasetType) for item in available)
+    
+    # Test that common dataset types are included
+    assert DatasetType.CIFAR10 in available
+    assert DatasetType.HUGGINGFACE in available
+    assert DatasetType.MNIST in available
+
+
+@pytest.mark.advsecurenet
+@pytest.mark.unit
+def test_dataset_map_consistency():
+    """
+    Test to ensure DATASET_MAP is properly defined and consistent.
+    """
+    from advsecurenet.datasets.dataset_factory import DATASET_MAP
+    from advsecurenet.shared.types.dataset import DatasetType
+    
+    # Test that DATASET_MAP is not empty
+    assert len(DATASET_MAP) > 0
+    
+    # Test that all keys are DatasetType enum values
+    assert all(isinstance(key, DatasetType) for key in DATASET_MAP.keys())
+    
+    # Test that all values are classes
+    assert all(isinstance(value, type) for value in DATASET_MAP.values())
+    
+    # Test specific mappings
+    assert DatasetType.CIFAR10 in DATASET_MAP
+    assert DatasetType.HUGGINGFACE in DATASET_MAP
