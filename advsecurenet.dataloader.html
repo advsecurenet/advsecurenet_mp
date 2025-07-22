@@ -1,0 +1,253 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>advsecurenet.dataloader package &mdash; AdvSecureNet  documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="advsecurenet.datasets package" href="advsecurenet.datasets.html" />
+    <link rel="prev" title="advsecurenet.attacks.gradient_based package" href="advsecurenet.attacks.gradient_based.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            AdvSecureNet
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="introduction.html">AdvSecureNet</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contribution.html">How to Contribute?</a></li>
+<li class="toctree-l1"><a class="reference internal" href="attacks.html">Adversarial Attacks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="defenses.html">Adversarial Defenses</a></li>
+<li class="toctree-l1"><a class="reference internal" href="evaluations.html">Evaluation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API Documentation</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">AdvSecureNet</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="api.html">API Documentation</a></li>
+          <li class="breadcrumb-item"><a href="advsecurenet.html">AdvSecureNet Package</a></li>
+      <li class="breadcrumb-item active">advsecurenet.dataloader package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/advsecurenet.dataloader.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="advsecurenet-dataloader-package">
+<h1>advsecurenet.dataloader package<a class="headerlink" href="#advsecurenet-dataloader-package" title="Link to this heading"></a></h1>
+<hr class="docutils" />
+<section id="module-advsecurenet.dataloader.data_loader_factory">
+<span id="advsecurenet-dataloader-data-loader-factory-module"></span><h2>advsecurenet.dataloader.data_loader_factory module<a class="headerlink" href="#module-advsecurenet.dataloader.data_loader_factory" title="Link to this heading"></a></h2>
+<p>This module contains the DataLoaderFactory class that creates a DataLoader for the given dataset.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="advsecurenet.dataloader.data_loader_factory.DataLoaderFactory">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">advsecurenet.dataloader.data_loader_factory.</span></span><span class="sig-name descname"><span class="pre">DataLoaderFactory</span></span><a class="headerlink" href="#advsecurenet.dataloader.data_loader_factory.DataLoaderFactory" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>The DataLoaderFactory class that creates a DataLoader for the given dataset.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="advsecurenet.dataloader.data_loader_factory.DataLoaderFactory.None">
+<span class="sig-name descname"><span class="pre">None</span></span><a class="headerlink" href="#advsecurenet.dataloader.data_loader_factory.DataLoaderFactory.None" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="advsecurenet.dataloader.data_loader_factory.DataLoaderFactory.create_dataloader">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">create_dataloader</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="advsecurenet.shared.types.configs.html#advsecurenet.shared.types.configs.dataloader_config.DataLoaderConfig" title="advsecurenet.shared.types.configs.dataloader_config.DataLoaderConfig"><span class="pre">DataLoaderConfig</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="#advsecurenet.dataloader.data_loader_factory.DataLoaderFactory.None" title="advsecurenet.dataloader.data_loader_factory.DataLoaderFactory.None"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">DataLoader</span></span></span><a class="headerlink" href="#advsecurenet.dataloader.data_loader_factory.DataLoaderFactory.create_dataloader" title="Link to this definition"></a></dt>
+<dd><p>A static method that creates a DataLoader for the given dataset with the given parameters.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>config</strong> (<a class="reference internal" href="advsecurenet.shared.types.configs.html#advsecurenet.shared.types.configs.dataloader_config.DataLoaderConfig" title="advsecurenet.shared.types.configs.dataloader_config.DataLoaderConfig"><em>DataLoaderConfig</em></a>) – The DataLoader configuration.</p></li>
+<li><p><strong>**kwargs</strong> – Arbitrary keyword arguments for the DataLoader.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The DataLoader for the given dataset.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>TorchDataLoader</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>ValueError</strong> – If the dataset is not of type TorchDataset.</p>
+</dd>
+</dl>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>It is possible to create a DataLoader without providing a DataLoaderConfig. In this case, the DataLoader will be created with the provided keyword arguments.
+DataLoaderConfig contains the following fields:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>dataset: TorchDataset</p></li>
+<li><p>batch_size: int</p></li>
+<li><p>num_workers: int</p></li>
+<li><p>shuffle: bool</p></li>
+<li><p>drop_last: bool</p></li>
+<li><p>pin_memory: bool</p></li>
+<li><p>sampler: Optional[torch.utils.data.Sampler]</p></li>
+</ul>
+</div></blockquote>
+</div>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="advsecurenet.dataloader.data_loader_factory.dataclass_to_dict">
+<span class="sig-prename descclassname"><span class="pre">advsecurenet.dataloader.data_loader_factory.</span></span><span class="sig-name descname"><span class="pre">dataclass_to_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">instance</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#advsecurenet.dataloader.data_loader_factory.dataclass_to_dict" title="Link to this definition"></a></dt>
+<dd><p>Convert a dataclass instance to a dictionary, handling non-serializable fields appropriately.</p>
+</dd></dl>
+
+</section>
+<section id="module-advsecurenet.dataloader.distributed_eval_sampler">
+<span id="advsecurenet-dataloader-distributed-eval-sampler-module"></span><h2>advsecurenet.dataloader.distributed_eval_sampler module<a class="headerlink" href="#module-advsecurenet.dataloader.distributed_eval_sampler" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="advsecurenet.dataloader.distributed_eval_sampler.DistributedEvalSampler">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">advsecurenet.dataloader.distributed_eval_sampler.</span></span><span class="sig-name descname"><span class="pre">DistributedEvalSampler</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_replicas</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rank</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shuffle</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seed</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#advsecurenet.dataloader.distributed_eval_sampler.DistributedEvalSampler" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Sampler</span></code></p>
+<p>This code is taken from : <a class="reference external" href="https://github.com/SeungjunNah/DeepDeblur-PyTorch/blob/master/src/data/sampler.py">https://github.com/SeungjunNah/DeepDeblur-PyTorch/blob/master/src/data/sampler.py</a></p>
+<p>DistributedEvalSampler is different from DistributedSampler.
+It does NOT add extra samples to make it evenly divisible.
+DistributedEvalSampler should NOT be used for training. The distributed processes could hang forever.
+See this issue for details: <a class="reference external" href="https://github.com/pytorch/pytorch/issues/22584">https://github.com/pytorch/pytorch/issues/22584</a>
+shuffle is disabled by default</p>
+<p>DistributedEvalSampler is for evaluation purpose where synchronization does not happen every epoch.
+Synchronization should be done outside the dataloader loop.</p>
+<p>Sampler that restricts data loading to a subset of the dataset.</p>
+<p>It is especially useful in conjunction with
+<code class="xref py py-class docutils literal notranslate"><span class="pre">torch.nn.parallel.DistributedDataParallel</span></code>. In such a case, each
+process can pass a :class`~torch.utils.data.DistributedSampler` instance as a
+<code class="xref py py-class docutils literal notranslate"><span class="pre">DataLoader</span></code> sampler, and load a subset of the
+original dataset that is exclusive to it.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Dataset is assumed to be of constant size.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dataset</strong> – Dataset used for sampling.</p></li>
+<li><p><strong>num_replicas</strong> (<em>int</em><em>, </em><em>optional</em>) – Number of processes participating in
+distributed training. By default, <code class="xref py py-attr docutils literal notranslate"><span class="pre">rank</span></code> is retrieved from the
+current distributed group.</p></li>
+<li><p><strong>rank</strong> (<em>int</em><em>, </em><em>optional</em>) – Rank of the current process within <code class="xref py py-attr docutils literal notranslate"><span class="pre">num_replicas</span></code>.
+By default, <code class="xref py py-attr docutils literal notranslate"><span class="pre">rank</span></code> is retrieved from the current distributed
+group.</p></li>
+<li><p><strong>shuffle</strong> (<em>bool</em><em>, </em><em>optional</em>) – If <code class="docutils literal notranslate"><span class="pre">True</span></code> (default), sampler will shuffle the
+indices.</p></li>
+<li><p><strong>seed</strong> (<em>int</em><em>, </em><em>optional</em>) – random seed used to shuffle the sampler if
+<code class="xref py py-attr docutils literal notranslate"><span class="pre">shuffle=True</span></code>. This number should be identical across all
+processes in the distributed group. Default: <code class="docutils literal notranslate"><span class="pre">0</span></code>.</p></li>
+</ul>
+</dd>
+</dl>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>In distributed mode, calling the :meth`set_epoch(epoch) &lt;set_epoch&gt;` method at
+the beginning of each epoch <strong>before</strong> creating the <code class="xref py py-class docutils literal notranslate"><span class="pre">DataLoader</span></code> iterator
+is necessary to make shuffling work properly across multiple epochs. Otherwise,
+the same ordering will be always used.</p>
+</div>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">sampler</span> <span class="o">=</span> <span class="n">DistributedSampler</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span> <span class="k">if</span> <span class="n">is_distributed</span> <span class="k">else</span> <span class="kc">None</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">loader</span> <span class="o">=</span> <span class="n">DataLoader</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span> <span class="n">shuffle</span><span class="o">=</span><span class="p">(</span><span class="n">sampler</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">),</span>
+<span class="gp">... </span>                    <span class="n">sampler</span><span class="o">=</span><span class="n">sampler</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">for</span> <span class="n">epoch</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">start_epoch</span><span class="p">,</span> <span class="n">n_epochs</span><span class="p">):</span>
+<span class="gp">... </span>    <span class="k">if</span> <span class="n">is_distributed</span><span class="p">:</span>
+<span class="gp">... </span>        <span class="n">sampler</span><span class="o">.</span><span class="n">set_epoch</span><span class="p">(</span><span class="n">epoch</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">train</span><span class="p">(</span><span class="n">loader</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="advsecurenet.dataloader.distributed_eval_sampler.DistributedEvalSampler.set_epoch">
+<span class="sig-name descname"><span class="pre">set_epoch</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">epoch</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#advsecurenet.dataloader.distributed_eval_sampler.DistributedEvalSampler.set_epoch" title="Link to this definition"></a></dt>
+<dd><p>Sets the epoch for this sampler. When <code class="xref py py-attr docutils literal notranslate"><span class="pre">shuffle=True</span></code>, this ensures all replicas
+use a different random ordering for each epoch. Otherwise, the next iteration of this
+sampler will yield the same ordering.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>epoch</strong> (<em>int</em>) – _epoch number.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<hr class="docutils" />
+<span class="target" id="module-advsecurenet.dataloader"></span></section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="advsecurenet.attacks.gradient_based.html" class="btn btn-neutral float-left" title="advsecurenet.attacks.gradient_based package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="advsecurenet.datasets.html" class="btn btn-neutral float-right" title="advsecurenet.datasets package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Melih Catal.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
