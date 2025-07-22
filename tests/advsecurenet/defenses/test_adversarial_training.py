@@ -7,7 +7,9 @@ from tqdm.auto import tqdm
 
 from advsecurenet.computer_vision.image_classification.attacks import AdversarialAttack
 from advsecurenet.datasets.targeted_adv_dataset import AdversarialDataset
-from advsecurenet.computer_vision.image_classification.defenses.adversarial_training import AdversarialTraining
+from advsecurenet.computer_vision.image_classification.defenses.adversarial_training import (
+    AdversarialTraining,
+)
 from advsecurenet.models.base_model import BaseModel
 from advsecurenet.shared.types.configs.defense_configs.adversarial_training_config import (
     AdversarialTrainingConfig,

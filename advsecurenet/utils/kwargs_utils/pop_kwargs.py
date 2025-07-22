@@ -1,5 +1,6 @@
 from typing import Dict, Iterable, Any
 
+
 def pop_keys_from_dict(d: Dict[str, Any], keys: Iterable[str]) -> Dict[str, Any]:
     """
     Returns a copy of the dictionary with specified keys removed.

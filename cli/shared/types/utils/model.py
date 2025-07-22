@@ -36,4 +36,4 @@ class ModelCliConfigType:
     random_seed: Optional[int] = None
     path_configs: Optional[ModelPathConfig] = None
     norm_config: Optional[ModelNormConfig] = None
-    architecture: Optional[Dict[str, Any]] = None 
+    architecture: Optional[Dict[str, Any]] = None

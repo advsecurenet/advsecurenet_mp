@@ -1,6 +1,7 @@
 """
 CLI command functions related to models.
 """
+
 from typing import Optional, Dict
 
 import click
@@ -78,7 +79,15 @@ def cli_model_layers(model_name: str, add_normalization: bool = False):
         layer_type = type(model.get_layer(layer_name)).__name__
         click.echo(f"{layer_name:<30}{layer_type:<30}")
 
-def cli_huggingface_model(model_identifier: str, pretrained: bool, revision: str, trust_remote_code: bool, model_class_name: Optional[str], architecture: Optional[Dict] = None):
+
+def cli_huggingface_model(
+    model_identifier: str,
+    pretrained: bool,
+    revision: str,
+    trust_remote_code: bool,
+    model_class_name: Optional[str],
+    architecture: Optional[Dict] = None,
+):
     """
     Load and inspect a Hugging Face model.
 
@@ -94,7 +103,7 @@ def cli_huggingface_model(model_identifier: str, pretrained: bool, revision: str
     """
     if not model_identifier:
         raise click.ClickException("Model ID must be provided!")
-    
+
     try:
         config = CreateModelConfig(
             model_name=model_identifier,
@@ -103,18 +112,22 @@ def cli_huggingface_model(model_identifier: str, pretrained: bool, revision: str
             pretrained=pretrained,
             revision=revision,
             trust_remote_code=trust_remote_code,
-            model_class_name=model_class_name
+            model_class_name=model_class_name,
         )
 
         click.echo(f"Loading Hugging Face model: {model_identifier}")
         if not pretrained:
             click.echo("Note: Loading model without pretrained weights")
-        
+
         model = ModelFactory.create_model(config)
-        
+
         # Display model information
-        click.secho(f"Successfully loaded Hugging Face model: {model_identifier}", bold=True, fg="green")
-        
+        click.secho(
+            f"Successfully loaded Hugging Face model: {model_identifier}",
+            bold=True,
+            fg="green",
+        )
+
         # Display model layers
         layer_names = model.get_layer_names()
         click.secho("Model layers:", bold=True, fg="green")
@@ -122,9 +135,10 @@ def cli_huggingface_model(model_identifier: str, pretrained: bool, revision: str
         for layer_name in layer_names:
             layer_type = type(model.get_layer(layer_name)).__name__
             click.echo(f"{layer_name:<30}{layer_type:<30}")
-            
+
     except Exception as e:
         raise click.ClickException(f"Error loading Hugging Face model: {str(e)}")
+
 
 def cli_download_weights(
     model_name: str, dataset_name: str, filename: str, save_path: str
