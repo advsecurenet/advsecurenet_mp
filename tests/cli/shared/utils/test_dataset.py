@@ -120,3 +120,77 @@ def test_get_datasets_attacks(mock_create_dataset):
 
     assert isinstance(train_data, TorchDataset)
     assert isinstance(test_data, TorchDataset)
+
+
+@pytest.mark.cli
+@pytest.mark.essential
+def test_get_identifier_with_identifier():
+    """Test _get_identifier returns config.identifier when provided"""
+    from cli.shared.types.utils.dataset import _get_identifier
+
+    config = CreateDatasetCliConfig(
+        dataset_name="CIFAR10", identifier="custom-identifier"
+    )
+    result = _get_identifier(config)
+    assert result == "custom-identifier"
+
+
+@pytest.mark.cli
+@pytest.mark.essential
+def test_get_identifier_without_identifier():
+    """Test _get_identifier returns dataset_name when no identifier"""
+    from cli.shared.types.utils.dataset import _get_identifier
+
+    config = CreateDatasetCliConfig(dataset_name="CIFAR10")
+    result = _get_identifier(config)
+    assert result == "CIFAR10"
+
+
+@pytest.mark.cli
+@pytest.mark.essential
+def test_get_user_splits_default():
+    """Test _get_user_splits returns default ['train', 'test'] when no split config or load_splits"""
+    from cli.shared.types.utils.dataset import _get_user_splits
+
+    config = CreateDatasetCliConfig(dataset_name="CIFAR10")
+    result = _get_user_splits(config)
+    assert result == ["train", "test"]
+
+
+@pytest.mark.cli
+@pytest.mark.essential
+def test_get_user_splits_with_load_splits():
+    """Test _get_user_splits returns load_splits when provided"""
+    from cli.shared.types.utils.dataset import _get_user_splits
+
+    config = CreateDatasetCliConfig(
+        dataset_name="CIFAR10", load_splits=["train", "validation", "test"]
+    )
+    result = _get_user_splits(config)
+    assert result == ["train", "validation", "test"]
+
+
+@pytest.mark.cli
+@pytest.mark.essential
+def test_create_resolved_split_global_only():
+    """Test _create_resolved_split with global settings only (no user_split_config)"""
+    from cli.shared.types.utils.dataset import _create_resolved_split
+
+    preprocessing_mock = MagicMock()
+    global_config = CreateDatasetCliConfig(
+        dataset_name="CIFAR10",
+        num_classes=10,
+        preprocessing=preprocessing_mock,
+        dataset_kwargs={"download": True},
+        constructor_args={"arg1": "value1"},
+    )
+
+    result = _create_resolved_split(global_config, "train", None)
+
+    assert result.identifier == "CIFAR10"
+    assert result.source_split_name == "train"
+    assert result.preprocessing == preprocessing_mock
+    assert result.kwargs == {"download": True}
+    assert result.constructor_args == {"arg1": "value1"}
+    assert result.num_classes == 10
+    assert result.path is None

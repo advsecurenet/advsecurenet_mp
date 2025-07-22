@@ -484,30 +484,94 @@ def test_create_model_huggingface_from_kwargs(mock_hf_dependencies):
 
 
 @pytest.mark.advsecurenet
-@pytest.mark.essential
-@patch(
-    "advsecurenet.utils.huggingface_utils.huggingface_general_utils.process_hf_identifier",
-    side_effect=ValueError("Failed to process identifier"),
-)
-@patch(
-    "advsecurenet.utils.huggingface_utils.huggingface_model_utils.huggingface_model_hub_utils.verify_hf_model_identifier_exists",
-    return_value=True,
-)
-@patch("advsecurenet.models.model_factory.ModelFactory._validate_create_model_config")
-@patch(
-    "advsecurenet.models.model_factory.determine_identifier_and_soruce",
-    return_value=("bad-hf-url", MagicMock(name="MODEL_IDENTIFIER")),
-)
-def test_create_model_huggingface_processing_error(
-    mock_determine_id, mock_infer_type, mock_validate_config, mock_process_hf_id
-):
-    """Test error handling when process_hf_identifier fails."""
-    hf_config = CreateModelConfig(
-        model_name="bad-hf-url-name", model_identifier="bad-hf-url"
-    )  # ADDED model_name
-
-    with pytest.raises(
-        ValueError,
-        match="Error creating model. Please check the model_name and other arguments. Error: Failed to process identifier",
+@pytest.mark.essential  
+def test_infer_model_type_huggingface():
+    """Test that infer_model_type returns HUGGINGFACE for valid HF models"""
+    with patch.object(StandardModel, "models", return_value=[]), patch.object(
+        CustomModel, "models", return_value=[]
+    ), patch(
+        "advsecurenet.utils.huggingface_utils.huggingface_model_utils.huggingface_model_hub_utils.verify_hf_model_identifier_exists",
+        return_value=True,
     ):
-        ModelFactory.create_model(config=hf_config)
+        model_type = ModelFactory.infer_model_type("microsoft/resnet-50")
+        assert model_type == ModelType.HUGGINGFACE
+
+
+@pytest.mark.advsecurenet  
+@pytest.mark.essential
+def test_available_weights_custom_model_error():
+    """Test that available_weights raises error for custom models"""
+    with patch.object(CustomModel, "models", return_value=["CustomMnistModel"]), patch.object(
+        StandardModel, "models", return_value=[]
+    ), patch(
+        "advsecurenet.utils.huggingface_utils.huggingface_model_utils.huggingface_model_hub_utils.verify_hf_model_identifier_exists",
+        return_value=False,
+    ):
+        with pytest.raises(
+            ValueError,
+            match="Custom models do not support pretrained weights. Instead, you can load the weights after loading the model.",
+        ):
+            ModelFactory.available_weights("CustomMnistModel")
+
+
+@pytest.mark.advsecurenet
+@pytest.mark.essential
+def test_add_layer_non_sequential():
+    """Test add_layer with non-Sequential model (converts to Sequential)"""
+    model = nn.Linear(10, 5)  # Non-Sequential model
+    new_layer = nn.ReLU()
+    updated_model = ModelFactory.add_layer(model, new_layer)
+    
+    assert isinstance(updated_model, nn.Sequential)
+    assert len(updated_model) == 2
+    assert isinstance(updated_model[0], nn.Linear)
+    assert isinstance(updated_model[1], nn.ReLU)
+
+
+@pytest.mark.advsecurenet
+@pytest.mark.essential
+def test_add_layer_position_out_of_bounds():
+    """Test add_layer raises error for invalid positions"""
+    model = nn.Sequential(nn.Linear(10, 20), nn.ReLU())
+    new_layer = nn.Linear(20, 10)
+    
+    # Test position too negative
+    with pytest.raises(ValueError, match="Position out of bounds."):
+        ModelFactory.add_layer(model, new_layer, -2)
+    
+    # Test position too large  
+    with pytest.raises(ValueError, match="Position out of bounds."):
+        ModelFactory.add_layer(model, new_layer, 3)  # model has only 2 layers
+
+
+@pytest.mark.advsecurenet
+@pytest.mark.essential
+def test_add_layer_insert_at_specific_position():
+    """Test add_layer inserting at specific position (not -1 or end)"""
+    model = nn.Sequential(nn.Linear(10, 20), nn.Linear(20, 30))
+    new_layer = nn.ReLU()
+    updated_model = ModelFactory.add_layer(model, new_layer, 1)
+    
+    assert isinstance(updated_model, nn.Sequential)
+    assert len(updated_model) == 3
+    assert isinstance(updated_model[0], nn.Linear)  # Original first layer
+    assert isinstance(updated_model[1], nn.ReLU)    # New layer inserted at position 1
+    assert isinstance(updated_model[2], nn.Linear)  # Original second layer moved to position 2
+
+
+@pytest.mark.advsecurenet
+@pytest.mark.essential 
+def test_create_model_exception_handling():
+    """Test that create_model properly handles and wraps exceptions"""
+    # Create a config that will cause an exception during model creation
+    with patch.object(StandardModel, "models", return_value=["resnet18"]), patch(
+        "advsecurenet.models.model_factory.set_seed", side_effect=RuntimeError("Random seed error")
+    ):
+        config = CreateModelConfig(
+            model_name="resnet18",
+            architecture={"num_classes": 10},
+            pretrained=False,  # No pretrained to allow random_seed
+            random_seed=42,    # This will trigger set_seed which we patch to raise exception
+        )
+        with pytest.raises(ValueError, match="Error creating model. Please check the model_name and other arguments. Error: Random seed error"):
+            ModelFactory.create_model(config=config)

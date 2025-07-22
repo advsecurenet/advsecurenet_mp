@@ -1,22 +1,23 @@
 import re
 from typing import Optional
+from urllib.parse import urlparse
 
 
 def is_huggingface_url(url: str) -> bool:
-    """
-    Check if a URL is a Hugging Face URL.
-
-     Args:
-        url (str): The URL to check.
-
-    Returns:
-         bool: True if the URL is a Hugging Face URL, False otherwise.
-    """
     if not url:
         return False
-
-    pattern = r"^(https?://) ?(www\.)?(huggingface\.co|hf\.co)/([^/]+/[^/]+).*$"
-    return bool(re.match(pattern, url))
+    # Ensure a scheme for urlparse to work properly
+    if not url.startswith(("http://", "https://")):
+        url = "https://" + url
+    o = urlparse(url, allow_fragments=True)
+    # Normalize and strip “www.”
+    host = o.netloc.lower().removeprefix("www.")
+    if host not in {"huggingface.co", "hf.co"}:
+        return False
+    # Split path into non‑empty segments
+    parts = [segment for segment in o.path.split("/") if segment]
+    # Require at least two segments: user/model
+    return len(parts) >= 2
 
 
 def is_huggingface_id(identifier: str) -> bool:
@@ -33,24 +34,24 @@ def is_huggingface_id(identifier: str) -> bool:
 
 
 def extract_id_from_url(url: str) -> Optional[str]:
-    """
-    Extract the ID from a Hugging Face URL.
-
-    Args:
-        url (str): The URL to extract the ID from.
-
-    Returns:
-        Optional[str]: The ID if the URL is a valid Hugging Face URL, None otherwise.
-    """
+    # 1. Early exit if not a valid HF URL
     if not is_huggingface_url(url):
         return None
 
-    pattern = r"^(https?://)?(www\.)?(huggingface\.co|hf\.co)/(?:datasets/)?([^/]+/[^/]+)(?:[/?#].*)?$"
-    match = re.match(pattern, url)
-    if match:
-        return match.group(4)
+    # 2. Normalize scheme and parse
+    if not url.startswith(("http://", "https://")):
+        url = "https://" + url
+    o = urlparse(url, allow_fragments=True)
 
-    return None
+    # 3. Split path into non-empty segments
+    parts = [seg for seg in o.path.split("/") if seg]
+
+    # 4. Handle optional 'datasets/' prefix
+    if parts and parts[0] == "datasets":
+        parts = parts[1:]
+
+    # 5. Return 'user/model' if present
+    return f"{parts[0]}/{parts[1]}" if len(parts) >= 2 else None
 
 
 def process_hf_identifier(identifier):

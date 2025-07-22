@@ -47,3 +47,71 @@ def test_layers_command_no_normalization(mock_cli_model_layers, runner):
     result = runner.invoke(models, ["layers", "--model-name", "resnet18"])
     assert result.exit_code == 0
     mock_cli_model_layers.assert_called_once_with("resnet18", False)
+
+
+@pytest.mark.cli
+@pytest.mark.essential
+def test_huggingface_command_missing_identifier(runner):
+    # Test that it fails if the required model-identifier is not provided
+    result = runner.invoke(models, ["huggingface"])
+    assert result.exit_code != 0
+    assert "Missing option '-i' / '--model-identifier'" in result.output
+
+
+@pytest.mark.cli
+@pytest.mark.essential
+@patch("cli.commands.utils.models.commands.cli_huggingface_model")
+def test_huggingface_command_with_valid_identifier(mock_cli_huggingface_model, runner):
+    # Test the successful execution path with valid parameters
+    result = runner.invoke(models, ["huggingface", "-i", "bert-base-uncased"])
+    assert result.exit_code == 0
+    mock_cli_huggingface_model.assert_called_once_with(
+        model_identifier="bert-base-uncased",
+        pretrained=True,
+        revision=None,
+        trust_remote_code=False,
+        model_class_name=None,
+    )
+
+
+@pytest.mark.cli
+@pytest.mark.essential
+@patch("cli.commands.utils.models.commands.cli_huggingface_model")
+def test_huggingface_command_with_all_options(mock_cli_huggingface_model, runner):
+    # Test with all optional parameters set
+    result = runner.invoke(models, [
+        "huggingface",
+        "-i", "bert-base-uncased",
+        "-r", "v1.0",
+        "--trust-remote-code",
+        "--model-class-name", "BertForSequenceClassification"
+    ])
+    assert result.exit_code == 0
+    mock_cli_huggingface_model.assert_called_once_with(
+        model_identifier="bert-base-uncased",
+        pretrained=True,
+        revision="v1.0",
+        trust_remote_code=True,
+        model_class_name="BertForSequenceClassification",
+    )
+
+
+@pytest.mark.cli
+@pytest.mark.essential
+@patch("cli.commands.utils.models.commands.cli_huggingface_model")
+def test_huggingface_command_pretrained_false(mock_cli_huggingface_model, runner):
+    # Test with pretrained flag set to False (since default is True, passing --pretrained toggles it to False)
+    result = runner.invoke(models, [
+        "huggingface",
+        "-i", "bert-base-uncased",
+        "--pretrained"  # This toggles pretrained from True to False
+    ])
+    assert result.exit_code == 0
+    mock_cli_huggingface_model.assert_called_once_with(
+        model_identifier="bert-base-uncased",
+        pretrained=False,
+        revision=None,
+        trust_remote_code=False,
+        model_class_name=None,
+    )
+
