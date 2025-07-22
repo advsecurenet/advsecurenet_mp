@@ -130,7 +130,7 @@ class ATCLITrainer(CLITrainer):
         config = self._prepare_training_environment()
 
         ddp_trainer = DDPAdversarialTraining(config, rank, world_size)
-        self._execute_static_train(ddp_trainer, config)
+        ddp_trainer.train()
 
     def _execute_training(self) -> None:
         """
@@ -146,38 +146,4 @@ class ATCLITrainer(CLITrainer):
         config = self._prepare_training_environment()
 
         adversarial_training = AdversarialTraining(config)
-        self._execute_static_train(adversarial_training, config)
-
-
-    @staticmethod
-    def _execute_static_train(trainer_instance, config: AdversarialTrainingConfig) -> None:
-        """
-        Calls the static Trainer.train method with arguments unpacked from the trainer instance and its config.
-        This function's job is to map the config fields to the train method's arguments.
-
-        Args:
-            trainer_instance: An initialized trainer instance (e.g., AdversarialTraining).
-        """
-        train_config = config.train_config
-        
-        # This assumes AdversarialTraining inherits from Trainer, so we can call train on its type.
-        type(trainer_instance).train(
-            epochs=train_config.training_process_config.epochs,
-            start_epoch=0,
-            optimizer=train_config.optimization_config.optimizer,
-            model=train_config.model_config.model,
-            train_loader=train_config.training_process_config.train_loader,
-            device=train_config.device_config.processor,
-            loss_fn=train_config.training_process_config.criterion,
-            scheduler=train_config.optimization_config.scheduler,
-            save_checkpoint=train_config.checkpoint_config.save_checkpoint,
-            checkpoint_interval=train_config.checkpoint_config.checkpoint_interval,
-            save_final_model=train_config.final_model_config.save_final_model,
-            privacy_engine=train_config.differential_pri,
-            # Pass the config objects for path/name generation inside the static method
-            checkpoint_config=train_config.checkpoint_config,
-            final_model_config=train_config.final_model_config,
-            # Pass model/dataset names if they exist on the config
-            model_name=getattr(train_config.model_config, "name", "model"),
-            dataset_name=getattr(train_config.training_process_config, "dataset_name", "dataset"),
-        )
+        adversarial_training.train()

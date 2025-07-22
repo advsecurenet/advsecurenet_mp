@@ -10,11 +10,13 @@ from tqdm.auto import tqdm, trange
 
 from opacus.validators import ModuleValidator
 
+from advsecurenet.trainer import trainer_logic
+
 from advsecurenet.shared.optimizer import Optimizer
 from advsecurenet.shared.scheduler import Scheduler
 from advsecurenet.shared.types.configs.train_config import TrainConfig
 from advsecurenet.utils.loss import get_loss_function
-from advsecurenet.utils.model_utils import save_model
+from advsecurenet.utils.model_utils import save_model, non_inplace_operations
 from advsecurenet.utils.trainer_utils.differential_privacy_utils import setup_privacy_engine
 from advsecurenet.utils.device_utils import setup_device
 
@@ -37,6 +39,7 @@ class Trainer:
         self._config = config
         self._device = setup_device(config.device_config.processor)
         self._loss_fn = get_loss_function(config.training_process_config.criterion)
+        self._needs_global_patch = False
 
         model = config.model_config.model.to(self._device)
         train_loader = self._config.training_process_config.train_loader
@@ -44,6 +47,11 @@ class Trainer:
         if (config.differential_privacy_config):
             if not ModuleValidator.is_valid(model):
                 model = ModuleValidator.fix(model)
+
+            if hasattr(model, 'inplace_false') and callable(model.inplace_false):
+                model.inplace_false()
+            else:
+                self._needs_global_patch = True
 
         optimizer_kwargs = config.optimization_config.optimizer_kwargs or {}
         optimizer = self._get_optimizer(config.optimization_config.optimizer, model, config.training_process_config.learning_rate, **optimizer_kwargs)
@@ -95,19 +103,41 @@ class Trainer:
             scheduler_kwargs=config.optimization_config.scheduler_kwargs,
         )
 
-    @staticmethod
-    def train(epochs, start_epoch, optimizer, model, checkpoint_path, train_loader, device, loss_fn, scheduler, save_checkpoint, checkpoint_interval, save_final_model, save_path, save_name, model_name, dataset_name, use_ddp, privacy_engine, delta) -> None:
+    def _execute_training_loop(self) -> None:
         """
-        Public method for training the model.
+        Contains the actual training loop logic. This is called by the train method.
         """
-        Trainer._pre_training(model)
+        self.model.train() # pre_training logic
         for epoch in trange(
-            start_epoch, epochs + 1, leave=True, position=0
+            self.start_epoch, self._config.training_process_config.epochs + 1, leave=True, position=0
         ):
-            Trainer._run_epoch(epoch, train_loader, device, model, optimizer, loss_fn, scheduler)
-            if Trainer._should_save_checkpoint(epoch, save_checkpoint, checkpoint_interval):
-                Trainer._save_checkpoint(epoch, optimizer, model, checkpoint_path)
-        Trainer._post_training(save_final_model, model, save_path, save_name, model_name, dataset_name, use_ddp, privacy_engine, delta)
+            trainer_logic.run_epoch(
+                epoch, 
+                self._train_loader, 
+                self._device, 
+                self.model, 
+                self.optimizer, 
+                self._loss_fn, 
+                self._scheduler
+            )
+            if trainer_logic.should_save_checkpoint(epoch, self._config.checkpoint_config.save_checkpoint, self._config.checkpoint_config.checkpoint_interval):
+                # You would need a helper to generate the path
+                checkpoint_path = self._define_save_checkpoint_path(epoch)
+                trainer_logic.save_checkpoint(epoch, self.optimizer, self.model, checkpoint_path)
+        trainer_logic.post_training(self._config.final_model_config.save_final_model, self.model, self._config.final_model_config.save_model_path, self._config.final_model_config.save_model_name, model_name=None, dataset_name=None, use_ddp=self._config.device_config.use_ddp, privacy_engine=self._privacy_engine, delta=self._config.differential_privacy_config.delta)
+
+    def train(self) -> None:
+        """
+        Public method for training the model. It applies a global patch for DP
+        compatibility if needed.
+        """
+        if self._needs_global_patch:
+            # If the global patch is needed, run the loop inside the context manager.
+            with non_inplace_operations():
+                self._execute_training_loop()
+        else:
+            # Otherwise, run the loop normally.
+            self._execute_training_loop()
 
     @staticmethod
     def _get_scheduler(
@@ -308,71 +338,6 @@ class Trainer:
             filepath=final_save_path,
             distributed=use_ddp,
         )
-
-    @staticmethod
-    def _run_batch(source: torch.Tensor, targets: torch.Tensor, model: nn.Module, optimizer: optim.Optimizer, loss_fn: nn.Module, scheduler: Optional[torch.optim.lr_scheduler._LRScheduler]) -> float:
-        """
-        Runs the given batch.
-
-        Args:
-            source (torch.Tensor): The source.
-            targets (torch.Tensor): The targets.
-
-        Returns:
-            float: The loss.
-        """
-        model.train()
-        optimizer.zero_grad()
-        output = model(source)
-
-        if hasattr(output, "logits"):
-            output = output.logits
-
-        loss = loss_fn(output, targets)
-        loss.backward()
-        optimizer.step()
-        if scheduler:
-            scheduler.step()
-        return loss.item()
-
-    @staticmethod
-    def _run_epoch(epoch: int, train_loader: DataLoader, device: torch.device, model: nn.Module, optimizer: optim.Optimizer, loss_fn: nn.Module, scheduler: Optional[torch.optim.lr_scheduler._LRScheduler]) -> None:
-        """
-        Runs the given epoch.
-        """
-        total_loss = 0.0
-        for _, (source, targets) in enumerate(
-            tqdm(train_loader, leave=False)
-        ):
-            source, targets = source.to(device), targets.to(device)
-            loss = Trainer._run_batch(source, targets, model, optimizer, loss_fn, scheduler)
-            total_loss += loss
-
-        total_loss /= len(train_loader)
-        click.echo(
-            click.style(f"Epoch {epoch} - Average loss: {total_loss:.4f}", fg="blue")
-        )
-        Trainer._log_loss(epoch, total_loss)
-
-    @staticmethod
-    def _pre_training(model: nn.Module) -> None:
-        # Method to run before training starts.
-        model.train()
-
-    @staticmethod
-    def _post_training(save_final_model, model, save_path, save_name, model_name, dataset_name, use_ddp, privacy_engine, delta) -> None:
-        # Method to run after training ends.
-        if save_final_model:
-            Trainer._save_final_model(model, save_path, save_name, model_name, dataset_name, use_ddp)
-
-        if privacy_engine:
-            epsilon = privacy_engine.get_epsilon(delta)
-            click.echo(
-                click.style(
-                    f"\nTraining finished. Final privacy budget: (ε = {epsilon:.2f}, δ = {delta})",
-                    fg="green",
-                )
-            )
     @staticmethod
     def _log_loss(epoch: int, loss: float, dir: str = None, filename: str = "loss.log"
     ) -> None:

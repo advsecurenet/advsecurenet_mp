@@ -5,6 +5,7 @@ import torch
 
 import transformers
 from transformers import AutoModel, AutoConfig
+from torch import nn
 
 from advsecurenet.models.base_model import BaseModel, check_model_loaded
 from advsecurenet.shared.types.configs.model_config import HuggingFaceResolvedConfig, CreateModelConfig, determine_identifier_and_soruce
@@ -34,6 +35,7 @@ class HuggingFaceModel(BaseModel):
         self._architecture_overrides = config.architecture if config.architecture is not None else {}
         self._model_class_name_override = config.model_class_name
         super().__init__()
+
         
     def load_model(self):
         """
@@ -51,7 +53,6 @@ class HuggingFaceModel(BaseModel):
         try:
             ModelClass, final_determined_class_name, config_object = self._determine_model_class_and_config()
             self.model = self._instantiate_model(ModelClass, config_object)
-
         except Exception as e:
             # Re-raise specific ValueErrors from manual override if they match the pattern
             if isinstance(e, ValueError) and (
@@ -62,6 +63,8 @@ class HuggingFaceModel(BaseModel):
             
             # For all other errors, wrap with the generic message using the determined class name
             raise ValueError(f"Error loading Hugging Face model '{self._model_id}' using class '{final_determined_class_name}': {str(e)}") from e
+        
+
         
     
     @staticmethod
