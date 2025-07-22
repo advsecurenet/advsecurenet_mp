@@ -196,10 +196,8 @@ def test_huggingface_dataset_create_dataset_not_implemented():
     ds = HuggingFaceDataset(num_classes=10)
     with pytest.raises(NotImplementedError) as excinfo:
         ds._create_dataset(
-            dataset_class=None,
-            transform=None,
-            root="/tmp",
-            train=True,
-            download=False
+            dataset_class=None, transform=None, root="/tmp", train=True, download=False
         )
-    assert "_create_dataset is not applicable to HuggingFaceDataset." in str(excinfo.value)
+    assert "_create_dataset is not applicable to HuggingFaceDataset." in str(
+        excinfo.value
+    )

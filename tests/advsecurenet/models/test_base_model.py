@@ -144,6 +144,7 @@ def test_method_with_custom_model():
     result = mock_instance.some_method()
     assert result == "Method called"
 
+
 @pytest.mark.advsecurenet
 @pytest.mark.essential
 def test_method_with_custom_model():
@@ -162,7 +163,7 @@ def test_infer_num_classes_huggingface_style(mock_base_model):
             # Attach a mock config object to the instance
             self.config = MagicMock()
             self.config.num_labels = 100
-        
+
         def forward(self, x):
             return x
 
@@ -191,6 +192,7 @@ def test_infer_num_classes_classifier_sequential(mock_base_model):
     )
     mock_base_model.model = mock_model_with_seq_classifier
     assert mock_base_model.infer_num_classes() == 30
+
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
@@ -259,6 +261,7 @@ def test_get_parent_module_and_name_nested(mock_base_model):
     # The direct child is the Linear layer
     assert isinstance(getattr(parent, name), nn.Linear)
 
+
 @pytest.mark.advsecurenet
 @pytest.mark.essential
 def test_infer_num_classes_fc_style(mock_base_model):
@@ -275,6 +278,7 @@ def test_infer_num_classes_no_match(mock_base_model):
     # Use a model where the number of classes cannot be inferred
     mock_base_model.model = nn.Sequential(nn.Conv2d(3, 16, 3))
     assert mock_base_model.infer_num_classes() is None
+
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
@@ -294,6 +298,7 @@ def test_set_layer_non_existent(mock_base_model):
     mock_base_model.set_layer("new_layer", new_layer)
     assert hasattr(mock_base_model.model, "new_layer")
     assert getattr(mock_base_model.model, "new_layer") == new_layer
+
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential

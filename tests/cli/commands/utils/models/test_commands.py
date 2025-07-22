@@ -79,13 +79,19 @@ def test_huggingface_command_with_valid_identifier(mock_cli_huggingface_model, r
 @patch("cli.commands.utils.models.commands.cli_huggingface_model")
 def test_huggingface_command_with_all_options(mock_cli_huggingface_model, runner):
     # Test with all optional parameters set
-    result = runner.invoke(models, [
-        "huggingface",
-        "-i", "bert-base-uncased",
-        "-r", "v1.0",
-        "--trust-remote-code",
-        "--model-class-name", "BertForSequenceClassification"
-    ])
+    result = runner.invoke(
+        models,
+        [
+            "huggingface",
+            "-i",
+            "bert-base-uncased",
+            "-r",
+            "v1.0",
+            "--trust-remote-code",
+            "--model-class-name",
+            "BertForSequenceClassification",
+        ],
+    )
     assert result.exit_code == 0
     mock_cli_huggingface_model.assert_called_once_with(
         model_identifier="bert-base-uncased",
@@ -101,11 +107,15 @@ def test_huggingface_command_with_all_options(mock_cli_huggingface_model, runner
 @patch("cli.commands.utils.models.commands.cli_huggingface_model")
 def test_huggingface_command_pretrained_false(mock_cli_huggingface_model, runner):
     # Test with pretrained flag set to False (since default is True, passing --pretrained toggles it to False)
-    result = runner.invoke(models, [
-        "huggingface",
-        "-i", "bert-base-uncased",
-        "--pretrained"  # This toggles pretrained from True to False
-    ])
+    result = runner.invoke(
+        models,
+        [
+            "huggingface",
+            "-i",
+            "bert-base-uncased",
+            "--pretrained",  # This toggles pretrained from True to False
+        ],
+    )
     assert result.exit_code == 0
     mock_cli_huggingface_model.assert_called_once_with(
         model_identifier="bert-base-uncased",
@@ -114,4 +124,3 @@ def test_huggingface_command_pretrained_false(mock_cli_huggingface_model, runner
         trust_remote_code=False,
         model_class_name=None,
     )
-

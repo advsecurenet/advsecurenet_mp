@@ -1,6 +1,7 @@
 import click
 from cli.logic.utils.model import cli_huggingface_model
 
+
 @click.group()
 def models():
     """
