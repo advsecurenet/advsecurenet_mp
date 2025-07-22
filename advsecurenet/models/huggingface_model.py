@@ -7,13 +7,17 @@ import transformers
 from transformers import AutoModel, AutoConfig
 
 from advsecurenet.models.base_model import BaseModel, check_model_loaded
-from advsecurenet.shared.types.configs.model_config import HuggingFaceResolvedConfig, CreateModelConfig, determine_identifier_and_soruce
+from advsecurenet.shared.types.configs.model_config import (
+    HuggingFaceResolvedConfig,
+    CreateModelConfig,
+    determine_identifier_and_soruce,
+)
 
 
 class HuggingFaceModel(BaseModel):
     """
     A model class for Hugging Face models.
-    
+
     This class provides functionality to load models from the Hugging Face Hub.
     It supports both pretrained and non-pretrained models, and can be used with
     any model available on the Hugging Face Hub.
@@ -22,7 +26,7 @@ class HuggingFaceModel(BaseModel):
     def __init__(self, config: HuggingFaceResolvedConfig):
         """
         Initialize a HuggingFaceModel.
-        
+
         Args:
             config (HuggingFaceResolvedConfig): Configuration for the Hugging Face model.
         """
@@ -31,10 +35,12 @@ class HuggingFaceModel(BaseModel):
         self._revision = config.revision
         self._cache_dir = config.cache_dir
         self._trust_remote_code = config.trust_remote_code
-        self._architecture_overrides = config.architecture if config.architecture is not None else {}
+        self._architecture_overrides = (
+            config.architecture if config.architecture is not None else {}
+        )
         self._model_class_name_override = config.model_class_name
         super().__init__()
-        
+
     def load_model(self):
         """
         Load a model from the Hugging Face Hub.
@@ -47,25 +53,40 @@ class HuggingFaceModel(BaseModel):
             ValueError: If the model ID cannot be extracted, the specified manual class
                         is invalid, or loading fails.
         """
-        final_determined_class_name = "Undetermined" # Default for the final error message wrapper
+        final_determined_class_name = (
+            "Undetermined"  # Default for the final error message wrapper
+        )
         try:
-            ModelClass, final_determined_class_name, config_object = self._determine_model_class_and_config()
+            ModelClass, final_determined_class_name, config_object = (
+                self._determine_model_class_and_config()
+            )
             self.model = self._instantiate_model(ModelClass, config_object)
 
         except Exception as e:
             # Re-raise specific ValueErrors from manual override if they match the pattern
             if isinstance(e, ValueError) and (
-                (self._model_class_name_override and f"Manually specified model_class_name '{self._model_class_name_override}'" in str(e)) or
-                (self._model_class_name_override and f"Error loading manually specified class '{self._model_class_name_override}'" in str(e))
+                (
+                    self._model_class_name_override
+                    and f"Manually specified model_class_name '{self._model_class_name_override}'"
+                    in str(e)
+                )
+                or (
+                    self._model_class_name_override
+                    and f"Error loading manually specified class '{self._model_class_name_override}'"
+                    in str(e)
+                )
             ):
-                raise e # Re-raise the more specific error from manual override handling
-            
+                raise e  # Re-raise the more specific error from manual override handling
+
             # For all other errors, wrap with the generic message using the determined class name
-            raise ValueError(f"Error loading Hugging Face model '{self._model_id}' using class '{final_determined_class_name}': {str(e)}") from e
-        
-    
+            raise ValueError(
+                f"Error loading Hugging Face model '{self._model_id}' using class '{final_determined_class_name}': {str(e)}"
+            ) from e
+
     @staticmethod
-    def _resolve_manual_class_override(model_class_name_override: Optional[str]) -> Tuple[Optional[type], str]:
+    def _resolve_manual_class_override(
+        model_class_name_override: Optional[str],
+    ) -> Tuple[Optional[type], str]:
         """
         Attempts to resolve the model class using manual override.
         Returns (ModelClass, determined_class_name) or (None, "Undetermined") if no override.
@@ -76,16 +97,26 @@ class HuggingFaceModel(BaseModel):
 
         try:
             ManualModelClass = getattr(transformers, model_class_name_override, None)
-            if ManualModelClass is not None and issubclass(ManualModelClass, torch.nn.Module):
+            if ManualModelClass is not None and issubclass(
+                ManualModelClass, torch.nn.Module
+            ):
                 return ManualModelClass, f"{model_class_name_override} (Manual)"
             else:
-                raise ValueError(f"Manually specified model_class_name '{model_class_name_override}' not found or invalid in transformers.")
+                raise ValueError(
+                    f"Manually specified model_class_name '{model_class_name_override}' not found or invalid in transformers."
+                )
         except Exception as e:
             # Catch broader exceptions during getattr/issubclass for manual override
-            if isinstance(e, ValueError) and f"Manually specified model_class_name '{model_class_name_override}'" in str(e):
-                raise # Re-raise the specific ValueError
-            raise ValueError(f"Error loading manually specified class '{model_class_name_override}': {e}") from e
-        
+            if isinstance(
+                e, ValueError
+            ) and f"Manually specified model_class_name '{model_class_name_override}'" in str(
+                e
+            ):
+                raise  # Re-raise the specific ValueError
+            raise ValueError(
+                f"Error loading manually specified class '{model_class_name_override}': {e}"
+            ) from e
+
     def _resolve_inferred_class_from_hub(self) -> Tuple[type, str, AutoConfig]:
         """
         Infers model class from Hub configuration. Loads AutoConfig.
@@ -101,34 +132,50 @@ class HuggingFaceModel(BaseModel):
         ModelClass = AutoModel  # Default
         determined_class_name = "AutoModel (Base - Fallback)"
 
-        if config.architectures and isinstance(config.architectures, (list, tuple)) and len(config.architectures) > 0:
+        if (
+            config.architectures
+            and isinstance(config.architectures, (list, tuple))
+            and len(config.architectures) > 0
+        ):
             arch_name = config.architectures[0]
             try:
                 InferredModelClass = getattr(transformers, arch_name, None)
-                if InferredModelClass is not None and issubclass(InferredModelClass, torch.nn.Module):
+                if InferredModelClass is not None and issubclass(
+                    InferredModelClass, torch.nn.Module
+                ):
                     ModelClass = InferredModelClass
                     determined_class_name = f"{arch_name} (Inferred)"
                 else:
-                    warnings.warn(f"Architecture '{arch_name}' specified in config not found/invalid. Falling back to AutoModel.")
+                    warnings.warn(
+                        f"Architecture '{arch_name}' specified in config not found/invalid. Falling back to AutoModel."
+                    )
             except Exception as e:
-                warnings.warn(f"Error trying to load inferred class '{arch_name}': {e}. Falling back to AutoModel.")
-        
+                warnings.warn(
+                    f"Error trying to load inferred class '{arch_name}': {e}. Falling back to AutoModel."
+                )
+
         return ModelClass, determined_class_name, config
-    
-    def _determine_model_class_and_config(self) -> Tuple[type, str, Optional[AutoConfig]]:
+
+    def _determine_model_class_and_config(
+        self,
+    ) -> Tuple[type, str, Optional[AutoConfig]]:
         """
         Determines the ModelClass, its descriptive name, and an optional AutoConfig object.
         Handles manual override first, then inference.
         """
-        ModelClass, determined_class_name = self._resolve_manual_class_override(self._model_class_name_override)
+        ModelClass, determined_class_name = self._resolve_manual_class_override(
+            self._model_class_name_override
+        )
 
         if ModelClass:  # Manual override successful
-            return ModelClass, determined_class_name, None # No config loaded yet
+            return ModelClass, determined_class_name, None  # No config loaded yet
 
         # No successful manual override, proceed to inference
         return self._resolve_inferred_class_from_hub()
-    
-    def _instantiate_model(self, ModelClass: type, config_from_resolution: Optional[AutoConfig]) -> torch.nn.Module:
+
+    def _instantiate_model(
+        self, ModelClass: type, config_from_resolution: Optional[AutoConfig]
+    ) -> torch.nn.Module:
         """
         Instantiates the model using the determined ModelClass and config.
         """
@@ -141,36 +188,43 @@ class HuggingFaceModel(BaseModel):
         if self._pretrained:
             load_args = common_args.copy()
             if self._architecture_overrides:
-                warnings.warn("Architecture arguments are applied via config for non-pretrained models. Ignoring for pretrained loading.")
+                warnings.warn(
+                    "Architecture arguments are applied via config for non-pretrained models. Ignoring for pretrained loading."
+                )
             return ModelClass.from_pretrained(self._model_id, **load_args)
         else:
             config_to_use = config_from_resolution
-            if config_to_use is None: # Manual override was used, config not loaded in resolution step
-                 config_to_use = AutoConfig.from_pretrained(
-                     self._model_id,
-                     **common_args # revision, cache_dir, trust_remote_code
-                 )
+            if (
+                config_to_use is None
+            ):  # Manual override was used, config not loaded in resolution step
+                config_to_use = AutoConfig.from_pretrained(
+                    self._model_id,
+                    **common_args,  # revision, cache_dir, trust_remote_code
+                )
 
             if self._architecture_overrides:
                 for key, value in self._architecture_overrides.items():
                     if hasattr(config_to_use, key):
                         setattr(config_to_use, key, value)
                     else:
-                        warnings.warn(f"Architecture override arg '{key}' not found in model config, ignoring.")
+                        warnings.warn(
+                            f"Architecture override arg '{key}' not found in model config, ignoring."
+                        )
             return ModelClass.from_config(config_to_use)
-        
+
     @classmethod
     def models(cls) -> List[str]:
         """
         Get a list of available models.
-        
+
         Returns:
             List[str]: A list of available model names.
         """
-        raise NotImplementedError("This method is not applicable for huggingface models.")
+        raise NotImplementedError(
+            "This method is not applicable for huggingface models."
+        )
 
-    
-    @check_model_loaded # Use the decorator from BaseModel
+    @check_model_loaded  # Use the decorator from BaseModel
     def forward(self, x: torch.Tensor, *args, **kwargs) -> torch.Tensor:
         """
         Forward pass specific to Hugging Face models.
@@ -198,11 +252,13 @@ class HuggingFaceModel(BaseModel):
         output = self.model(x, *args, **kwargs)
 
         # Extract logits
-        if hasattr(output, 'logits') and isinstance(output.logits, torch.Tensor):
+        if hasattr(output, "logits") and isinstance(output.logits, torch.Tensor):
             return output.logits
         elif isinstance(output, torch.Tensor):
             # Fallback if the HF model unexpectedly returned a raw tensor
-            warnings.warn("HuggingFace model returned a raw Tensor instead of an output object. Returning the tensor directly.")
+            warnings.warn(
+                "HuggingFace model returned a raw Tensor instead of an output object. Returning the tensor directly."
+            )
             return output
         else:
             # If the output is something else unexpected

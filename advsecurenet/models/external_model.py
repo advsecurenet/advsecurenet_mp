@@ -46,7 +46,9 @@ class ExternalModel(BaseModel):
 
         model_class = getattr(custom_module, self._model_name)
 
-        filtered_architecture = filter_kwargs_for_callable(model_class, self._architecture)
+        filtered_architecture = filter_kwargs_for_callable(
+            model_class, self._architecture
+        )
 
         self.model = model_class(**filtered_architecture)
         if self._pretrained:

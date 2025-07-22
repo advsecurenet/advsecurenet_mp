@@ -13,7 +13,11 @@ from advsecurenet.shared.types.configs.preprocess_config import (
     PreprocessStep,
 )
 from advsecurenet.shared.types.dataset import DataType
-from advsecurenet.utils.kwargs_utils import filter_kwargs_for_callable, pop_keys_from_dict, map_kwargs
+from advsecurenet.utils.kwargs_utils import (
+    filter_kwargs_for_callable,
+    pop_keys_from_dict,
+    map_kwargs,
+)
 
 
 class ImageFolderBaseDataset:
@@ -117,9 +121,7 @@ class BaseDataset(TorchDataset, ABC):
 
         dataset_class = self.get_dataset_class()
 
-        dataset = self._create_dataset(
-            dataset_class=dataset_class,
-            **kwargs)
+        dataset = self._create_dataset(dataset_class=dataset_class, **kwargs)
 
         self.data_type = DataType.TRAIN if kwargs.get("train") else DataType.TEST
 
@@ -201,9 +203,8 @@ class BaseDataset(TorchDataset, ABC):
         self,
         dataset_class: datasets,
         **kwargs,
-    ):    
-        filtered_kwargs = filter_kwargs_for_callable(
-            dataset_class, kwargs)
+    ):
+        filtered_kwargs = filter_kwargs_for_callable(dataset_class, kwargs)
 
         return dataset_class(**filtered_kwargs)
 
@@ -244,7 +245,7 @@ class BaseDataset(TorchDataset, ABC):
         if self._dataset:
             return self._dataset[idx]
         raise NotImplementedError("Dataset not loaded or specified.")
-    
+
     def _map_split_to_train(self, kwargs: dict) -> dict:
         """
         A transformation function that maps a 'split' key to a 'train' boolean key.
@@ -253,16 +254,14 @@ class BaseDataset(TorchDataset, ABC):
         if "split" in kwargs:
             split_value = kwargs.pop("split").lower()
             if split_value in ["train", "test"]:
-                kwargs["train"] = (split_value == "train")
+                kwargs["train"] = split_value == "train"
         return kwargs
 
     def process_dataset_kwargs(self, kwargs: dict) -> dict:
         """
         Processes and maps generic dataset kwargs to dataset-specific arguments.
         """
-        mapping = {
-            'split': self._map_split_to_train  # Custom transformation
-        }
+        mapping = {"split": self._map_split_to_train}  # Custom transformation
         return map_kwargs(kwargs, mapping)
 
     def process_kwargs_load_dataset(self, kwargs: dict) -> dict:
@@ -272,7 +271,6 @@ class BaseDataset(TorchDataset, ABC):
         # Map generic keys to dataset-specific ones
         kwargs = self.process_dataset_kwargs(kwargs)
 
-        kwargs = pop_keys_from_dict(
-            kwargs, ["dataset_name", "num_classes"])
-        
+        kwargs = pop_keys_from_dict(kwargs, ["dataset_name", "num_classes"])
+
         return kwargs

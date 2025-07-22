@@ -39,8 +39,8 @@ class NormalizationParameters:
         },
         DatasetType.FASHION_MNIST: {"mean": [0.2860], "std": [0.3530]},
         DatasetType.COCO: {
-            "mean": [0.485, 0.456, 0.406], # same as IMAGENET
-            "std": [0.229, 0.224, 0.225], # same as IMAGENET
+            "mean": [0.485, 0.456, 0.406],  # same as IMAGENET
+            "std": [0.229, 0.224, 0.225],  # same as IMAGENET
         },
     }
 

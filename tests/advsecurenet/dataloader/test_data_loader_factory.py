@@ -129,9 +129,7 @@ def test_od_collate_fn_basic():
         {"bbox": [0, 0, 10, 10], "category_id": 1},
         {"bbox": [5, 5, 10, 10], "category_id": 2},
     ]
-    annots2 = [
-        {"bbox": [1, 1, 5, 5], "category_id": 3}
-    ]
+    annots2 = [{"bbox": [1, 1, 5, 5], "category_id": 3}]
     batch = [(img1, annots1), (img2, annots2)]
     images, targets = od_collate_fn(batch)
     assert images.shape == (2, 3, 32, 32)
@@ -144,6 +142,7 @@ def test_od_collate_fn_basic():
     assert all(isinstance(l, torch.Tensor) for l in targets["labels"])
     assert all(isinstance(s, torch.Tensor) for s in targets["scores"])
 
+
 def test_od_collate_fn_empty_annots():
     img = torch.zeros((3, 32, 32))
     batch = [(img, [])]
@@ -152,6 +151,7 @@ def test_od_collate_fn_empty_annots():
     assert targets["boxes"][0].shape == (0, 4)
     assert targets["labels"][0].shape == (0,)
     assert targets["scores"][0].shape == (0,)
+
 
 def test_od_collate_fn_raises_on_missing_bbox_or_category_id():
     img = torch.zeros((3, 32, 32))
@@ -163,6 +163,7 @@ def test_od_collate_fn_raises_on_missing_bbox_or_category_id():
     batch_missing_category = [(img, [{"bbox": [0, 0, 10, 10]}])]
     with pytest.raises(ValueError, match="Malformed annotation object"):
         od_collate_fn(batch_missing_category)
+
 
 def test_create_od_dataloader(mock_dataset):
     config = DataLoaderConfig(

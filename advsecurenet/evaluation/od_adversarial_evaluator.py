@@ -1,8 +1,8 @@
-
 from typing import Optional, List, Dict, Any
 import torch
 from advsecurenet.evaluation.adversarial_evaluator import AdversarialEvaluator
 from advsecurenet.models.base_model import BaseModel
+
 
 class ObjectDetectorAdversarialEvaluator(AdversarialEvaluator):
     """
@@ -12,6 +12,7 @@ class ObjectDetectorAdversarialEvaluator(AdversarialEvaluator):
         evaluators (Optional[list[str]], optional): List of evaluators to use. If None, mAP evaluator will be used. Defaults to None.
         **kwargs: Arbitrary keyword arguments for the evaluators.
     """
+
     def __init__(self, evaluators: Optional[list[str]] = None, **kwargs):
         if evaluators is None:
             evaluators = ["mean_average_precision"]

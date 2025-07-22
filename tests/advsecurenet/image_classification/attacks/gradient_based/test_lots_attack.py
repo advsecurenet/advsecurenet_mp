@@ -4,7 +4,9 @@ import pytest
 import torch
 from torch import optim
 
-from advsecurenet.computer_vision.image_classification.attacks.gradient_based.lots import LOTS
+from advsecurenet.computer_vision.image_classification.attacks.gradient_based.lots import (
+    LOTS,
+)
 from advsecurenet.models.model_factory import ModelFactory
 from advsecurenet.shared.types.configs.attack_configs import (
     LotsAttackConfig,
@@ -114,7 +116,8 @@ def test_attack_single(mock_lots_single, mock_config, mock_model, mock_tensors):
     return_value=torch.randn((1, 3, 32, 32)),
 )
 @patch(
-    "advsecurenet.computer_vision.image_classification.attacks.gradient_based.lots.LOTS._validate_config", return_value=None
+    "advsecurenet.computer_vision.image_classification.attacks.gradient_based.lots.LOTS._validate_config",
+    return_value=None,
 )
 def test_attack_invalid(
     mock_validate_config, mock_lots_single, mock_config, mock_model, mock_tensors

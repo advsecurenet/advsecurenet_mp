@@ -1,5 +1,6 @@
 import torch
 
+
 @staticmethod
 def move_batch_to_device(images, targets_dict, device):
     def move_to_device(x):
@@ -11,6 +12,7 @@ def move_batch_to_device(images, targets_dict, device):
             return [move_to_device(v) for v in x]
         else:
             return x
+
     return move_to_device(images), move_to_device(targets_dict)
 
 

@@ -20,7 +20,10 @@ from advsecurenet.shared.types.configs.model_config import (
 )
 from advsecurenet.shared.types.model import ModelType
 from advsecurenet.utils.reproducibility_utils import set_seed
-from advsecurenet.utils.huggingface_utils import huggingface_model_utils, huggingface_general_utils
+from advsecurenet.utils.huggingface_utils import (
+    huggingface_model_utils,
+    huggingface_general_utils,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -29,8 +32,11 @@ class ModelFactory:
     """
     This class is a factory class for creating models. It provides a single interface for creating models. It supports both standard models and custom models.
     """
+
     @staticmethod
-    def _resolve_config_and_warn(config: Optional[CreateModelConfig], kwargs: Dict[str, Any]) -> CreateModelConfig:
+    def _resolve_config_and_warn(
+        config: Optional[CreateModelConfig], kwargs: Dict[str, Any]
+    ) -> CreateModelConfig:
         """
         Resolves the final CreateModelConfig by handling None config, merging kwargs,
         and issuing a warning on overlap. Prioritizes kwargs values.
@@ -48,18 +54,22 @@ class ModelFactory:
             return CreateModelConfig(**kwargs)
         elif not kwargs:
             # Case 2: Valid config provided, and kwargs is empty. Use the provided config directly.
-            logger.debug("Valid CreateModelConfig provided and kwargs is empty. Using provided config directly.")
+            logger.debug(
+                "Valid CreateModelConfig provided and kwargs is empty. Using provided config directly."
+            )
             return config
         else:
             # Case 3: Config and kwargs are provided. Check for overlap and merge config and kwargs.
             overlapping_keys = []
             config_field_names = {f.name for f in dataclasses.fields(CreateModelConfig)}
-            kwargs_to_merge = {} # Only store kwargs that are actual config fields
+            kwargs_to_merge = {}  # Only store kwargs that are actual config fields
 
             for key, kwarg_value in kwargs.items():
                 if key in config_field_names:
-                    kwargs_to_merge[key] = kwarg_value # Prepare for merge
-                    config_value = getattr(config, key, None) # Safely get current value
+                    kwargs_to_merge[key] = kwarg_value  # Prepare for merge
+                    config_value = getattr(
+                        config, key, None
+                    )  # Safely get current value
                     if kwarg_value != config_value:
                         overlapping_keys.append(key)
 
@@ -106,7 +116,7 @@ class ModelFactory:
 
         if model_name in CustomModel.models():
             return ModelType.CUSTOM
-        
+
         if huggingface_model_utils.verify_hf_model_identifier_exists(model_name):
             return ModelType.HUGGINGFACE
 
@@ -143,17 +153,17 @@ class ModelFactory:
         """
         try:
             resolved_config = ModelFactory._resolve_config_and_warn(config, kwargs)
-            
+
             if resolved_config.is_external:
                 cfg = ExternalModelConfig(
                     model_name=resolved_config.model_name,
                     model_arch_path=resolved_config.model_arch_path,
                     pretrained=resolved_config.pretrained,
                     model_weights_path=resolved_config.model_weights_path,
-                    architecture=resolved_config.architecture
+                    architecture=resolved_config.architecture,
                 )
                 return ExternalModel(cfg)
-            
+
             identifier, _ = determine_identifier_and_soruce(resolved_config)
 
             inferred_type: ModelType = ModelFactory.infer_model_type(identifier)
@@ -168,7 +178,7 @@ class ModelFactory:
                     model_name=resolved_config.model_name,
                     pretrained=resolved_config.pretrained,
                     weights=resolved_config.weights,
-                    architecture=resolved_config.architecture
+                    architecture=resolved_config.architecture,
                 )
                 return StandardModel(cfg)
 
@@ -179,22 +189,22 @@ class ModelFactory:
                     model_name=resolved_config.model_name,
                     custom_models_path=resolved_config.custom_models_path,
                     pretrained=resolved_config.pretrained,
-                    architecture=resolved_config.architecture
+                    architecture=resolved_config.architecture,
                 )
                 return CustomModel(cfg)
-            
+
             if inferred_type == ModelType.HUGGINGFACE:
                 model_id = huggingface_general_utils.process_hf_identifier(identifier)
-    
+
                 cfg = HuggingFaceResolvedConfig(
                     model_name=resolved_config.model_name,
                     architecture=resolved_config.architecture,
                     pretrained=resolved_config.pretrained,
-                    model_id = model_id,
+                    model_id=model_id,
                     revision=resolved_config.revision,
                     cache_dir=resolved_config.cache_dir,
                     trust_remote_code=resolved_config.trust_remote_code,
-                    model_class_name=resolved_config.model_class_name
+                    model_class_name=resolved_config.model_class_name,
                 )
                 return HuggingFaceModel(cfg)
 

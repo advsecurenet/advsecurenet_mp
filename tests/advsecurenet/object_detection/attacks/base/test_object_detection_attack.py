@@ -2,13 +2,19 @@ import pytest
 from unittest.mock import MagicMock
 import torch
 
-from advsecurenet.computer_vision.object_detection.attacks.base.object_detection_attack import ObjectDetectionAttack
+from advsecurenet.computer_vision.object_detection.attacks.base.object_detection_attack import (
+    ObjectDetectionAttack,
+)
 from advsecurenet.shared.types.configs.attack_configs.attack_config import AttackConfig
+
 
 # Dummy config for testing
 class DummyConfig(AttackConfig):
     def __init__(self):
-        super().__init__(device=MagicMock(processor="cpu", use_ddp=False), targeted=True)
+        super().__init__(
+            device=MagicMock(processor="cpu", use_ddp=False), targeted=True
+        )
+
 
 # Minimal concrete subclass for testing
 class DummyObjectDetectionAttack(ObjectDetectionAttack):

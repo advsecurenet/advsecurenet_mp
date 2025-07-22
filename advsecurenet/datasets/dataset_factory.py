@@ -10,7 +10,13 @@ from advsecurenet.datasets.COCO import COCODataset
 from advsecurenet.datasets.svhn import SVHNDataset
 from advsecurenet.datasets.HuggingFace import HuggingFaceDataset
 from advsecurenet.shared.types import DatasetType
-from advsecurenet.shared.types.configs.dataset_config import ResolvedDatasetConfig, ResolvedSplitConfig, UserSplitConfig, CreateDatasetCliConfig, resolve_dataset_config
+from advsecurenet.shared.types.configs.dataset_config import (
+    ResolvedDatasetConfig,
+    ResolvedSplitConfig,
+    UserSplitConfig,
+    CreateDatasetCliConfig,
+    resolve_dataset_config,
+)
 from advsecurenet.utils.huggingface_utils import huggingface_dataset_utils
 from advsecurenet.utils.huggingface_utils import huggingface_general_utils
 from advsecurenet.utils.kwargs_utils import filter_kwargs_for_callable
@@ -24,7 +30,7 @@ DATASET_MAP = {
     DatasetType.SVHN: SVHNDataset,
     DatasetType.COCO: COCODataset,
     DatasetType.CUSTOM: CustomDataset,
-    DatasetType.HUGGINGFACE: HuggingFaceDataset
+    DatasetType.HUGGINGFACE: HuggingFaceDataset,
 }
 
 
@@ -38,11 +44,13 @@ class DatasetFactory:
         """
         Loads datasets based on runtime arguments, which are expected to be
         passed from the command line or other runtime sources.
-        
+
         This method is a convenience wrapper around `load_dataset_from_config`
         that resolves the configuration internally.
         """
-        if "split_config" in runtime_kwargs and isinstance(runtime_kwargs["split_config"], dict):
+        if "split_config" in runtime_kwargs and isinstance(
+            runtime_kwargs["split_config"], dict
+        ):
             runtime_kwargs["split_config"] = {
                 split_name: UserSplitConfig(**split_data)
                 for split_name, split_data in runtime_kwargs["split_config"].items()
@@ -54,8 +62,7 @@ class DatasetFactory:
 
     @staticmethod
     def load_dataset_from_config(
-        resolved_config: ResolvedDatasetConfig,
-        **runtime_kwargs
+        resolved_config: ResolvedDatasetConfig, **runtime_kwargs
     ) -> Dict[str, Optional[BaseDataset]]:
         """
         The main entry point for loading datasets from a resolved configuration.
@@ -66,38 +73,45 @@ class DatasetFactory:
             try:
                 # 1. Create the dataset provider instance with constructor args from the config
                 dataset_type = _infner_dataset_type(split_config.identifier)
-                
+
                 identifier = _process_identifier(dataset_type, split_config.identifier)
 
                 dataset_provider = _create_provider(split_config, dataset_type)
 
                 # 2. Prepare kwargs for the `load_dataset` method
                 keys_to_override = {
-                    'dataset_name': identifier,
-                    'split': split_config.source_split_name,
-                    'root': split_config.path,
-                    'download':  True
+                    "dataset_name": identifier,
+                    "split": split_config.source_split_name,
+                    "root": split_config.path,
+                    "download": True,
                 }
 
                 load_kwargs = _prepare_load_kwargs(
                     base_kwargs=split_config.kwargs,
                     keys_to_override=keys_to_override,
                     runtime_kwargs=runtime_kwargs,
-                    logical_name=logical_name
+                    logical_name=logical_name,
                 )
 
                 # 3. Process kwargs and load the dataset
-                processed_load_kwargs = dataset_provider.process_kwargs_load_dataset(load_kwargs)
+                processed_load_kwargs = dataset_provider.process_kwargs_load_dataset(
+                    load_kwargs
+                )
                 dataset = dataset_provider.load_dataset(**processed_load_kwargs)
                 loaded_datasets[logical_name] = dataset
 
             except Exception as e:
-                print(f"Warning: Could not load dataset for split '{logical_name}'. Error: {e}")
+                print(
+                    f"Warning: Could not load dataset for split '{logical_name}'. Error: {e}"
+                )
                 loaded_datasets[logical_name] = None
-        
+
         return loaded_datasets
-    
-def _create_provider(split_config: ResolvedSplitConfig, dataset_type: DatasetType) -> BaseDataset:
+
+
+def _create_provider(
+    split_config: ResolvedSplitConfig, dataset_type: DatasetType
+) -> BaseDataset:
     """
     Creates an instance of a dataset provider, passing only the necessary
     arguments to its constructor.
@@ -115,7 +129,8 @@ def _create_provider(split_config: ResolvedSplitConfig, dataset_type: DatasetTyp
     constructor_args = filter_kwargs_for_callable(dataset_cls, constructor_args)
 
     return dataset_cls(**constructor_args)
-    
+
+
 def _infner_dataset_type(identifier: str) -> DatasetType:
     """
     Infers the dataset type from the identifier.
@@ -136,9 +151,9 @@ def _infner_dataset_type(identifier: str) -> DatasetType:
             dataset_type = DatasetType(identifier.upper())
         except ValueError:
             raise ValueError(f"Unknown dataset identifier: {identifier}")
-    
+
     return dataset_type
-    
+
 
 def _infer_dataset_class_from_type(dataset_type: DatasetType) -> type:
     """
@@ -157,16 +172,15 @@ def _infer_dataset_class_from_type(dataset_type: DatasetType) -> type:
         return DATASET_MAP[dataset_type]
     except KeyError:
         raise ValueError(f"Unknown dataset type: {dataset_type}")
-    
+
+
 def _merge_dicts_with_warning(
-    base_dict: Dict[str, Any],
-    override_dict: Dict[str, Any],
-    warning_template: str
+    base_dict: Dict[str, Any], override_dict: Dict[str, Any], warning_template: str
 ) -> Dict[str, Any]:
     """
     Merges an override dictionary into a copy of a base dictionary,
     issuing a formatted warning on any conflicts. Returns a new dictionary.
-    
+
     Args:
         base_dict (Dict): The dictionary with default values.
         override_dict (Dict): The dictionary with new values to merge.
@@ -180,24 +194,23 @@ def _merge_dicts_with_warning(
         if key in merged:
             warnings.warn(
                 warning_template.format(
-                    key=key,
-                    old_value=merged.get(key),
-                    new_value=value
+                    key=key, old_value=merged.get(key), new_value=value
                 )
             )
         merged[key] = value
     return merged
 
+
 def _prepare_load_kwargs(
     base_kwargs: Dict[str, Any],
     keys_to_override: Dict[str, Any],
     runtime_kwargs: Dict[str, Any],
-    logical_name: str
+    logical_name: str,
 ) -> Dict[str, Any]:
     """
     Prepares the final keyword arguments for the load_dataset method by merging
     different sources of arguments and warning on conflicts.
-    
+
     Args:
         base_kwargs (Dict): The initial kwargs from the configuration.
         keys_to_override (Dict): Dictionary of keys that must be set (e.g., {'dataset_name': 'cifar10'}).
@@ -214,7 +227,7 @@ def _prepare_load_kwargs(
         warning_template=(
             f"The 'dataset_kwargs' for split '{logical_name}' contains a '{{key}}' key. "
             f"It will be overridden by the resolved value '{{new_value}}'."
-        )
+        ),
     )
 
     # 2. Take the result and override with runtime kwargs from the CLI call
@@ -224,10 +237,11 @@ def _prepare_load_kwargs(
         warning_template=(
             f"Runtime argument '{{key}}' is overriding a configuration value for split '{logical_name}'. "
             f"Old: '{{old_value}}', New: '{{new_value}}'"
-        )
+        ),
     )
-    
+
     return final_kwargs
+
 
 def _process_identifier(dataset_type: DatasetType, identifier: str) -> str:
     if dataset_type == DatasetType.HUGGINGFACE:
@@ -238,13 +252,13 @@ def _process_identifier(dataset_type: DatasetType, identifier: str) -> str:
 
 @staticmethod
 def available_datasets() -> list:
-        """
-        Returns a list of available datasets.
+    """
+    Returns a list of available datasets.
 
-        Returns
-        -------
-        list
-            A list of available datasets.
-        """
+    Returns
+    -------
+    list
+        A list of available datasets.
+    """
 
-        return list(DATASET_MAP.keys())
+    return list(DATASET_MAP.keys())

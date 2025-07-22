@@ -16,7 +16,7 @@ from advsecurenet.shared.types.configs.model_config import (
     ExternalModelConfig,
     StandardModelConfig,
     HuggingFaceInputConfig,
-    HuggingFaceResolvedConfig
+    HuggingFaceResolvedConfig,
 )
 from advsecurenet.shared.types.model import ModelType
 from advsecurenet.utils.reproducibility_utils import set_seed
@@ -68,7 +68,10 @@ def test_infer_model_type_invalid():
 @patch("advsecurenet.models.StandardModel")
 def test_create_model_standard(mock_standard_model, create_model_config):
     cfg = CreateModelConfig(
-        model_name="resnet18", architecture={"num_classes": 10}, pretrained=True, weights="IMAGENET1K_V1"
+        model_name="resnet18",
+        architecture={"num_classes": 10},
+        pretrained=True,
+        weights="IMAGENET1K_V1",
     )
     model = ModelFactory.create_model(config=cfg)
     assert isinstance(model, BaseModel)
@@ -108,7 +111,10 @@ def test_create_model_external(
     model_instance = MagicMock(spec=BaseModel)
     mock_external_model.return_value = model_instance
 
-    with patch("advsecurenet.models.external_model.filter_kwargs_for_callable", lambda cls, kwargs: kwargs):
+    with patch(
+        "advsecurenet.models.external_model.filter_kwargs_for_callable",
+        lambda cls, kwargs: kwargs,
+    ):
         created_model = ModelFactory.create_model(config=config)
 
         mock_exists.assert_called_with("/path/to/mock_model.py")
@@ -141,7 +147,10 @@ def test_create_model_custom(mock_custom_model, mock_models):
 @pytest.mark.essential
 def test_validate_create_model_config():
     config = CreateModelConfig(
-        model_name="resnet18", architecture={"num_classes": 10}, pretrained=True, random_seed=42
+        model_name="resnet18",
+        architecture={"num_classes": 10},
+        pretrained=True,
+        random_seed=42,
     )
     with pytest.raises(
         ValueError, match="Pretrained standard models do not support random seed"
@@ -203,6 +212,7 @@ def test_available_weights():
         weights = ModelFactory.available_weights("resnet18")
         assert isinstance(weights, EnumMeta)
 
+
 @pytest.mark.advsecurenet
 @pytest.mark.essential
 class TestResolveConfigAndWarn:
@@ -212,23 +222,27 @@ class TestResolveConfigAndWarn:
         """Test Case 1: No valid config, creates from kwargs."""
         kwargs = {"model_name": "test_model_from_kwargs", "pretrained": True}
         resolved_config = ModelFactory._resolve_config_and_warn(None, kwargs)
-        
+
         assert isinstance(resolved_config, CreateModelConfig)
         assert resolved_config.model_name == "test_model_from_kwargs"
         assert resolved_config.pretrained is True
-        mock_logger.debug.assert_any_call("No valid model config provided, creating from kwargs.")
+        mock_logger.debug.assert_any_call(
+            "No valid model config provided, creating from kwargs."
+        )
 
     @patch("advsecurenet.models.model_factory.logger")
     def test_resolve_config_invalid_type_uses_kwargs(self, mock_logger):
         """Test Case 1 variant: Invalid config type, creates from kwargs."""
-        invalid_config = {"some_key": "some_value"} # Not a CreateModelConfig
+        invalid_config = {"some_key": "some_value"}  # Not a CreateModelConfig
         kwargs = {"model_name": "test_model_from_kwargs_2", "pretrained": False}
         resolved_config = ModelFactory._resolve_config_and_warn(invalid_config, kwargs)
-        
+
         assert isinstance(resolved_config, CreateModelConfig)
         assert resolved_config.model_name == "test_model_from_kwargs_2"
         assert resolved_config.pretrained is False
-        mock_logger.debug.assert_any_call("No valid model config provided, creating from kwargs.")
+        mock_logger.debug.assert_any_call(
+            "No valid model config provided, creating from kwargs."
+        )
 
     @patch("advsecurenet.models.model_factory.logger")
     def test_resolve_config_valid_no_kwargs(self, mock_logger):
@@ -236,10 +250,12 @@ class TestResolveConfigAndWarn:
         initial_config = CreateModelConfig(model_name="initial_model", pretrained=True)
         kwargs = {}
         resolved_config = ModelFactory._resolve_config_and_warn(initial_config, kwargs)
-        
-        assert resolved_config is initial_config # Should be the same object
+
+        assert resolved_config is initial_config  # Should be the same object
         assert resolved_config.model_name == "initial_model"
-        mock_logger.debug.assert_any_call("Valid CreateModelConfig provided and kwargs is empty. Using provided config directly.")
+        mock_logger.debug.assert_any_call(
+            "Valid CreateModelConfig provided and kwargs is empty. Using provided config directly."
+        )
 
     @patch("advsecurenet.models.model_factory.logger")
     def test_resolve_config_valid_with_kwargs_no_relevant_overlap(self, mock_logger):
@@ -247,45 +263,61 @@ class TestResolveConfigAndWarn:
         initial_config = CreateModelConfig(model_name="initial_model", pretrained=True)
         kwargs = {"non_config_key": "some_value", "another_non_config_key": 123}
         resolved_config = ModelFactory._resolve_config_and_warn(initial_config, kwargs)
-        
-        assert resolved_config is initial_config # Should be the same object
+
+        assert resolved_config is initial_config  # Should be the same object
         assert resolved_config.model_name == "initial_model"
         # The current implementation logs "Provided config used, no overlapping kwargs detected."
         # even if kwargs are present but don't overlap with config fields.
-        mock_logger.debug.assert_any_call("Provided config used, no overlapping kwargs detected.")
-
+        mock_logger.debug.assert_any_call(
+            "Provided config used, no overlapping kwargs detected."
+        )
 
     @patch("advsecurenet.models.model_factory.logger")
     def test_resolve_config_valid_with_kwargs_and_overlap_warning(self, mock_logger):
         """Test Case 3b: Valid config, kwargs with overlap, kwargs prioritized, warning issued."""
-        initial_config = CreateModelConfig(model_name="initial_model", pretrained=False, revision="rev1")
-        kwargs = {"model_name": "kwarg_model", "pretrained": True, "weights": "IMAGENET1K_V2"} # weights is new
-        
+        initial_config = CreateModelConfig(
+            model_name="initial_model", pretrained=False, revision="rev1"
+        )
+        kwargs = {
+            "model_name": "kwarg_model",
+            "pretrained": True,
+            "weights": "IMAGENET1K_V2",
+        }  # weights is new
+
         resolved_config = ModelFactory._resolve_config_and_warn(initial_config, kwargs)
-        
+
         assert isinstance(resolved_config, CreateModelConfig)
-        assert resolved_config.model_name == "kwarg_model" # Kwarg prioritized
-        assert resolved_config.pretrained is True         # Kwarg prioritized
-        assert resolved_config.revision == "rev1"         # From original config
-        assert resolved_config.weights == "IMAGENET1K_V2" # From kwargs (new field)
+        assert resolved_config.model_name == "kwarg_model"  # Kwarg prioritized
+        assert resolved_config.pretrained is True  # Kwarg prioritized
+        assert resolved_config.revision == "rev1"  # From original config
+        assert resolved_config.weights == "IMAGENET1K_V2"  # From kwargs (new field)
 
         mock_logger.warning.assert_called_once()
         warning_call_args = mock_logger.warning.call_args[0][0]
-        assert "Overlap detected between provided 'config' object and keyword arguments" in warning_call_args
+        assert (
+            "Overlap detected between provided 'config' object and keyword arguments"
+            in warning_call_args
+        )
         assert "'model_name'" in warning_call_args
         assert "'pretrained'" in warning_call_args
         assert "Values from keyword arguments will be prioritized." in warning_call_args
-        mock_logger.debug.assert_any_call("Merging overlapping kwargs into provided config.")
+        mock_logger.debug.assert_any_call(
+            "Merging overlapping kwargs into provided config."
+        )
 
     @patch("advsecurenet.models.model_factory.logger")
     def test_resolve_config_valid_with_kwargs_overlap_same_values(self, mock_logger):
         """Test Case 3c: Valid config, kwargs with overlap but same values (no warning for these)."""
         initial_config = CreateModelConfig(model_name="same_model", pretrained=True)
         # Overlap with same values, plus one different value to trigger merge path
-        kwargs = {"model_name": "same_model", "pretrained": True, "revision": "rev_from_kwarg"} 
-        
+        kwargs = {
+            "model_name": "same_model",
+            "pretrained": True,
+            "revision": "rev_from_kwarg",
+        }
+
         resolved_config = ModelFactory._resolve_config_and_warn(initial_config, kwargs)
-        
+
         assert isinstance(resolved_config, CreateModelConfig)
         assert resolved_config.model_name == "same_model"
         assert resolved_config.pretrained is True
@@ -295,33 +327,52 @@ class TestResolveConfigAndWarn:
         # The code checks if *any* overlapping key has a different value.
         mock_logger.warning.assert_called_once()
         warning_call_args = mock_logger.warning.call_args[0][0]
-        assert "'revision'" in warning_call_args # Only revision should cause the warning message detail
-        assert "'model_name'" not in warning_call_args # Because values were same
-        assert "'pretrained'" not in warning_call_args # Because values were same
-        mock_logger.debug.assert_any_call("Merging overlapping kwargs into provided config.")
+        assert (
+            "'revision'" in warning_call_args
+        )  # Only revision should cause the warning message detail
+        assert "'model_name'" not in warning_call_args  # Because values were same
+        assert "'pretrained'" not in warning_call_args  # Because values were same
+        mock_logger.debug.assert_any_call(
+            "Merging overlapping kwargs into provided config."
+        )
+
 
 # --- Tests for create_model with Hugging Face ---
 
 # Mock HuggingFaceModel and its dependencies for these tests
 MOCK_HF_MODEL_INSTANCE = MagicMock(spec=HuggingFaceModel)
 
+
 @pytest.fixture
 def mock_hf_dependencies():
-    with patch("advsecurenet.models.model_factory.determine_identifier_and_soruce", return_value=("user/hf-model", MagicMock(name="MODEL_IDENTIFIER"))) as mock_det_id_src, \
-         patch("advsecurenet.models.model_factory.ModelFactory.infer_model_type", return_value=ModelType.HUGGINGFACE) as mock_infer_type, \
-         patch("advsecurenet.models.model_factory.ModelFactory._validate_create_model_config") as mock_validate, \
-         patch("advsecurenet.models.model_factory.set_seed") as mock_set_seed, \
-         patch("advsecurenet.utils.huggingface_utils.huggingface_general_utils.process_hf_identifier", return_value="user/hf-model-processed") as mock_proc_id, \
-         patch("advsecurenet.models.model_factory.HuggingFaceModel", return_value=MOCK_HF_MODEL_INSTANCE) as mock_hf_model_ctor, \
-         patch("advsecurenet.utils.huggingface_utils.huggingface_model_utils.huggingface_model_hub_utils.verify_hf_model_identifier_exists", return_value=True) as mock_verify_exists:
+    with patch(
+        "advsecurenet.models.model_factory.determine_identifier_and_soruce",
+        return_value=("user/hf-model", MagicMock(name="MODEL_IDENTIFIER")),
+    ) as mock_det_id_src, patch(
+        "advsecurenet.models.model_factory.ModelFactory.infer_model_type",
+        return_value=ModelType.HUGGINGFACE,
+    ) as mock_infer_type, patch(
+        "advsecurenet.models.model_factory.ModelFactory._validate_create_model_config"
+    ) as mock_validate, patch(
+        "advsecurenet.models.model_factory.set_seed"
+    ) as mock_set_seed, patch(
+        "advsecurenet.utils.huggingface_utils.huggingface_general_utils.process_hf_identifier",
+        return_value="user/hf-model-processed",
+    ) as mock_proc_id, patch(
+        "advsecurenet.models.model_factory.HuggingFaceModel",
+        return_value=MOCK_HF_MODEL_INSTANCE,
+    ) as mock_hf_model_ctor, patch(
+        "advsecurenet.utils.huggingface_utils.huggingface_model_utils.huggingface_model_hub_utils.verify_hf_model_identifier_exists",
+        return_value=True,
+    ) as mock_verify_exists:
         yield {
             "determine_identifier_and_soruce": mock_det_id_src,
             "infer_model_type": mock_infer_type,
             "_validate_create_model_config": mock_validate,
             "set_seed": mock_set_seed,
             "process_hf_identifier": mock_proc_id,
-            "HuggingFaceModel_ctor": mock_hf_model_ctor, 
-            "verify_hf_model_identifier_exists": mock_verify_exists
+            "HuggingFaceModel_ctor": mock_hf_model_ctor,
+            "verify_hf_model_identifier_exists": mock_verify_exists,
         }
 
 
@@ -330,25 +381,25 @@ def mock_hf_dependencies():
 def test_create_model_huggingface_from_config_object(mock_hf_dependencies):
     """Test creating a Hugging Face model using a CreateModelConfig object."""
     hf_create_config = CreateModelConfig(
-        model_name="user/hf-model-name1", 
-        model_identifier="user/hf-model", 
+        model_name="user/hf-model-name1",
+        model_identifier="user/hf-model",
         architecture={"num_labels": 5},
         pretrained=True,
         revision="main",
         cache_dir="/tmp/hf",
         trust_remote_code=True,
         model_class_name="CustomBert",
-        random_seed=123
+        random_seed=123,
     )
     created_model = ModelFactory.create_model(config=hf_create_config)
     assert created_model == MOCK_HF_MODEL_INSTANCE
-    
+
     mocked_hf_constructor = mock_hf_dependencies["HuggingFaceModel_ctor"]
     mocked_set_seed_func = mock_hf_dependencies["set_seed"]
     mocked_process_id_func = mock_hf_dependencies["process_hf_identifier"]
 
-    mocked_hf_constructor.assert_called_once() 
-    call_args_config = mocked_hf_constructor.call_args[0][0] 
+    mocked_hf_constructor.assert_called_once()
+    call_args_config = mocked_hf_constructor.call_args[0][0]
     assert isinstance(call_args_config, HuggingFaceResolvedConfig)
     # This is where the first AssertionError occurs
     assert call_args_config.architecture == {"num_labels": 5}
@@ -358,26 +409,26 @@ def test_create_model_huggingface_from_config_object(mock_hf_dependencies):
     assert call_args_config.trust_remote_code is True
     assert call_args_config.model_class_name == "CustomBert"
     assert call_args_config.model_name == "user/hf-model-name1"
-    
-    mocked_set_seed_func.assert_called_once_with(123) 
-    
+
+    mocked_set_seed_func.assert_called_once_with(123)
+
     # Reset mocks for the second call within this test
     mocked_hf_constructor.reset_mock()
     mocked_set_seed_func.reset_mock()
-    mocked_process_id_func.reset_mock() # This resets call count etc.
+    mocked_process_id_func.reset_mock()  # This resets call count etc.
 
     hf_create_config2 = CreateModelConfig(
-        model_name="my_hf_model_explicit_name", 
-        model_identifier="user/hf-model2", # Different identifier
+        model_name="my_hf_model_explicit_name",
+        model_identifier="user/hf-model2",  # Different identifier
         architecture={"num_labels": 10},
         pretrained=False,
-        random_seed=456
+        random_seed=456,
     )
     # IMPORTANT: Update the return_value of the mock for the new identifier
-    mocked_process_id_func.return_value = "user/hf-model2-processed" 
-    
-    ModelFactory.create_model(config=hf_create_config2) 
-    
+    mocked_process_id_func.return_value = "user/hf-model2-processed"
+
+    ModelFactory.create_model(config=hf_create_config2)
+
     mocked_hf_constructor.assert_called_once()
     call_args_rerun_config = mocked_hf_constructor.call_args[0][0]
     assert isinstance(call_args_rerun_config, HuggingFaceResolvedConfig)
@@ -385,12 +436,12 @@ def test_create_model_huggingface_from_config_object(mock_hf_dependencies):
     assert call_args_rerun_config.model_name == "my_hf_model_explicit_name"
     assert call_args_rerun_config.architecture == {"num_labels": 10}
     assert call_args_rerun_config.pretrained is False
-    mocked_set_seed_func.assert_called_once_with(456) 
+    mocked_set_seed_func.assert_called_once_with(456)
 
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
-def test_create_model_huggingface_from_kwargs(mock_hf_dependencies): 
+def test_create_model_huggingface_from_kwargs(mock_hf_dependencies):
     """Test creating a Hugging Face model using kwargs."""
     mocked_hf_constructor = mock_hf_dependencies["HuggingFaceModel_ctor"]
     mocked_process_id_func = mock_hf_dependencies["process_hf_identifier"]
@@ -398,29 +449,35 @@ def test_create_model_huggingface_from_kwargs(mock_hf_dependencies):
 
     mocked_hf_constructor.reset_mock()
     # Reset the return_value to the fixture's default if it was changed by another test or part of a test
-    mocked_process_id_func.return_value = "user/hf-model-processed" # Or whatever the default for the fixture is
-    mocked_process_id_func.reset_mock() # Resets call count
+    mocked_process_id_func.return_value = (
+        "user/hf-model-processed"  # Or whatever the default for the fixture is
+    )
+    mocked_process_id_func.reset_mock()  # Resets call count
     mocked_set_seed_func.reset_mock()
 
     # Patch the return value of the process_hf_identifier mock specifically for this test's scenario
-    with patch("advsecurenet.models.model_factory.determine_identifier_and_soruce", return_value=("kwarg_hf_model_name", MagicMock(name="MODEL_NAME"))) as _, \
-         patch.object(mocked_process_id_func, 'return_value', "kwarg_hf_model_name-processed"): # Temporarily change return_value
+    with patch(
+        "advsecurenet.models.model_factory.determine_identifier_and_soruce",
+        return_value=("kwarg_hf_model_name", MagicMock(name="MODEL_NAME")),
+    ) as _, patch.object(
+        mocked_process_id_func, "return_value", "kwarg_hf_model_name-processed"
+    ):  # Temporarily change return_value
 
         created_model = ModelFactory.create_model(
-            model_name="kwarg_hf_model_name", 
+            model_name="kwarg_hf_model_name",
             architecture={"num_labels": 10},
             pretrained=False,
-            revision="dev"
+            revision="dev",
         )
 
         assert created_model == MOCK_HF_MODEL_INSTANCE
-        mocked_set_seed_func.assert_not_called() 
-        
+        mocked_set_seed_func.assert_not_called()
+
         mocked_hf_constructor.assert_called_once()
         call_args_config = mocked_hf_constructor.call_args[0][0]
         assert isinstance(call_args_config, HuggingFaceResolvedConfig)
         # This is where the AssertionError occurs
-        assert call_args_config.model_name == "kwarg_hf_model_name" 
+        assert call_args_config.model_name == "kwarg_hf_model_name"
         assert call_args_config.architecture == {"num_labels": 10}
         assert call_args_config.pretrained is False
         assert call_args_config.revision == "dev"
@@ -428,18 +485,29 @@ def test_create_model_huggingface_from_kwargs(mock_hf_dependencies):
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
-@patch("advsecurenet.utils.huggingface_utils.huggingface_general_utils.process_hf_identifier", side_effect=ValueError("Failed to process identifier"))
-@patch("advsecurenet.utils.huggingface_utils.huggingface_model_utils.huggingface_model_hub_utils.verify_hf_model_identifier_exists", return_value=True)
+@patch(
+    "advsecurenet.utils.huggingface_utils.huggingface_general_utils.process_hf_identifier",
+    side_effect=ValueError("Failed to process identifier"),
+)
+@patch(
+    "advsecurenet.utils.huggingface_utils.huggingface_model_utils.huggingface_model_hub_utils.verify_hf_model_identifier_exists",
+    return_value=True,
+)
 @patch("advsecurenet.models.model_factory.ModelFactory._validate_create_model_config")
-@patch("advsecurenet.models.model_factory.determine_identifier_and_soruce", return_value=("bad-hf-url", MagicMock(name="MODEL_IDENTIFIER")))
+@patch(
+    "advsecurenet.models.model_factory.determine_identifier_and_soruce",
+    return_value=("bad-hf-url", MagicMock(name="MODEL_IDENTIFIER")),
+)
 def test_create_model_huggingface_processing_error(
-    mock_determine_id, 
-    mock_infer_type, 
-    mock_validate_config,  
-    mock_process_hf_id
-): 
+    mock_determine_id, mock_infer_type, mock_validate_config, mock_process_hf_id
+):
     """Test error handling when process_hf_identifier fails."""
-    hf_config = CreateModelConfig(model_name="bad-hf-url-name", model_identifier="bad-hf-url") # ADDED model_name
-    
-    with pytest.raises(ValueError, match="Error creating model. Please check the model_name and other arguments. Error: Failed to process identifier"):
+    hf_config = CreateModelConfig(
+        model_name="bad-hf-url-name", model_identifier="bad-hf-url"
+    )  # ADDED model_name
+
+    with pytest.raises(
+        ValueError,
+        match="Error creating model. Please check the model_name and other arguments. Error: Failed to process identifier",
+    ):
         ModelFactory.create_model(config=hf_config)

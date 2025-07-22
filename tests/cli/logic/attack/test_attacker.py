@@ -6,8 +6,12 @@ import pytest
 import torch
 from torch.utils.data import Subset
 
-from advsecurenet.computer_vision.image_classification.attacks.attacker.ddp_attacker import DDPAttacker
-from advsecurenet.computer_vision.image_classification.attacks.gradient_based.fgsm import FGSM
+from advsecurenet.computer_vision.image_classification.attacks.attacker.ddp_attacker import (
+    DDPAttacker,
+)
+from advsecurenet.computer_vision.image_classification.attacks.gradient_based.fgsm import (
+    FGSM,
+)
 from advsecurenet.datasets.targeted_adv_dataset import AdversarialDataset
 from advsecurenet.shared.types.attacks import AttackType
 from advsecurenet.shared.types.configs.attack_configs.attacker_config import (
@@ -277,11 +281,15 @@ def test_get_target_parameters_none(attacker_config):
 @patch("cli.logic.attack.attacker.resolve_dataset_config")
 @pytest.mark.parametrize("dataset_part", ["train", "test"])
 def test_select_data_partition(
-    mock_resolve_config, mock_validate_dataset, mock_prepare_dataset, attacker_config, dataset_part
+    mock_resolve_config,
+    mock_validate_dataset,
+    mock_prepare_dataset,
+    attacker_config,
+    dataset_part,
 ):
     mock_resolved_config = MagicMock()
     mock_resolved_config.splits = [dataset_part]
-    mock_resolve_config.return_value = mock_resolved_config    
+    mock_resolve_config.return_value = mock_resolved_config
     train_data = MagicMock()
     test_data = MagicMock()
     attacker = CLIAttacker(attacker_config, AttackType.FGSM)

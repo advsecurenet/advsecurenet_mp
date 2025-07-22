@@ -11,8 +11,12 @@ import warnings
 from scipy.special import softmax
 from enum import Enum
 
-from advsecurenet.shared.types.configs.attack_configs.tog_attack_config import TOGAttackConfig
-from advsecurenet.computer_vision.object_detection.attacks.base.object_detection_attack import ObjectDetectionAttack
+from advsecurenet.shared.types.configs.attack_configs.tog_attack_config import (
+    TOGAttackConfig,
+)
+from advsecurenet.computer_vision.object_detection.attacks.base.object_detection_attack import (
+    ObjectDetectionAttack,
+)
 
 
 class TOGAttackType(Enum):
@@ -34,14 +38,19 @@ class TOG(ObjectDetectionAttack):
         self.eps = config.eps
         self.eps_iter = config.eps_iter
 
-
     @staticmethod
-    def generate_attack_targets(y: list[dict[str, np.ndarray]], mode: str = "ll", confidence_threshold: float = 0.5, class_id: int | None = None, **kwargs) -> np.ndarray:
+    def generate_attack_targets(
+        y: list[dict[str, np.ndarray]],
+        mode: str = "ll",
+        confidence_threshold: float = 0.5,
+        class_id: int | None = None,
+        **kwargs,
+    ) -> np.ndarray:
         """
         For each detection, keep the original box, but set the class to the adversarial class.
         Output: [batch_idx, adv_class, 1.0, x1, y1, x2, y2] for each detection.
         """
-        assert mode.lower() in ['ml', 'll'], '`mode` should be one of `ML` or `LL`.'
+        assert mode.lower() in ["ml", "ll"], "`mode` should be one of `ML` or `LL`."
         all_rows = []
         for img_idx, detection in enumerate(y):
             num_boxes = detection["boxes"].shape[0]
@@ -50,18 +59,26 @@ class TOG(ObjectDetectionAttack):
             logits = detection["logits"]  # [num_detections, num_classes]
             # Handle background class (if applicable)
             if logits.shape[1] % 10 == 1:
-                logits[:, 0] = np.finfo(np.float32).max if mode.lower() == 'll' else np.finfo(np.float32).min
+                logits[:, 0] = (
+                    np.finfo(np.float32).max
+                    if mode.lower() == "ll"
+                    else np.finfo(np.float32).min
+                )
             # Find adversarial class
-            if mode.lower() == 'll':
+            if mode.lower() == "ll":
                 adv_class = np.argmin(logits, axis=1)
             else:
                 adv_class = []
                 orig_class = detection["labels"]
                 for i in range(num_boxes):
                     label = orig_class[i]
-                    print(f"Detection {i}: label={label}, logits.shape={logits[i].shape}, logits.shape[1]={logits.shape[1]}")
+                    print(
+                        f"Detection {i}: label={label}, logits.shape={logits[i].shape}, logits.shape[1]={logits.shape[1]}"
+                    )
                     if label >= logits.shape[1]:
-                        warnings.warn(f"Label {label} is out of bounds for logits with shape {logits.shape}")
+                        warnings.warn(
+                            f"Label {label} is out of bounds for logits with shape {logits.shape}"
+                        )
                         continue  # Skip this detection
                     logit_row = logits[i].copy()
                     logit_row[label] = -np.inf  # Exclude original class
@@ -79,23 +96,22 @@ class TOG(ObjectDetectionAttack):
             confs = np.ones_like(adv_class, dtype=np.float32)
             batch_idx_col = np.full(len(adv_class), img_idx, dtype=np.int32)
             # Use original boxes!
-            rows = np.column_stack([
-                batch_idx_col, adv_class, confs, detection["boxes"]
-            ])
+            rows = np.column_stack(
+                [batch_idx_col, adv_class, confs, detection["boxes"]]
+            )
             all_rows.append(rows)
         if not all_rows:
             return np.zeros((0, 7), dtype=np.float32)
         return np.vstack(all_rows).astype(np.float32)
 
-
     def attack(
-            self,
-            x: np.ndarray,  # (batch_size, channels, height, width)
-            mask: torch.Tensor,
-            tog_variant: TOGAttackType,
-            tog_mislabeling_mode: str = "ml",
-            *args,
-            **kwargs
+        self,
+        x: np.ndarray,  # (batch_size, channels, height, width)
+        mask: torch.Tensor,
+        tog_variant: TOGAttackType,
+        tog_mislabeling_mode: str = "ml",
+        *args,
+        **kwargs,
     ) -> torch.Tensor:
         """
         Generates adversarial examples using the TOG attack.
@@ -111,30 +127,55 @@ class TOG(ObjectDetectionAttack):
             x = x / 255.0
         match tog_variant:
             case TOGAttackType.VANISHING:
-                return self.tog_vanishing(x_query=x, n_iter=self.max_iter, eps=self.eps, eps_iter=self.eps_iter)
+                return self.tog_vanishing(
+                    x_query=x,
+                    n_iter=self.max_iter,
+                    eps=self.eps,
+                    eps_iter=self.eps_iter,
+                )
             case TOGAttackType.FABRICATION:
-                return self.tog_fabrication(x_query=x, n_iter=self.max_iter, eps=self.eps, eps_iter=self.eps_iter)
+                return self.tog_fabrication(
+                    x_query=x,
+                    n_iter=self.max_iter,
+                    eps=self.eps,
+                    eps_iter=self.eps_iter,
+                )
             case TOGAttackType.MISLABELING:
-                return self.tog_mislabeling(x_query=x, mode=tog_mislabeling_mode, n_iter=self.max_iter, eps=self.eps, eps_iter=self.eps_iter)
+                return self.tog_mislabeling(
+                    x_query=x,
+                    mode=tog_mislabeling_mode,
+                    n_iter=self.max_iter,
+                    eps=self.eps,
+                    eps_iter=self.eps_iter,
+                )
             case TOGAttackType.UNTARGETED:
-                return self.tog_untargeted(x_query=x, n_iter=self.max_iter, eps=self.eps, eps_iter=self.eps_iter)
+                return self.tog_untargeted(
+                    x_query=x,
+                    n_iter=self.max_iter,
+                    eps=self.eps,
+                    eps_iter=self.eps_iter,
+                )
 
-
-    def tog_vanishing(self, x_query, n_iter=10, eps=8/255., eps_iter=2/255.):
-        print(f"Running TOG vanishing attack with n_iter={n_iter}, eps={eps}, eps_iter={eps_iter}")
+    def tog_vanishing(self, x_query, n_iter=10, eps=8 / 255.0, eps_iter=2 / 255.0):
+        print(
+            f"Running TOG vanishing attack with n_iter={n_iter}, eps={eps}, eps_iter={eps_iter}"
+        )
         eta = np.random.uniform(-eps, eps, size=x_query.shape)
         x_adv = np.clip(x_query + eta, 0.0, 1.0)
         for _ in range(n_iter):
-            grad = self.object_detector.compute_object_vanishing_gradient(x_adv, training=False)
+            grad = self.object_detector.compute_object_vanishing_gradient(
+                x_adv, training=False
+            )
             signed_grad = np.sign(grad)
             x_adv -= eps_iter * signed_grad
             eta = np.clip(x_adv - x_query, -eps, eps)
             x_adv = np.clip(x_query + eta, 0.0, 1.0)
         return x_adv
-    
 
-    def tog_fabrication(self, x_query, n_iter=10, eps=8/255., eps_iter=2/255.):
-        print(f"Running TOG fabrication attack with n_iter={n_iter}, eps={eps}, eps_iter={eps_iter}")
+    def tog_fabrication(self, x_query, n_iter=10, eps=8 / 255.0, eps_iter=2 / 255.0):
+        print(
+            f"Running TOG fabrication attack with n_iter={n_iter}, eps={eps}, eps_iter={eps_iter}"
+        )
         eta = np.random.uniform(-eps, eps, size=x_query.shape)
         x_adv = np.clip(x_query + eta, 0.0, 1.0)
         for _ in range(n_iter):
@@ -144,19 +185,29 @@ class TOG(ObjectDetectionAttack):
             eta = np.clip(x_adv - x_query, -eps, eps)
             x_adv = np.clip(x_query + eta, 0.0, 1.0)
         return x_adv
-    
-    def tog_mislabeling(self, x_query, mode, n_iter=10, eps=8/255., eps_iter=2/255.):
-        print(f"Running TOG mislabeling attack with n_iter={n_iter}, eps={eps}, eps_iter={eps_iter}, mode={mode}")
+
+    def tog_mislabeling(
+        self, x_query, mode, n_iter=10, eps=8 / 255.0, eps_iter=2 / 255.0
+    ):
+        print(
+            f"Running TOG mislabeling attack with n_iter={n_iter}, eps={eps}, eps_iter={eps_iter}, mode={mode}"
+        )
         if mode.lower() not in ["ml", "ll"]:
             warnings.warn(f"Unknown mode '{mode}'. Using 'ml' instead.")
             mode = "ml"
         x_uint8 = (x_query * 255.0).clip(0, 255).astype(np.uint8)
-        x_tensor = torch.from_numpy(x_uint8).float().to(next(self.object_detector.model.parameters()).device)
+        x_tensor = (
+            torch.from_numpy(x_uint8)
+            .float()
+            .to(next(self.object_detector.model.parameters()).device)
+        )
         initial_detections = self.object_detector.predict(x_tensor)
         eta = np.random.uniform(-eps, eps, size=x_query.shape)
         x_adv = np.clip(x_query + eta, 0.0, 1.0)
         for i in range(n_iter):
-            grad = self.object_detector.compute_object_mislabeling_gradient(x_adv, detections=initial_detections, mode=mode)
+            grad = self.object_detector.compute_object_mislabeling_gradient(
+                x_adv, detections=initial_detections, mode=mode
+            )
             grad_norm = np.linalg.norm(grad)
             if i % 50 == 0:  # Log every 50 iterations
                 print(f"Iteration {i}: Gradient norm = {grad_norm:.6f}")
@@ -169,18 +220,20 @@ class TOG(ObjectDetectionAttack):
             x_adv = np.clip(x_query + eta, 0.0, 1.0)
         return x_adv
 
-
-    def tog_untargeted(self, x_query, n_iter=10, eps=8/255., eps_iter=2/255.):
-        print(f"Running TOG untargeted attack with n_iter={n_iter}, eps={eps}, eps_iter={eps_iter}")
-        x_uint8 = (x_query * 255.0).clip(0,255).astype(np.uint8)
+    def tog_untargeted(self, x_query, n_iter=10, eps=8 / 255.0, eps_iter=2 / 255.0):
+        print(
+            f"Running TOG untargeted attack with n_iter={n_iter}, eps={eps}, eps_iter={eps_iter}"
+        )
+        x_uint8 = (x_query * 255.0).clip(0, 255).astype(np.uint8)
         detections_list = self.object_detector.predict(x_uint8)
         eta = np.random.uniform(-eps, eps, size=x_query.shape)
         x_adv = np.clip(x_query + eta, 0.0, 1.0)
         for _ in range(n_iter):
-            grad = self.object_detector.compute_object_untargeted_gradient(x_adv, detections=detections_list)
+            grad = self.object_detector.compute_object_untargeted_gradient(
+                x_adv, detections=detections_list
+            )
             signed_grad = np.sign(grad)
             x_adv -= eps_iter * signed_grad
             eta = np.clip(x_adv - x_query, -eps, eps)
             x_adv = np.clip(x_query + eta, 0.0, 1.0)
         return x_adv
-    
