@@ -14,7 +14,7 @@ class ModelConfig:
 
 @dataclass
 class DataConfig:
-    dataset_name: Optional[str] = None
+    dataset_name: Optional[str] = "ag_news"
     dataset_path: Optional[str] = None
     text_column: str = "text"
     label_column: str = "label"

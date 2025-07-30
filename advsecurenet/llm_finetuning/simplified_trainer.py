@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 
 
-class Trainer:
+class SimplifiedTrainer:
     def __init__(self, model, tokenizer, config_manager, metrics_calculator):
         self.model = model
         self.tokenizer = tokenizer

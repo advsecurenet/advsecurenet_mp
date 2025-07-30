@@ -60,7 +60,6 @@ class HuggingFaceDataLoader:
                 examples[text_column],
                 truncation=True,
                 padding="max_length",
-                max_length=self.max_length
             )
 
         # Apply tokenization
