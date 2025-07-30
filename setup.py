@@ -30,11 +30,14 @@ setup(
         "ruamel.yaml",
         "matplotlib",
         "scikit-image",
+        "scikit-learn",
         "einops",
         "filetype",
         "requests",
         "transformers",
         "datasets",
+        "pandas",
+        "numpy",
     ],
     entry_points={
         "console_scripts": [
