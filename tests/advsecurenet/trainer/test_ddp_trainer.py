@@ -7,18 +7,21 @@ from tqdm import tqdm
 
 from advsecurenet.dataloader.data_loader_factory import DataLoaderFactory
 from advsecurenet.datasets.dataset_factory import DatasetFactory
-from advsecurenet.distributed.ddp_base_task import DDPBaseTask
 from advsecurenet.models.model_factory import ModelFactory
 from advsecurenet.shared.types.configs import TrainConfig
 from advsecurenet.shared.types.configs.device_config import DeviceConfig
-from advsecurenet.shared.types.configs.model_config import CreateModelConfig
-from advsecurenet.shared.types.configs.preprocess_config import (
-    PreprocessConfig,
-    PreprocessStep,
-)
+
 from advsecurenet.shared.types.configs.train_config import TrainConfig
 from advsecurenet.trainer.ddp_trainer import DDPTrainer
-from advsecurenet.trainer.trainer import Trainer
+
+from advsecurenet.shared.types.configs.train_config import (
+    ModelConfig, 
+    TrainingProcessConfig, 
+    OptimizationConfig, 
+    CheckpointConfig, 
+    FinalModelConfig
+)
+from advsecurenet.shared.types.configs.device_config import DeviceConfig
 
 
 @pytest.fixture
@@ -37,13 +40,23 @@ def train_config(processor):
     test_data = dataset["test"]
     dataloader = DataLoaderFactory.create_dataloader(dataset=test_data, batch_size=32)
 
-    # Define the training config
+
+
+    # Define the training config using the new nested structure
     config = TrainConfig(
-        model=model,
-        train_loader=dataloader,
-        epochs=2,
-        processor=processor,
-        optimizer="adam",
+        model_config=ModelConfig(model=model),
+        training_process_config=TrainingProcessConfig(
+            train_loader=dataloader,
+            epochs=2,
+            verbose=False
+        ),
+        optimization_config=OptimizationConfig(optimizer="adam"),
+        checkpoint_config=CheckpointConfig(
+            save_checkpoint=True,
+            checkpoint_interval=5
+        ),
+        final_model_config=FinalModelConfig(save_final_model=True),
+        device_config=DeviceConfig(processor=processor)
     )
     return config
 
@@ -51,7 +64,7 @@ def train_config(processor):
 @pytest.fixture
 @patch("advsecurenet.trainer.ddp_trainer.DDPBaseTask._setup_device")
 @patch("advsecurenet.trainer.ddp_trainer.DDPBaseTask._setup_model")
-@patch("advsecurenet.trainer.trainer.Trainer._get_optimizer")
+@patch("advsecurenet.trainer.trainer_logic.get_optimizer")
 def ddp_trainer(mock_optimizer, mock_setup_model, mock_setup_device, train_config):
     rank = 0
     world_size = 2
@@ -91,7 +104,7 @@ def test_get_model_state_dict(ddp_trainer):
 def test_assign_device_to_optimizer_state(ddp_trainer):
     # Mock the optimizer and its state
     mock_optimizer = MagicMock()
-    ddp_trainer._optimizer = mock_optimizer
+    ddp_trainer.optimizer = mock_optimizer
     mock_tensor = MagicMock(spec=torch.Tensor)
     mock_optimizer.state = {
         0: {"param": mock_tensor},
@@ -118,12 +131,12 @@ def test_assign_device_to_optimizer_state(ddp_trainer):
 @pytest.mark.advsecurenet
 @pytest.mark.essential
 def test_get_save_checkpoint_prefix(ddp_trainer):
-    ddp_trainer._config.save_checkpoint_name = "checkpoint"
+    ddp_trainer._config.checkpoint_config.save_checkpoint_name = "checkpoint"
     assert ddp_trainer._get_save_checkpoint_prefix() == "checkpoint"
 
-    ddp_trainer._config.save_checkpoint_name = None
-    ddp_trainer._config.model.model_name = "model"
-    ddp_trainer._config.train_loader.dataset.__class__.__name__ = "dataset"
+    ddp_trainer._config.checkpoint_config.save_checkpoint_name = None
+    ddp_trainer._config.model_config.model.model_name = "model"
+    ddp_trainer._config.training_process_config.train_loader.dataset.__class__.__name__ = "dataset"
     assert ddp_trainer._get_save_checkpoint_prefix() == "model_dataset_checkpoint"
 
 
@@ -131,21 +144,21 @@ def test_get_save_checkpoint_prefix(ddp_trainer):
 @pytest.mark.essential
 def test_should_save_checkpoint(ddp_trainer):
     epoch = 10
-    ddp_trainer._config.checkpoint_interval = 5
-    ddp_trainer._config.save_checkpoint = True
+    ddp_trainer._config.checkpoint_config.checkpoint_interval = 5
+    ddp_trainer._config.checkpoint_config.save_checkpoint = True
     assert ddp_trainer._should_save_checkpoint(epoch) == True
 
-    ddp_trainer._config.checkpoint_interval = 3
+    ddp_trainer._config.checkpoint_config.checkpoint_interval = 3
     assert ddp_trainer._should_save_checkpoint(epoch) == False
 
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
 def test_should_save_final_model(ddp_trainer):
-    ddp_trainer._config.save_final_model = True
+    ddp_trainer._config.final_model_config.save_final_model = True
     assert ddp_trainer._should_save_final_model() == True
 
-    ddp_trainer._config.save_final_model = False
+    ddp_trainer._config.final_model_config.save_final_model = False
     assert ddp_trainer._should_save_final_model() == False
 
 
@@ -153,14 +166,14 @@ def test_should_save_final_model(ddp_trainer):
 @pytest.mark.essential
 @patch("tqdm.auto.tqdm", wraps=tqdm)
 def test_run_epoch(mock_tqdm, ddp_trainer, processor):
-    ddp_trainer._config.train_loader = MagicMock(spec=DataLoader)
-    ddp_trainer._config.train_loader.sampler = MagicMock(spec=DistributedSampler)
+    ddp_trainer._config.training_process_config.train_loader = MagicMock(spec=DataLoader)
+    ddp_trainer._config.training_process_config.train_loader.sampler = MagicMock(spec=DistributedSampler)
     ddp_trainer._run_batch = MagicMock(return_value=1.0)
     ddp_trainer._log_loss = MagicMock()
-    ddp_trainer._config.train_loader.__len__.return_value = 1
+    ddp_trainer._config.training_process_config.train_loader.__len__.return_value = 1
 
     ddp_trainer._device = processor
     epoch = 1
     ddp_trainer._run_epoch(epoch)
 
-    ddp_trainer._config.train_loader.sampler.set_epoch.assert_called_once_with(epoch)
+    ddp_trainer._config.training_process_config.train_loader.sampler.set_epoch.assert_called_once_with(epoch)
