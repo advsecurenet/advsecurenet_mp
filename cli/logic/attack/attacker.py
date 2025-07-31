@@ -25,6 +25,7 @@ from cli.shared.types.utils.target import TargetCLIConfigType
 from cli.shared.utils.dataset import get_datasets
 from cli.shared.utils.helpers import read_data_from_file, save_images
 from cli.shared.utils.model import create_model
+from cli.shared.types.utils.dataset import resolve_dataset_config
 
 logger = logging.getLogger(__name__)
 
@@ -48,13 +49,13 @@ class CLIAttacker:
         The main attack function. This function parses the CLI arguments and executes the attack.
         """
         logger.info("Starting %s attack.", self._attack_type.value)
+        
         if self._config.device.use_ddp:
             logger.info(
                 "Using DDP for attack with the following GPUs: %s",
                 self._config.device.gpu_ids,
             )
             self._execute_ddp_attack()
-
         else:
             logger.info("Using single GPU or CPU for attack.")
             self._execute_attack()
@@ -224,17 +225,24 @@ class CLIAttacker:
         return None
 
     def _select_data_partition(self, train_data, test_data):
-        dataset_config = resolve_dataset_config(self._config.dataset)
-        if "train" in dataset_config.splits:
+        # Use the resolved config approach: get the first available split from the config
+        # This is much more flexible than hardcoded dataset_part
+        resolved_config = resolve_dataset_config(self._config.dataset)
+        available_splits = list(resolved_config.splits.keys())
+        
+        if not available_splits:
+            # Fallback: if no splits specified, prefer test over train for attacks
+            return self._validate_dataset_availability(test_data, "test") if test_data else train_data
+        
+        # Use the first specified split
+        first_split = available_splits[0]
+        if first_split == "train":
             return self._validate_dataset_availability(train_data, "train")
-        elif "test" in dataset_config.splits:
+        elif first_split == "test":
             return self._validate_dataset_availability(test_data, "test")
         else:
-            return (
-                train_data + test_data
-                if train_data and test_data
-                else train_data or test_data
-            )
+            # For custom splits, prefer test data as fallback
+            return self._validate_dataset_availability(test_data, "test") if test_data else train_data
 
     def _sample_data_if_required(self, all_data):
         sample_size = self._config.dataset.random_sample_size

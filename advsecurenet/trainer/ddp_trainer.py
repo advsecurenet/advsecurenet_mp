@@ -26,7 +26,7 @@ class DDPTrainer(DDPBaseTask, Trainer):
     def __init__(self, config: TrainConfig, rank: int, world_size: int) -> None:
         self._rank = rank
         self._world_size = world_size
-        DDPBaseTask.__init__(self, model=config.model, rank=rank, world_size=world_size)
+        DDPBaseTask.__init__(self, model=config.model_config.model, rank=rank, world_size=world_size)
         Trainer.__init__(self, config)
 
     def _load_model_state_dict(self, state_dict):
@@ -40,10 +40,14 @@ class DDPTrainer(DDPBaseTask, Trainer):
         return self._model.module.state_dict()
 
     def _assign_device_to_optimizer_state(self):
-        for state in self._optimizer.state.values():
-            for k, v in state.items():
-                if isinstance(v, torch.Tensor):
-                    state[k] = v.cuda(self._rank)
+        """
+        Assigns the optimizer state tensors to the appropriate CUDA device based on rank.
+        """
+        if hasattr(self, 'optimizer') and self.optimizer is not None:
+            for state in self.optimizer.state.values():
+                for k, v in state.items():
+                    if isinstance(v, torch.Tensor):
+                        state[k] = v.cuda(self._rank)
 
     def _get_save_checkpoint_prefix(self) -> str:
         """
@@ -56,10 +60,10 @@ class DDPTrainer(DDPBaseTask, Trainer):
             If the save checkpoint name is provided, it will be used as the prefix. Otherwise, the model variant and the dataset name will be used as the prefix.
         """
 
-        if self._config.save_checkpoint_name:
-            return self._config.save_checkpoint_name
+        if self._config.checkpoint_config.save_checkpoint_name:
+            return self._config.checkpoint_config.save_checkpoint_name
         else:
-            return f"{self._config.model.model_name}_{self._config.train_loader.dataset.__class__.__name__}_checkpoint"
+            return f"{self._config.model_config.model.model_name}_{self._config.training_process_config.train_loader.dataset.__class__.__name__}_checkpoint"
 
     def _should_save_checkpoint(self, epoch: int) -> bool:
         """
@@ -71,16 +75,16 @@ class DDPTrainer(DDPBaseTask, Trainer):
         """
         return (
             self._rank == 0
-            and self._config.save_checkpoint
-            and self._config.checkpoint_interval > 0
-            and epoch % self._config.checkpoint_interval == 0
+            and self._config.checkpoint_config.save_checkpoint
+            and self._config.checkpoint_config.checkpoint_interval > 0
+            and epoch % self._config.checkpoint_config.checkpoint_interval == 0
         )
 
     def _should_save_final_model(self) -> bool:
         """
         Determines if the final model should be saved based on the given save_final_model flag and the current rank.
         """
-        return self._rank == 0 and self._config.save_final_model
+        return self._rank == 0 and self._config.final_model_config.save_final_model
 
     def _run_epoch(self, epoch: int) -> None:
         """
@@ -89,24 +93,28 @@ class DDPTrainer(DDPBaseTask, Trainer):
             epoch (int): Current epoch number.
         """
         total_loss = 0.0
-        sampler = self._config.train_loader.sampler
+        sampler = self._config.training_process_config.train_loader.sampler
         assert isinstance(
             sampler, DistributedSampler
         ), "Sampler must be of type DistributedSampler"
         sampler.set_epoch(epoch)
 
         if self._rank == 0:
-            # Only initialize tqdm in the master process
-            data_iterator = tqdm(self._config.train_loader, leave=False, position=1)
+            # Only initialize tqdm in the master process, use as context manager
+            with tqdm(self._config.training_process_config.train_loader, leave=False, position=1) as data_iterator:
+                for source, targets in data_iterator:
+                    source, targets = source.to(self._device), targets.to(self._device)
+                    loss = self._run_batch(source, targets)
+                    total_loss += loss
         else:
-            data_iterator = self._config.train_loader
-        for source, targets in data_iterator:
-            source, targets = source.to(self._device), targets.to(self._device)
-            loss = self._run_batch(source, targets)
-            total_loss += loss
+            data_iterator = self._config.training_process_config.train_loader
+            for source, targets in data_iterator:
+                source, targets = source.to(self._device), targets.to(self._device)
+                loss = self._run_batch(source, targets)
+                total_loss += loss
 
         # Compute average loss across all batches and all processes
-        total_loss /= len(self._config.train_loader) * self._world_size
+        total_loss /= len(self._config.training_process_config.train_loader) * self._world_size
 
         if self._rank == 0:
             self._log_loss(epoch, total_loss)

@@ -62,13 +62,6 @@ class CreateDatasetCliConfig(BaseDatasetCliConfig):
     random_sample_size: Optional[int] = None
 
 
-@dataclass
-class AttacksDatasetCliConfig(CreateDatasetCliConfig):
-    """
-    A specialized configuration for attacks, adding attack-specific parameters.
-    """
-
-    random_sample_size: Optional[int] = None
 
 
 # ----------------------------------------------------------------
