@@ -4,8 +4,8 @@ import pytest
 from torch.utils.data import Dataset as TorchDataset
 
 from advsecurenet.shared.types.dataset import DatasetType
-from advsecurenet.shared.types.configs.dataset_config import (
-    AttacksDatasetCliConfig,
+from cli.shared.types.utils.dataset import (
+    CreateDatasetCliConfig,
     CreateDatasetCliConfig,
     UserSplitConfig,
     ResolvedDatasetConfig,
@@ -78,7 +78,7 @@ def test_get_datasets_attacks(mock_create_dataset):
 
     mock_create_dataset.return_value = mock_dataset
     preprocessing_mock = MagicMock()
-    mock_config = AttacksDatasetCliConfig(
+    mock_config = CreateDatasetCliConfig(
         dataset_name="CIFAR10",
         num_classes=10,
         preprocessing=preprocessing_mock,
