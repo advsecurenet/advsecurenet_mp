@@ -9,20 +9,32 @@ from cli.shared.types.utils.model import ModelCliConfigType
 
 @dataclass
 class TrainingHyperparameter:
-    criterion: str
+    """
+    CLI configuration for training hyperparameters.
+    Uses the same structure as the shared base for consistency.
+    """
+    criterion: str = "cross_entropy"
     epochs: int = 10
     learning_rate: float = 0.001
     verbose: bool = False
 
 @dataclass
 class Optimization:
-    optimizer: str
+    """
+    CLI configuration for optimization.
+    Uses the same structure as the shared base for consistency.
+    """
+    optimizer: str = "adam"
     optimizer_kwargs: Optional[dict] = None
     scheduler: Optional[str] = None
     scheduler_kwargs: Optional[dict] = None
 
 @dataclass
 class Checkpoint:
+    """
+    CLI configuration for checkpoints.
+    Uses the same structure as the shared base for consistency.
+    """
     save_checkpoint: bool = False
     save_checkpoint_path: Optional[str] = None
     save_checkpoint_name: Optional[str] = None
@@ -32,12 +44,20 @@ class Checkpoint:
 
 @dataclass
 class FinalModel:
+    """
+    CLI configuration for final model saving.
+    Uses the same structure as the shared base for consistency.
+    """
     save_final_model: bool = False
     save_model_path: Optional[str] = None
     save_model_name: Optional[str] = None
 
 @dataclass
 class DifferentialPrivacy:
+    """
+    CLI configuration for differential privacy.
+    Uses the same structure as the shared base for consistency.
+    """
     enable: bool = False
     noise_multiplier: float = 1.0
     max_grad_norm: float = 1.0
