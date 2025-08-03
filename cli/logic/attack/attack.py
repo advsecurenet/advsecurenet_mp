@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 OD_ATTACKS = {"DPATCH", "TOG"}
 
+
 def cli_attack(attack_name: str, config: str, **kwargs) -> None:
     """
     Entry point for the attack CLI. This function is called when the user wants to execute an attack. It determines the

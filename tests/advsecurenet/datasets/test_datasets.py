@@ -273,12 +273,18 @@ def test_coco_dataset():
 
     # Assertions
     assert dataset.mean == [0.485, 0.456, 0.406], "Mean values do not match"
-    assert dataset.std == [0.229, 0.224, 0.225], "Standard deviation values do not match"
+    assert dataset.std == [
+        0.229,
+        0.224,
+        0.225,
+    ], "Standard deviation values do not match"
     assert dataset.input_size == (224, 224), "Input size does not match"
     assert dataset.name == "coco", "Dataset name does not match"
     assert dataset.num_classes == 80, "Number of classes does not match"
     assert dataset.num_input_channels == 3, "Number of input channels does not match"
-    assert dataset._preprocess_config == preprocess_config, "Preprocess config does not match"
+    assert (
+        dataset._preprocess_config == preprocess_config
+    ), "Preprocess config does not match"
     assert isinstance(dataset, BaseDataset), "Instance is not of type BaseDataset"
 
 
@@ -289,13 +295,29 @@ def make_minimal_coco_dataset(tmp_path, num_images=2, num_anns=2):
     for i in range(num_images):
         images.append({"id": i, "file_name": f"img_{i}.jpg"})
     for i in range(num_anns):
-        anns.append({"id": i, "image_id": i % num_images, "category_id": 1, "bbox": [0,0,10,10], "area": 100, "iscrowd": 0})
+        anns.append(
+            {
+                "id": i,
+                "image_id": i % num_images,
+                "category_id": 1,
+                "bbox": [0, 0, 10, 10],
+                "area": 100,
+                "iscrowd": 0,
+            }
+        )
     cats = [{"id": 1, "name": "cat1"}]
     info = {"description": "test"}
     licenses = [{"id": 1, "name": "lic1"}]
-    data = {"images": images, "annotations": anns, "categories": cats, "info": info, "licenses": licenses}
+    data = {
+        "images": images,
+        "annotations": anns,
+        "categories": cats,
+        "info": info,
+        "licenses": licenses,
+    }
     ann_path = tmp_path / "ann.json"
     import json
+
     with open(ann_path, "w") as f:
         json.dump(data, f)
     img_dir = tmp_path / "images"
@@ -305,6 +327,7 @@ def make_minimal_coco_dataset(tmp_path, num_images=2, num_anns=2):
         img.save(img_dir / f"img_{i}.jpg")
     return str(img_dir), str(ann_path)
 
+
 @pytest.mark.advsecurenet
 def test_coco_dataset_getitem_and_len(tmp_path):
     img_dir, ann_path = make_minimal_coco_dataset(tmp_path)
@@ -313,7 +336,9 @@ def test_coco_dataset_getitem_and_len(tmp_path):
     dataset.img_dir = img_dir
     dataset.ann_file = ann_path
     # Patch CocoDetection to avoid real file IO
-    with patch("advsecurenet.datasets.COCO.coco_dataset.datasets.CocoDetection") as mock_coco:
+    with patch(
+        "advsecurenet.datasets.COCO.coco_dataset.datasets.CocoDetection"
+    ) as mock_coco:
         mock_coco.return_value = MagicMock()
         wrapper = dataset.load_dataset(root=str(tmp_path), train=True, download=False)
         assert wrapper is not None
@@ -322,12 +347,14 @@ def test_coco_dataset_getitem_and_len(tmp_path):
     with pytest.raises(Exception):
         _ = dataset[100]
 
+
 @pytest.mark.advsecurenet
 def test_coco_dataset_empty(tmp_path):
     img_dir = tmp_path / "images"
     img_dir.mkdir()
     ann_path = tmp_path / "ann.json"
     import json
+
     with open(ann_path, "w") as f:
         json.dump({"images": [], "annotations": [], "categories": []}, f)
     preprocess_config = PreprocessConfig(steps=[])
@@ -343,6 +370,7 @@ def test_coco_dataset_empty(tmp_path):
     with pytest.raises(Exception):
         _ = dataset[0]
 
+
 @pytest.mark.advsecurenet
 def test_coco_dataset_bad_annotation(tmp_path):
     img_dir, ann_path = make_minimal_coco_dataset(tmp_path)
@@ -356,28 +384,38 @@ def test_coco_dataset_bad_annotation(tmp_path):
     with pytest.raises(Exception):
         dataset._load_annotations()
 
+
 @pytest.mark.advsecurenet
 def test_coco_dataset_load_dataset(tmp_path):
     # Patch CocoDetection to avoid real file IO
-    with patch("advsecurenet.datasets.COCO.coco_dataset.datasets.CocoDetection") as mock_coco:
+    with patch(
+        "advsecurenet.datasets.COCO.coco_dataset.datasets.CocoDetection"
+    ) as mock_coco:
         mock_coco.return_value = MagicMock()
         dataset = COCODataset()
         # Patch _downlaod_coco_if_not_exists to avoid download
         with patch.object(dataset, "_downlaod_coco_if_not_exists") as mock_dl:
-            wrapper = dataset.load_dataset(root=str(tmp_path), train=True, download=True)
+            wrapper = dataset.load_dataset(
+                root=str(tmp_path), train=True, download=True
+            )
             assert dataset.data_type is not None
             assert wrapper.dataset == mock_coco.return_value
             mock_dl.assert_called_once()
         # Test with download=False
         with patch.object(dataset, "_downlaod_coco_if_not_exists") as mock_dl:
-            wrapper = dataset.load_dataset(root=str(tmp_path), train=False, download=False)
+            wrapper = dataset.load_dataset(
+                root=str(tmp_path), train=False, download=False
+            )
             assert dataset.data_type is not None
             mock_dl.assert_not_called()
+
 
 @pytest.mark.advsecurenet
 def test_coco_dataset_maybe_download(tmp_path):
     # Patch download_and_extract_archive
-    with patch("advsecurenet.datasets.COCO.coco_dataset.download_and_extract_archive") as mock_dl:
+    with patch(
+        "advsecurenet.datasets.COCO.coco_dataset.download_and_extract_archive"
+    ) as mock_dl:
         # Case: both dirs missing
         dataset = COCODataset()
         root = str(tmp_path)
@@ -393,12 +431,14 @@ def test_coco_dataset_maybe_download(tmp_path):
         # Allow for 0 or 1 call depending on which dir exists
         assert mock_dl.call_count in (0, 1)
 
+
 @pytest.mark.advsecurenet
 def test_coco_utils_map_raw_to_contiguous_valid():
     for raw_id in coco_utils.COCO_INSTANCE_CATEGORY_IDS:
         idx = coco_utils.map_raw_to_contiguous(raw_id)
         assert isinstance(idx, int)
         assert 0 <= idx < len(coco_utils.COCO_INSTANCE_CATEGORY_IDS)
+
 
 @pytest.mark.advsecurenet
 def test_coco_utils_map_raw_to_contiguous_invalid():
@@ -407,37 +447,57 @@ def test_coco_utils_map_raw_to_contiguous_invalid():
     with pytest.raises(KeyError):
         coco_utils.map_raw_to_contiguous(9999)
 
+
 @pytest.mark.advsecurenet
 def test_coco_utils_extract_predictions_empty():
     preds = {"labels": [], "boxes": [], "scores": []}
     classes, boxes, scores = coco_utils.extract_predictions(preds, 0.5)
     assert classes == boxes == scores == []
 
+
 @pytest.mark.advsecurenet
 def test_coco_utils_extract_predictions_all_below_thresh():
-    preds = {"labels": [0, 1], "boxes": [[0,0,1,1],[1,1,2,2]], "scores": [0.1, 0.2]}
+    preds = {
+        "labels": [0, 1],
+        "boxes": [[0, 0, 1, 1], [1, 1, 2, 2]],
+        "scores": [0.1, 0.2],
+    }
     classes, boxes, scores = coco_utils.extract_predictions(preds, 0.5)
     assert classes == boxes == scores == []
 
+
 @pytest.mark.advsecurenet
 def test_coco_utils_extract_predictions_some_above_thresh():
-    preds = {"labels": [0, 1], "boxes": [[0,0,1,1],[1,1,2,2]], "scores": [0.1, 0.9]}
+    preds = {
+        "labels": [0, 1],
+        "boxes": [[0, 0, 1, 1], [1, 1, 2, 2]],
+        "scores": [0.1, 0.9],
+    }
     classes, boxes, scores = coco_utils.extract_predictions(preds, 0.5)
     assert classes == [coco_utils.COCO_INSTANCE_CATEGORY_NAMES[1]]
-    assert boxes == [[(1,1),(2,2)]]
+    assert boxes == [[(1, 1), (2, 2)]]
     assert scores == [0.9]
+
 
 @pytest.mark.advsecurenet
 def test_coco_utils_extract_predictions_all_above_thresh():
-    preds = {"labels": [0, 1], "boxes": [[0,0,1,1],[1,1,2,2]], "scores": [0.6, 0.9]}
+    preds = {
+        "labels": [0, 1],
+        "boxes": [[0, 0, 1, 1], [1, 1, 2, 2]],
+        "scores": [0.6, 0.9],
+    }
     classes, boxes, scores = coco_utils.extract_predictions(preds, 0.5)
-    assert classes == [coco_utils.COCO_INSTANCE_CATEGORY_NAMES[0], coco_utils.COCO_INSTANCE_CATEGORY_NAMES[1]]
-    assert boxes == [[(0,0),(1,1)], [(1,1),(2,2)]]
+    assert classes == [
+        coco_utils.COCO_INSTANCE_CATEGORY_NAMES[0],
+        coco_utils.COCO_INSTANCE_CATEGORY_NAMES[1],
+    ]
+    assert boxes == [[(0, 0), (1, 1)], [(1, 1), (2, 2)]]
     assert scores == [0.6, 0.9]
+
 
 @pytest.mark.advsecurenet
 def test_coco_utils_extract_predictions_invalid_input():
     # labels index out of range
-    preds = {"labels": [999], "boxes": [[0,0,1,1]], "scores": [0.9]}
+    preds = {"labels": [999], "boxes": [[0, 0, 1, 1]], "scores": [0.9]}
     with pytest.raises(IndexError):
         coco_utils.extract_predictions(preds, 0.5)

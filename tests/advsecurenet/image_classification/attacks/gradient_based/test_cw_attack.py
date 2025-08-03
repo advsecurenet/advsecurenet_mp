@@ -5,7 +5,9 @@ from unittest.mock import patch
 import pytest
 import torch
 
-from advsecurenet.computer_vision.image_classification.attacks.gradient_based.cw import CWAttack
+from advsecurenet.computer_vision.image_classification.attacks.gradient_based.cw import (
+    CWAttack,
+)
 from advsecurenet.models.model_factory import ModelFactory
 from advsecurenet.shared.types.configs.attack_configs import CWAttackConfig
 from advsecurenet.shared.types.configs.device_config import DeviceConfig

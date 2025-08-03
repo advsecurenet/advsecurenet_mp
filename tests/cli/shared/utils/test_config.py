@@ -246,7 +246,9 @@ def test_include_yaml_file_not_found(mock_file_open, loader, node):
     with mock.patch.object(logger, "error") as mock_logging_error:
         result = _include_yaml(loader, node)
 
-        expected_path = os.path.normpath(os.path.join("/path/to/current", "included.yaml"))
+        expected_path = os.path.normpath(
+            os.path.join("/path/to/current", "included.yaml")
+        )
         call_args = mock_file_open.call_args[0]
         assert os.path.normpath(call_args[0]) == expected_path
         assert call_args[1] == "r"
@@ -262,7 +264,9 @@ def test_include_yaml_general_exception(mock_file_open, loader, node):
     with mock.patch.object(logger, "error") as mock_logging_error:
         result = _include_yaml(loader, node)
 
-        expected_path = os.path.normpath(os.path.join("/path/to/current", "included.yaml"))
+        expected_path = os.path.normpath(
+            os.path.join("/path/to/current", "included.yaml")
+        )
         call_args = mock_file_open.call_args[0]
         assert os.path.normpath(call_args[0]) == expected_path
         assert call_args[1] == "r"
@@ -308,10 +312,11 @@ def test_make_paths_absolute_dict(mock_abspath, mock_exists, base_path, config_d
 
     expected = os.path.normpath("/absolute/base/path/relative/path/to/file")
     assert os.path.normpath(config_dict["relative_path"]) == expected
-    assert os.path.normpath(config_dict["absolute_path"]) == os.path.normpath("/absolute/path/to/file")
-    assert (
-        os.path.normpath(config_dict["nested"]["relative_dir"])
-        == os.path.normpath("/absolute/base/path/relative/path/to/dir")
+    assert os.path.normpath(config_dict["absolute_path"]) == os.path.normpath(
+        "/absolute/path/to/file"
+    )
+    assert os.path.normpath(config_dict["nested"]["relative_dir"]) == os.path.normpath(
+        "/absolute/base/path/relative/path/to/dir"
     )
 
 
@@ -324,11 +329,12 @@ def test_make_paths_absolute_list(mock_abspath, mock_exists, base_path, config_l
 
     expected = os.path.normpath("/absolute/base/path/relative/path/to/file")
     assert os.path.normpath(config_list[0]["relative_path"]) == expected
-    assert os.path.normpath(config_list[1]["absolute_path"]) == os.path.normpath("/absolute/path/to/file")
-    assert (
-        os.path.normpath(config_list[2]["nested"]["relative_dir"])
-        == os.path.normpath("/absolute/base/path/relative/path/to/dir")
+    assert os.path.normpath(config_list[1]["absolute_path"]) == os.path.normpath(
+        "/absolute/path/to/file"
     )
+    assert os.path.normpath(
+        config_list[2]["nested"]["relative_dir"]
+    ) == os.path.normpath("/absolute/base/path/relative/path/to/dir")
 
 
 @pytest.mark.cli

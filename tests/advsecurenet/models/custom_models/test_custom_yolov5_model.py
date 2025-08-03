@@ -5,37 +5,46 @@ from unittest.mock import patch, MagicMock
 
 from advsecurenet.models.CustomModels import CustomYolov5Model as cym
 import advsecurenet.models.CustomModels.CustomYolov5Model as cymod
+
 # REMOVE: from advsecurenet.models.CustomModels.CustomYolov5Model import CustomYolov5Model
+
 
 # Minimal YOLOv5-like model for ComputeLoss
 class MinimalYoloModel:
-    def __init__(self, device='cpu'):
+    def __init__(self, device="cpu"):
         self._param = torch.nn.Parameter(torch.zeros(1, device=device))
         self.hyp = {
-            'box': 0.05,
-            'obj': 1.0,
-            'cls': 0.5,
-            'anchor_t': 4.0,
-            'cls_pw': 1.0,
-            'obj_pw': 1.0,
-            'fl_gamma': 0.0
+            "box": 0.05,
+            "obj": 1.0,
+            "cls": 0.5,
+            "anchor_t": 4.0,
+            "cls_pw": 1.0,
+            "obj_pw": 1.0,
+            "fl_gamma": 0.0,
         }
         self.model = [MagicMock()]  # mimic a list of layers
+
     def parameters(self):
         return iter([self._param])
+
     def __call__(self, x, *args, **kwargs):
         return "raw_logits"
+
     def eval(self):
         return self
+
     def train(self, mode=True):
         return self
+
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
 def test_model_initialization():
-    with patch("yolov5.load") as mock_load, \
-         patch("yolov5.models.common.AutoShape") as mock_autoshape:
+    with patch("yolov5.load") as mock_load, patch(
+        "yolov5.models.common.AutoShape"
+    ) as mock_autoshape:
         from advsecurenet.models.CustomModels.CustomYolov5Model import CustomYolov5Model
+
         dummy_model = MinimalYoloModel()
         mock_load.return_value.model = dummy_model
         mock_autoshape.return_value = MagicMock()
@@ -46,11 +55,13 @@ def test_model_initialization():
         assert hasattr(model, "compute_loss")
         assert isinstance(model._model.hyp, dict)
 
+
 @pytest.mark.advsecurenet
 @pytest.mark.essential
 def test_forward_eval_mode():
     with patch("yolov5.models.common.AutoShape") as mock_autoshape:
         from advsecurenet.models.CustomModels.CustomYolov5Model import CustomYolov5Model
+
         dummy_model = MinimalYoloModel()
         with patch("yolov5.load") as mock_load:
             mock_load.return_value.model = dummy_model
@@ -60,12 +71,15 @@ def test_forward_eval_mode():
             out = model(x)
             assert out == "raw_logits"
 
+
 @pytest.mark.advsecurenet
 @pytest.mark.essential
 def test_forward_train_mode():
-    with patch("yolov5.load") as mock_load, \
-         patch("yolov5.models.common.AutoShape") as mock_autoshape:
+    with patch("yolov5.load") as mock_load, patch(
+        "yolov5.models.common.AutoShape"
+    ) as mock_autoshape:
         from advsecurenet.models.CustomModels.CustomYolov5Model import CustomYolov5Model
+
         dummy_model = MinimalYoloModel()
         mock_load.return_value.model = dummy_model
         mock_autoshape.return_value = MagicMock()
@@ -83,24 +97,30 @@ def test_forward_train_mode():
         assert out["loss_obj"] == 2.0
         assert out["loss_cls"] == 3.0
 
+
 @pytest.mark.advsecurenet
 @pytest.mark.essential
 def test_custom_weights_path():
-    with patch("yolov5.load") as mock_load, \
-         patch("yolov5.models.common.AutoShape") as mock_autoshape:
+    with patch("yolov5.load") as mock_load, patch(
+        "yolov5.models.common.AutoShape"
+    ) as mock_autoshape:
         from advsecurenet.models.CustomModels.CustomYolov5Model import CustomYolov5Model
+
         dummy_model = MinimalYoloModel()
         mock_load.return_value.model = dummy_model
         mock_autoshape.return_value = MagicMock()
         model = CustomYolov5Model(model_weights_path="some/other/path.pt")
         mock_load.assert_called_once_with("some/other/path.pt", autoshape=False)
 
+
 @pytest.mark.advsecurenet
 @pytest.mark.essential
 def test_predict_raw():
-    with patch("yolov5.load") as mock_load, \
-         patch("yolov5.models.common.AutoShape") as mock_autoshape:
+    with patch("yolov5.load") as mock_load, patch(
+        "yolov5.models.common.AutoShape"
+    ) as mock_autoshape:
         from advsecurenet.models.CustomModels.CustomYolov5Model import CustomYolov5Model
+
         dummy_model = MinimalYoloModel()
         mock_load.return_value.model = dummy_model
         mock_autoshape.return_value = MagicMock()

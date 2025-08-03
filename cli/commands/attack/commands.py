@@ -631,7 +631,9 @@ def dpatch(config, **kwargs):
 @click.option(
     "--attack-type",
     default=None,
-    type=click.Choice(["vanishing", "untargeted", "mislabeling", "fabrication"], case_sensitive=False),
+    type=click.Choice(
+        ["vanishing", "untargeted", "mislabeling", "fabrication"], case_sensitive=False
+    ),
     help="TOG attack type: vanishing, untargeted, or mislabeling.",
 )
 @click.option(

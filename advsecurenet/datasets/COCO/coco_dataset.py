@@ -31,13 +31,13 @@ class COCODataset(BaseDataset):
         self.std = params.std
 
         # set input_size from preprocess_config if available, else default
-        if preprocess_config and getattr(preprocess_config, 'steps', None):
+        if preprocess_config and getattr(preprocess_config, "steps", None):
             for step in preprocess_config.steps:
                 if step.name.lower() == "resize" and "size" in step.params:
                     self.input_size = tuple(step.params["size"])
                     break
             else:
-                self.input_size = (224, 224) # COCO default
+                self.input_size = (224, 224)  # COCO default
         else:
             self.input_size = (224, 224)
 
@@ -46,16 +46,20 @@ class COCODataset(BaseDataset):
         split = "train2017" if train else "val2017"
         # image archive & annotation archive
         img_url = f"https://images.cocodataset.org/zips/{split}.zip"
-        ann_url = "https://images.cocodataset.org/annotations/annotations_trainval2017.zip"
+        ann_url = ("https://images.cocodataset.org/annotations/annotations_trainval2017.zip")
 
         img_dir = os.path.join(root, split)
         ann_dir = os.path.join(root, "annotations")
 
         if not os.path.isdir(img_dir):
-            download_and_extract_archive(url=img_url, download_root=root, extract_root=root)
+            download_and_extract_archive(
+                url=img_url, download_root=root, extract_root=root
+            )
 
         if not os.path.isdir(ann_dir):
-            download_and_extract_archive(url=ann_url, download_root=root, extract_root=root)
+            download_and_extract_archive(
+                url=ann_url, download_root=root, extract_root=root
+            )
 
     def get_dataset_class(self):
         return datasets.CocoDetection
@@ -90,13 +94,17 @@ class COCODataset(BaseDataset):
         # 3) build image folder + annotation path
         split = "train2017" if train else "val2017"
         img_root = os.path.join(root, split)
-        ann_file = os.path.join(root, "annotations", f"instances_{'train' if train else 'val'}2017.json")
+        ann_file = os.path.join(
+            root, "annotations", f"instances_{'train' if train else 'val'}2017.json"
+        )
 
         # 4) get transforms from preprocess_config
         transform = self.get_transforms()
 
         # 5) instantiate the torchvision dataset
-        coco_ds = datasets.CocoDetection(root=img_root, annFile=ann_file, transform=transform)
+        coco_ds = datasets.CocoDetection(
+            root=img_root, annFile=ann_file, transform=transform
+        )
 
         # 6) wrap and return
         self._dataset = DatasetWrapper(dataset=coco_ds, name=self.name)

@@ -1,1 +1,3 @@
-from advsecurenet.models.CustomODWrappers.CustomYolov5ODWrapper import CustomYolov5ODWrapper
+from advsecurenet.models.CustomODWrappers.CustomYolov5ODWrapper import (
+    CustomYolov5ODWrapper,
+)

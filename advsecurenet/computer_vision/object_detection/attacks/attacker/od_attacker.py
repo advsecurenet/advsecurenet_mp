@@ -6,10 +6,13 @@ from tqdm.auto import tqdm
 
 from advsecurenet.evaluation.adversarial_evaluator import AdversarialEvaluator
 from advsecurenet.dataloader import DataLoaderFactory
-from advsecurenet.shared.types.configs.attack_configs.od_attacker_config import ODAttackerConfig
+from advsecurenet.shared.types.configs.attack_configs.od_attacker_config import (
+    ODAttackerConfig,
+)
 from advsecurenet.utils.device_utils import setup_device
 
 logger = logging.getLogger(__name__)
+
 
 class ODAttacker(abc.ABC):
     """
@@ -17,12 +20,12 @@ class ODAttacker(abc.ABC):
       - `config.attack.object_detector` is used to *generate* the patch
       - `config.model` is used to *detect* on the patched images
     """
-    def __init__(self, config: ODAttackerConfig):
-        self._config       = config
-        self._device       = setup_device(config.device.processor)
-        self._eval_model   = config.model.to(self._device).eval()
-        self._dataloader   = self._create_dataloader()
 
+    def __init__(self, config: ODAttackerConfig):
+        self._config = config
+        self._device = setup_device(config.device.processor)
+        self._eval_model = config.model.to(self._device).eval()
+        self._dataloader = self._create_dataloader()
 
     def _create_dataloader(self):
         """
@@ -35,11 +38,12 @@ class ODAttacker(abc.ABC):
             return dl
         return DataLoaderFactory.create_dataloader(dl)
 
-
     @abc.abstractmethod
     def execute(self):
         """
         Generate adversarial samples (or other attack outputs).
         Must be overridden in subclasses.
         """
-        raise NotImplementedError("Subclasses of ODAttackerBase must implement execute().")
+        raise NotImplementedError(
+            "Subclasses of ODAttackerBase must implement execute()."
+        )

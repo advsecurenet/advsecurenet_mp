@@ -60,6 +60,7 @@ def layers(model_name: str, normalization: bool):
 
     cli_model_layers(model_name, normalization)
 
+
 @models.command()
 @click.option(
     "-m",
@@ -95,7 +96,13 @@ def layers(model_name: str, normalization: bool):
     type=str,
     help="Manually specify the Hugging Face model class name (e.g., 'ViTForImageClassification'). Overrides automatic inference.",
 )
-def huggingface(model_identifier: str, pretrained: bool, revision: str, trust_remote_code: bool, model_class_name: str):
+def huggingface(
+    model_identifier: str,
+    pretrained: bool,
+    revision: str,
+    trust_remote_code: bool,
+    model_class_name: str,
+):
     """Command to load and inspect a Hugging Face model.
 
     Args:
@@ -109,4 +116,10 @@ def huggingface(model_identifier: str, pretrained: bool, revision: str, trust_re
     """
     from cli.logic.utils.model import cli_huggingface_model
 
-    cli_huggingface_model(model_identifier=model_identifier, pretrained=pretrained, revision=revision, trust_remote_code=trust_remote_code, model_class_name=model_class_name)
+    cli_huggingface_model(
+        model_identifier=model_identifier,
+        pretrained=pretrained,
+        revision=revision,
+        trust_remote_code=trust_remote_code,
+        model_class_name=model_class_name,
+    )
