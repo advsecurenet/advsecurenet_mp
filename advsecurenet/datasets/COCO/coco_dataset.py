@@ -45,8 +45,8 @@ class COCODataset(BaseDataset):
     def _downlaod_coco_if_not_exists(root: str, train: bool):
         split = "train2017" if train else "val2017"
         # image archive & annotation archive
-        img_url = f"http://images.cocodataset.org/zips/{split}.zip"
-        ann_url = "http://images.cocodataset.org/annotations/annotations_trainval2017.zip"
+        img_url = f"https://images.cocodataset.org/zips/{split}.zip"
+        ann_url = "https://images.cocodataset.org/annotations/annotations_trainval2017.zip"
 
         img_dir = os.path.join(root, split)
         ann_dir = os.path.join(root, "annotations")

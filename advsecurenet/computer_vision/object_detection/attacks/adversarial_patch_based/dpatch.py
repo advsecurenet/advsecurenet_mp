@@ -8,6 +8,7 @@ https://github.com/Trusted-AI/adversarial-robustness-toolbox/blob/main/art/attac
 import math
 import random
 import warnings
+import secrets
 import numpy as np
 import torch
 from tqdm.auto import trange, tqdm
@@ -315,10 +316,8 @@ class DPatch(ObjectDetectionAttack):
         # Ensure upper bound is not less than lower bound
         max_h_start = img_height - patch_height
         max_w_start = img_width - patch_width
-        if max_h_start < 0 or max_w_start < 0:
-                raise ValueError(f"Patch (H={patch_height}, W={patch_width}) is larger than image (H={img_height}, W={img_width}).")
-        i_x_1 = random.randint(0, max_h_start) # Use height
-        i_y_1 = random.randint(0, max_w_start)   # Use width
+        i_x_1 = secrets.randbelow(max_h_start + 1)  # Use height
+        i_y_1 = secrets.randbelow(max_w_start + 1)  # Use width
         return i_x_1, i_y_1
 
 
