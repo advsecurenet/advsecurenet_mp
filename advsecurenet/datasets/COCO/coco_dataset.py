@@ -46,7 +46,9 @@ class COCODataset(BaseDataset):
         split = "train2017" if train else "val2017"
         # image archive & annotation archive
         img_url = f"https://images.cocodataset.org/zips/{split}.zip"
-        ann_url = ("https://images.cocodataset.org/annotations/annotations_trainval2017.zip")
+        ann_url = (
+            "https://images.cocodataset.org/annotations/annotations_trainval2017.zip"
+        )
 
         img_dir = os.path.join(root, split)
         ann_dir = os.path.join(root, "annotations")
