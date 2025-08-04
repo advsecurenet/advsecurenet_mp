@@ -74,6 +74,7 @@ class Training:
     checkpoint: Checkpoint
     final_model: FinalModel
     differential_privacy: Optional[DifferentialPrivacy] = None
+    verbose: bool = False
 
 
 @dataclass

@@ -21,7 +21,7 @@ class DDPAdversarialTraining(DDPTrainer, AdversarialTraining):
     def __init__(
         self, config: AdversarialTrainingConfig, rank: int, world_size: int
     ) -> None:
-        DDPTrainer.__init__(self, config=config, rank=rank, world_size=world_size)
+        DDPTrainer.__init__(self, config=config.train_config, rank=rank, world_size=world_size)
         AdversarialTraining.__init__(self, config=config)
 
     def _get_train_loader(self, epoch: int):
