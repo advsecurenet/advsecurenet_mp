@@ -1,8 +1,9 @@
 model:
   model_name: resnet18
-  num_input_channels: 3
-  num_classes: 10
-  pretrained: false
+  architecture:
+    num_input_channels: 3
+    num_classes: 10
+  pretrained: true
   weights: IMAGENET1K_V1
   is_external: false
   random_seed:
@@ -22,7 +23,8 @@ model:
 dataset:
   dataset_name: cifar10
   num_classes: 10
-  dataset_part: test
+  load_splits:
+    - test
   train_dataset_path:
   test_dataset_path:
   random_sample_size: 100
@@ -43,7 +45,7 @@ dataloader:
     batch_size: 32
 device:
   use_ddp: false
-  processor: cuda:1
+  processor: cuda
   gpu_ids:
 attack_procedure:
   verbose: true

@@ -23,7 +23,8 @@ model:
 dataset:
   dataset_name: cifar10
   num_classes: 10
-  dataset_part: test
+  load_splits:
+    - test
   train_dataset_path:
   test_dataset_path:
   random_sample_size: 10
@@ -37,14 +38,14 @@ dataset:
           scale: true
 dataloader:
   default:
-    num_workers: 4
+    num_workers: 2
     shuffle: true
     drop_last: false
     pin_memory: true
     batch_size: 32
 device:
   use_ddp: false
-  processor: cuda
+  processor: mps
   gpu_ids:
 attack_procedure:
   verbose: true

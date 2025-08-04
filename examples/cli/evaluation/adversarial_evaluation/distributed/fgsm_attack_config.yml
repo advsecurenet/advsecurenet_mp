@@ -3,7 +3,7 @@ model:
   architecture:
     num_input_channels: 3
     num_classes: 10
-  pretrained: false
+  pretrained: true
   weights: IMAGENET1K_V1
   is_external: false
   random_seed:
@@ -13,28 +13,29 @@ model:
   norm_config:
     add_norm_layer: false
     norm_mean:
-      - 0.5
-      - 0.5
-      - 0.5
+    - 0.5
+    - 0.5
+    - 0.5
     norm_std:
-      - 0.5
-      - 0.5
-      - 0.5
+    - 0.5
+    - 0.5
+    - 0.5
 dataset:
   dataset_name: cifar10
   num_classes: 10
-  dataset_part: test
+  load_splits:
+  - test
   train_dataset_path:
   test_dataset_path:
   random_sample_size:
   preprocessing:
     steps:
-      - name: ToImage
-        params:
-      - name: ToDtype
-        params:
-          dtype: torch.float32
-          scale: true
+    - name: ToImage
+      params:
+    - name: ToDtype
+      params:
+        dtype: torch.float32
+        scale: true
 dataloader:
   default:
     num_workers: 4
@@ -43,12 +44,12 @@ dataloader:
     pin_memory: true
     batch_size: 32
 device:
-  use_ddp: true
+  use_ddp: false
   processor: cuda
-  gpu_ids: [2, 6]
+  gpu_ids:
 attack_procedure:
   verbose: true
-  save_result_images: false
+  save_result_images: true
   result_images_dir: attack
   result_images_prefix: adv
 attack_config:
@@ -60,6 +61,6 @@ attack_config:
     target_labels_config:
       target_labels: []
       target_labels_path:
-      target_labels_separator: ","
+      target_labels_separator: ','
   attack_parameters:
     epsilon: 0.3
