@@ -35,13 +35,13 @@ dataset:
           scale: true
 dataloader:
   train:
-    num_workers: 4
+    num_workers: 0  # Set to 0 to avoid multiprocessing issues on development machines
     shuffle: true
     drop_last: false
     pin_memory: true
     batch_size: 64
   test:
-    num_workers: 4
+    num_workers: 0  # Set to 0 to avoid multiprocessing issues on development machines
     shuffle: true
     drop_last: false
     pin_memory: true
@@ -51,21 +51,25 @@ device:
   processor: cuda
   gpu_ids: [1, 2, 4]
 training:
-  epochs: 1
-  learning_rate: 0.01
-  optimizer: adam
-  optimizer_kwargs:
-    weight_decay: 0.0001
-  scheduler: LINEAR_LR
-  scheduler_kwargs:
-  criterion: cross_entropy
-  save_final_model: true
-  save_model_path: ./
-  save_model_name:
-  save_checkpoint: false
-  save_checkpoint_path:
-  save_checkpoint_name:
-  checkpoint_interval: 1
-  load_checkpoint: false
-  load_checkpoint_path:
-  verbose: true
+  training_hyperparameter:
+    epochs: 1
+    learning_rate: 0.01
+    criterion: cross_entropy
+    verbose: true
+  optimization:
+    optimizer: adam
+    optimizer_kwargs:
+      weight_decay: 0.0001
+    scheduler: LINEAR_LR
+    scheduler_kwargs:
+  checkpoint:
+    save_checkpoint: false
+    save_checkpoint_path:
+    save_checkpoint_name:
+    checkpoint_interval: 1
+    load_checkpoint: false
+    load_checkpoint_path:
+  final_model:
+    save_final_model: true
+    save_model_path: ./
+    save_model_name:

@@ -12,6 +12,7 @@ from advsecurenet.shared.types.configs.defense_configs.adversarial_training_conf
     AdversarialTrainingConfig,
 )
 from advsecurenet.trainer.trainer import Trainer
+from advsecurenet.trainer import trainer_logic
 from advsecurenet.utils.adversarial_target_generator import AdversarialTargetGenerator
 
 
@@ -87,7 +88,7 @@ class AdversarialTraining(Trainer):
 
     def _pre_training(self):
         # add target model to list of models if not already present
-        if self.config.train_config.model_config.model not in self.config.train_config.model_config.models:
+        if self.config.train_config.model_config.model not in self.config.models:
             self.config.models.append(self.config.train_config.model_config.model)
 
         # set each model to train mode
@@ -222,7 +223,7 @@ class AdversarialTraining(Trainer):
             total_loss += loss
 
         total_loss /= self._get_loss_divisor()
-        self._log_loss(epoch, total_loss)
+        trainer_logic.log_loss(epoch, total_loss)
 
     def _get_train_loader(self, epoch: int):
         return tqdm(
@@ -242,3 +243,14 @@ class AdversarialTraining(Trainer):
 
     def _get_loss_divisor(self):
         return len(self.config.train_config.training_process_config.train_loader)
+
+    def _run_batch(self, source: torch.Tensor, targets: torch.Tensor) -> float:
+        """Run a batch through the target model and return the loss."""
+        from advsecurenet.trainer.trainer_logic import run_batch
+        
+        model = self.config.train_config.model_config.model
+        optimizer = self.optimizer
+        loss_fn = self._loss_fn
+        scheduler = self._scheduler
+        
+        return run_batch(source, targets, model, optimizer, loss_fn, scheduler)
