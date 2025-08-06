@@ -5,7 +5,7 @@ from yolov5.models.common import AutoShape
 
 
 class CustomYolov5Model(torch.nn.Module):
-    def __init__(self, model_weights_path="model_weights\yolov5s.pt"):
+    def __init__(self, model_weights_path="yolov5s.pt"):
         super().__init__()
         self._model = yolov5.load(model_weights_path, autoshape=False).model
         self._autoshape = AutoShape(self._model)
