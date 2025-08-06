@@ -52,3 +52,66 @@ attack/
 venv/
 __pycache__/
 *.pyc
+
+venv/
+
+.bash_logout/
+.local/
+.cache/
+.dotnet/
+
+
+
+ Python
+__pycache__/
+*.py[cod]
+*.so
+*.pyd
+*.pyo
+*.egg-info/
+*.log
+
+# Virtual environments
+venv/
+env/
+.venv/
+ENV/
+
+# Jupyter
+.ipynb_checkpoints
+
+# VSCode settings
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# PyTorch / Checkpoints
+*.bin
+*.pt
+*.safetensors
+
+# Hugging Face cache and tokens
+~/.cache/huggingface/
+.cache/huggingface/
+token
+stored_tokens
+
+# Model output directories (adjust this path if needed)
+Qwen/
+*/checkpoint-*/
+
+# Transformers cache
+~/.cache/huggingface/transformers/
+~/.cache/huggingface/hub/
+~/.cache/huggingface/datasets/
+
+# Microsoft telemetry
+.cache/Microsoft/
+
+# Tokenizer / training artifacts
+*.jsonl
+*.json
+*.txt
+*.md

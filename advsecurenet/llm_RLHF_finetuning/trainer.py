@@ -25,7 +25,7 @@ class FineTuningPipeline:
         model, tokenizer = self.model_loader.load()
         train_data, eval_data = self.data_loader.load()
 
-        args = TrainingArguments(
+        args = SFTConfig(
             output_dir=self.training_config.output_dir,
             per_device_train_batch_size=self.training_config.per_device_train_batch_size,
             num_train_epochs=self.training_config.num_train_epochs,
@@ -34,8 +34,10 @@ class FineTuningPipeline:
             fp16=self.training_config.fp16,
             save_steps=self.training_config.save_steps,
             logging_steps=self.training_config.logging_steps,
+            gradient_checkpointing=True,
             eval_steps=self.training_config.eval_steps,
-            push_to_hub=self.training_config.push_to_hub
+            push_to_hub=self.training_config.push_to_hub,
+            packing=False,
         )
         if tokenizer.chat_template is None:
             result = clone_chat_template(model, tokenizer, "Qwen/Qwen3-0.6B")
@@ -49,8 +51,8 @@ class FineTuningPipeline:
             train_dataset=train_data,
             eval_dataset=eval_data,
             processing_class=tokenizer,
-            peft_config=self.model_loader.get_peft_config(),
-        )
+            peft_config=self.model_loader.get_peft_config()
+         )
 
         trainer.train()
         trainer.save_model(self.training_config.output_dir)
