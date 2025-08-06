@@ -9,8 +9,6 @@ from transformers import AutoModel, AutoConfig
 from advsecurenet.models.base_model import BaseModel, check_model_loaded
 from advsecurenet.shared.types.configs.model_config import (
     HuggingFaceResolvedConfig,
-    CreateModelConfig,
-    determine_identifier_and_soruce,
 )
 
 
