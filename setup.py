@@ -33,7 +33,7 @@ setup(
         "einops",
         "filetype",
         "requests",
-        "transformers==4.48.3", # Ensure compatibility with YOLOv5
+        "transformers==4.48.3",  # Ensure compatibility with YOLOv5
         "datasets",
         "mean_average_precision",
         "yolov5",
