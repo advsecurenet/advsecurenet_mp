@@ -20,8 +20,8 @@ save_checkpoint_name: null
 checkpoint_interval: 1
 
 # Checkpoint Loading Configurations
-load_checkpoint: False
+load_checkpoint: false
 load_checkpoint_path: null
 
 # Other Configurations
-verbose: True # Whether to print the training progress.
+verbose: true # Whether to print the training progress.

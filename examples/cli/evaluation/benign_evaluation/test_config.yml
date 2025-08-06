@@ -6,10 +6,10 @@ model:
   pretrained: true
   weights: IMAGENET1K_V1
   is_external: false
-  random_seed:
+  random_seed: null
   path_configs:
-    model_arch_path:
-    model_weights_path:
+    model_arch_path: null
+    model_weights_path: null
   norm_config:
     add_norm_layer: false
     norm_mean:
@@ -23,12 +23,12 @@ model:
 dataset:
   dataset_name: cifar10
   num_classes: 10
-  train_dataset_path:
-  test_dataset_path:
+  train_dataset_path: null
+  test_dataset_path: null
   preprocessing:
     steps:
       - name: ToImage
-        params:
+        params: null
       - name: ToDtype
         params:
           dtype: torch.float32
@@ -43,7 +43,7 @@ dataloader:
 device:
   use_ddp: false
   processor: mps
-  gpu_ids:
+  gpu_ids: null
 testing:
   criterion: cross_entropy
   topk: 1

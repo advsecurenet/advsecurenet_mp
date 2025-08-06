@@ -1,0 +1,49 @@
+# Yamllint configuration for the project
+# This enforces YAML best practices and consistency
+
+extends: default
+
+rules:
+  # Line length - allow longer lines for URLs and complex configs
+  line-length:
+    max: 120
+    allow-non-breakable-words: true
+    allow-non-breakable-inline-mappings: true
+
+  # Indentation - enforce 2 spaces consistently
+  indentation:
+    spaces: 2
+    indent-sequences: true
+    check-multi-line-strings: false
+
+  # Empty values - ENFORCE explicit null values
+  empty-values:
+    forbid-in-block-mappings: true
+    forbid-in-flow-mappings: true
+    forbid-in-block-sequences: true
+
+  # Boolean values - enforce lowercase true/false
+  truthy:
+    allowed-values: ['true', 'false']
+    check-keys: true
+
+  # Comments formatting
+  comments:
+    require-starting-space: true
+    min-spaces-from-content: 2
+
+  # Trailing spaces
+  trailing-spaces: {}
+
+  # Document formatting
+  document-start: disable  # Don't require --- at start
+  document-end: disable    # Don't require ... at end
+
+  # Brackets and braces
+  brackets:
+    max-spaces-inside: 0
+    max-spaces-inside-empty: 0
+
+  braces:
+    max-spaces-inside: 0
+    max-spaces-inside-empty: 0

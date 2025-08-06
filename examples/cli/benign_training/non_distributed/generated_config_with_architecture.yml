@@ -6,10 +6,10 @@ model:
   pretrained: true
   weights: IMAGENET1K_V1
   is_external: false
-  random_seed:
+  random_seed: null
   path_configs:
-    model_arch_path:
-    model_weights_path:
+    model_arch_path: null
+    model_weights_path: null
   norm_config:
     add_norm_layer: false
     norm_mean:
@@ -23,12 +23,12 @@ model:
 dataset:
   dataset_name: cifar10
   num_classes: 10
-  train_dataset_path:
-  test_dataset_path:
+  train_dataset_path: null
+  test_dataset_path: null
   preprocessing:
     steps:
       - name: ToImage
-        params:
+        params: null
       - name: ToDtype
         params:
           dtype: torch.float32
@@ -58,15 +58,15 @@ training:
   optimizer_kwargs:
     weight_decay: 0.0001
   scheduler: LINEAR_LR
-  scheduler_kwargs:
+  scheduler_kwargs: null
   criterion: cross_entropy
   save_final_model: true
-  save_model_path:
-  save_model_name:
+  save_model_path: null
+  save_model_name: null
   save_checkpoint: false
-  save_checkpoint_path:
-  save_checkpoint_name:
+  save_checkpoint_path: null
+  save_checkpoint_name: null
   checkpoint_interval: 1
   load_checkpoint: false
-  load_checkpoint_path:
+  load_checkpoint_path: null
   verbose: true
