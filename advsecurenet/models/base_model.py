@@ -51,8 +51,6 @@ class BaseModel(ABC, nn.Module):
 
         Args:
             x (torch.Tensor): The primary input tensor to the model.
-            *args: Additional positional arguments to pass to the underlying model's forward method.
-            **kwargs: Additional keyword arguments to pass to the underlying model's forward method.
 
         Returns:
             torch.Tensor: The output logits tensor from the model.
