@@ -21,7 +21,7 @@ def resolve_hf_identifiers(config: model_config.CreateModelConfig) -> Tuple[str,
         ValueError: If an identifier is required but not found, or if a URL is provided but the ID cannot be extracted.
     """
     identifier_to_process, identifier_source_field_name = (
-        model_config.determine_identifier_and_soruce(config)
+        model_config.determine_identifier_and_source(config)
     )
 
     final_model_id = huggingface_general_utils.process_hf_identifier(

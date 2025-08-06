@@ -346,7 +346,7 @@ MOCK_HF_MODEL_INSTANCE = MagicMock(spec=HuggingFaceModel)
 @pytest.fixture
 def mock_hf_dependencies():
     with patch(
-        "advsecurenet.models.model_factory.determine_identifier_and_soruce",
+        "advsecurenet.models.model_factory.determine_identifier_and_source",
         return_value=("user/hf-model", MagicMock(name="MODEL_IDENTIFIER")),
     ) as mock_det_id_src, patch(
         "advsecurenet.models.model_factory.ModelFactory.infer_model_type",
@@ -366,7 +366,7 @@ def mock_hf_dependencies():
         return_value=True,
     ) as mock_verify_exists:
         yield {
-            "determine_identifier_and_soruce": mock_det_id_src,
+            "determine_identifier_and_source": mock_det_id_src,
             "infer_model_type": mock_infer_type,
             "_validate_create_model_config": mock_validate,
             "set_seed": mock_set_seed,
@@ -457,7 +457,7 @@ def test_create_model_huggingface_from_kwargs(mock_hf_dependencies):
 
     # Patch the return value of the process_hf_identifier mock specifically for this test's scenario
     with patch(
-        "advsecurenet.models.model_factory.determine_identifier_and_soruce",
+        "advsecurenet.models.model_factory.determine_identifier_and_source",
         return_value=("kwarg_hf_model_name", MagicMock(name="MODEL_NAME")),
     ) as _, patch.object(
         mocked_process_id_func, "return_value", "kwarg_hf_model_name-processed"

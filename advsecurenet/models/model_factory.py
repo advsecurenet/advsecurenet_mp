@@ -16,7 +16,7 @@ from advsecurenet.shared.types.configs.model_config import (
     ExternalModelConfig,
     StandardModelConfig,
     HuggingFaceResolvedConfig,
-    determine_identifier_and_soruce,
+    determine_identifier_and_source,
 )
 from advsecurenet.shared.types.model import ModelType
 from advsecurenet.utils.reproducibility_utils import set_seed
@@ -164,7 +164,7 @@ class ModelFactory:
                 )
                 return ExternalModel(cfg)
 
-            identifier, _ = determine_identifier_and_soruce(resolved_config)
+            identifier, _ = determine_identifier_and_source(resolved_config)
 
             inferred_type: ModelType = ModelFactory.infer_model_type(identifier)
 
