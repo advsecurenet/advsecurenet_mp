@@ -9,7 +9,7 @@ model:
   random_seed: null
   path_configs:
     model_weights_path: "model_weights/yolov5s.pt"
-    model_arch_path: "C:/Users/rut30/OneDrive/Dokumenty/Desktop/UZH/SEMESTER_2/MASTER_PROJECT/project-code/advsecurenet_mp/advsecurenet/models/CustomModels/CustomYolov5Model.py"
+    model_arch_path: "../../../advsecurenet/models/CustomModels/CustomYolov5Model.py"
   norm_config:
     add_norm_layer: false
     norm_mean:
