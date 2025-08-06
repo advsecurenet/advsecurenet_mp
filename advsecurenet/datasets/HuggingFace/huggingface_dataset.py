@@ -13,7 +13,45 @@ from advsecurenet.shared.types.configs.preprocess_config import PreprocessConfig
 
 
 class HuggingFaceDataset(BaseDataset):
-    # ... (docstring)
+    """
+    A dataset class for loading and processing datasets from Hugging Face Hub.
+    
+    This class extends BaseDataset to provide seamless integration with Hugging Face's
+    datasets library, allowing users to load any dataset from the Hugging Face Hub
+    and apply preprocessing transformations compatible with the advsecurenet framework.
+    
+    Args:
+        preprocess_config (Optional[PreprocessConfig]): Configuration for preprocessing steps.
+        num_classes (Optional[int]): Number of classes in the dataset. If None, will be
+            inferred from the dataset.
+        num_input_channels (int): Number of input channels (e.g., 3 for RGB images).
+            Defaults to 3.
+        mean (Optional[List[float]]): Mean values for normalization. If None, will use
+            default values or infer from preprocessing config.
+        std (Optional[List[float]]): Standard deviation values for normalization. If None,
+            will use default values or infer from preprocessing config.
+        input_key (str): Key name for input data in the Hugging Face dataset. 
+            Defaults to "image".
+        target_key (str): Key name for target/label data in the Hugging Face dataset.
+            Defaults to "label".
+        **kwargs: Additional keyword arguments passed to the Hugging Face load_dataset function.
+    
+    Example:
+        >>> from advsecurenet.datasets.HuggingFace import HuggingFaceDataset
+        >>> dataset = HuggingFaceDataset(
+        ...     num_classes=10,
+        ...     input_key="img",
+        ...     target_key="label"
+        ... )
+        >>> data_wrapper = dataset.load_dataset(
+        ...     path="cifar10",
+        ...     split="train"
+        ... )
+    
+    Note:
+        This class requires the 'datasets' library from Hugging Face to be installed.
+        The dataset must be available on the Hugging Face Hub or locally accessible.
+    """
     def __init__(
         self,
         preprocess_config: Optional[PreprocessConfig] = None,
