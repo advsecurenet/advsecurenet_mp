@@ -3,6 +3,7 @@ import torchvision
 import torch.nn.functional as F
 import yolov5
 from yolov5.models.common import AutoShape
+from unittest.mock import patch
 from yolov5.utils.general import xywh2xyxy
 import numpy as np
 from torch.utils.data import TensorDataset, DataLoader
@@ -28,11 +29,16 @@ class CustomYolov5ODWrapper(ODWrapper):
             clip_values=clip_values,
             input_shape=input_shape,
         )
-        self.inference_model = yolov5.load(
-            str(Path("model_weights") / "yolov5s.pt"),
-            device=device_type,
-            autoshape=True,
-        )
+        original_torch_load = torch.load
+        def load_with_weights_only_false(*args, **kwargs):
+            kwargs['weights_only'] = False
+            return original_torch_load(*args, **kwargs)
+        with patch('torch.load', side_effect=load_with_weights_only_false):
+            self.inference_model = yolov5.load(
+                str(Path("model_weights") / "yolov5s.pt"),
+                device=device_type,
+                autoshape=True,
+            )
         self.inference_model.conf = conf_thresh
         self.input_shape = input_shape
         self.channels_first = True

@@ -38,6 +38,7 @@ setup(
         "mean_average_precision",
         "yolov5",
         "huggingface-hub==24.0.1",  # Ensure compatibility with YOLOv5
+        "pycocotools",
     ],
     entry_points={
         "console_scripts": [

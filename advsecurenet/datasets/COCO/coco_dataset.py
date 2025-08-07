@@ -1,6 +1,8 @@
 import os
 import pkg_resources
 from typing import Optional
+import ssl
+from contextlib import contextmanager
 
 from torchvision import datasets
 from torchvision.datasets.utils import download_and_extract_archive
@@ -12,10 +14,22 @@ from advsecurenet.shared.types.configs.preprocess_config import PreprocessConfig
 from advsecurenet.shared.types import DatasetType, DataType
 
 
+@contextmanager
+def temporarily_disable_ssl_verification():
+    """A context manager to temporarily disable SSL verification for faulty servers."""
+    original_context = ssl._create_default_https_context
+    ssl._create_default_https_context = ssl._create_unverified_context
+    try:
+        yield
+    finally:
+        ssl._create_default_https_context = original_context
+
 class COCODataset(BaseDataset):
     """
     A BaseDataset wrapper around torchvision.datasets.CocoDetection
     """
+    _BASE_URL = "https://images.cocodataset.org"
+    _ANNOTATIONS_DIR = "annotations"
 
     def __init__(self, preprocess_config: Optional[PreprocessConfig] = None):
         super().__init__(preprocess_config)
@@ -42,26 +56,25 @@ class COCODataset(BaseDataset):
             self.input_size = (224, 224)
 
     @staticmethod
-    def _downlaod_coco_if_not_exists(root: str, train: bool):
+    def _download_coco_if_not_exists(root: str, train: bool):
         split = "train2017" if train else "val2017"
         # image archive & annotation archive
-        img_url = f"https://images.cocodataset.org/zips/{split}.zip"
+        img_url = f"{COCODataset._BASE_URL}/zips/{split}.zip"
         ann_url = (
-            "https://images.cocodataset.org/annotations/annotations_trainval2017.zip"
+            f"{COCODataset._BASE_URL}/{COCODataset._ANNOTATIONS_DIR}/annotations_trainval2017.zip"
         )
-
         img_dir = os.path.join(root, split)
-        ann_dir = os.path.join(root, "annotations")
+        ann_dir = os.path.join(root, COCODataset._ANNOTATIONS_DIR)
+        with temporarily_disable_ssl_verification():
+            if not os.path.isdir(img_dir):
+                download_and_extract_archive(
+                    url=img_url, download_root=root, extract_root=root
+                )
 
-        if not os.path.isdir(img_dir):
-            download_and_extract_archive(
-                url=img_url, download_root=root, extract_root=root
-            )
-
-        if not os.path.isdir(ann_dir):
-            download_and_extract_archive(
-                url=ann_url, download_root=root, extract_root=root
-            )
+            if not os.path.isdir(ann_dir):
+                download_and_extract_archive(
+                    url=ann_url, download_root=root, extract_root=root
+                )
 
     def get_dataset_class(self):
         return datasets.CocoDetection
@@ -91,7 +104,7 @@ class COCODataset(BaseDataset):
 
         # 2) download if requested
         if download:
-            self._downlaod_coco_if_not_exists(root, train)
+            self._download_coco_if_not_exists(root, train)
 
         # 3) build image folder + annotation path
         split = "train2017" if train else "val2017"

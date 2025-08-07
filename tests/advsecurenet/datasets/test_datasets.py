@@ -419,7 +419,7 @@ def test_coco_dataset_maybe_download(tmp_path):
         # Case: both dirs missing
         dataset = COCODataset()
         root = str(tmp_path)
-        dataset._downlaod_coco_if_not_exists(root, train=True)
+        dataset._download_coco_if_not_exists(root, train=True)
         assert mock_dl.call_count == 2
         # Case: dirs exist
         img_dir = os.path.join(root, "train2017")
@@ -427,7 +427,7 @@ def test_coco_dataset_maybe_download(tmp_path):
         os.makedirs(img_dir, exist_ok=True)
         os.makedirs(ann_dir, exist_ok=True)
         mock_dl.reset_mock()
-        dataset._downlaod_coco_if_not_exists(root, train=False)
+        dataset._download_coco_if_not_exists(root, train=False)
         # Allow for 0 or 1 call depending on which dir exists
         assert mock_dl.call_count in (0, 1)
 
