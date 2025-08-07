@@ -12,6 +12,7 @@ from advsecurenet.datasets.targeted_adv_dataset import AdversarialDataset
 from advsecurenet.distributed.ddp_coordinator import DDPCoordinator
 from advsecurenet.shared.types.attacks import AttackType
 from advsecurenet.shared.types.configs.dataloader_config import DataLoaderConfig
+from cli.shared.types.utils.dataset import resolve_dataset_config
 from advsecurenet.utils.adversarial_target_generator import AdversarialTargetGenerator
 from advsecurenet.utils.ddp import set_visible_gpus
 from cli.shared.types.attack import BaseAttackCLIConfigType
@@ -218,10 +219,10 @@ class CLIAttacker:
         return None
 
     def _select_data_partition(self, train_data, test_data):
-        dataset_part = self._config.dataset.dataset_part
-        if dataset_part == "train":
+        dataset_config = resolve_dataset_config(self._config.dataset)
+        if "train" in dataset_config.splits:
             return self._validate_dataset_availability(train_data, "train")
-        elif dataset_part == "test":
+        elif "test" in dataset_config.splits:
             return self._validate_dataset_availability(test_data, "test")
         else:
             return (
