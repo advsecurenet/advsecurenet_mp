@@ -393,8 +393,8 @@ def test_coco_dataset_load_dataset(tmp_path):
     ) as mock_coco:
         mock_coco.return_value = MagicMock()
         dataset = COCODataset()
-        # Patch _downlaod_coco_if_not_exists to avoid download
-        with patch.object(dataset, "_downlaod_coco_if_not_exists") as mock_dl:
+        # Patch _download_coco_if_not_exists to avoid download
+        with patch.object(dataset, "_download_coco_if_not_exists") as mock_dl:
             wrapper = dataset.load_dataset(
                 root=str(tmp_path), train=True, download=True
             )
@@ -402,7 +402,7 @@ def test_coco_dataset_load_dataset(tmp_path):
             assert wrapper.dataset == mock_coco.return_value
             mock_dl.assert_called_once()
         # Test with download=False
-        with patch.object(dataset, "_downlaod_coco_if_not_exists") as mock_dl:
+        with patch.object(dataset, "_download_coco_if_not_exists") as mock_dl:
             wrapper = dataset.load_dataset(
                 root=str(tmp_path), train=False, download=False
             )
