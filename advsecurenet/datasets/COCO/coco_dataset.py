@@ -24,10 +24,12 @@ def temporarily_disable_ssl_verification():
     finally:
         ssl._create_default_https_context = original_context
 
+
 class COCODataset(BaseDataset):
     """
     A BaseDataset wrapper around torchvision.datasets.CocoDetection
     """
+
     _BASE_URL = "https://images.cocodataset.org"
     _ANNOTATIONS_DIR = "annotations"
 
@@ -60,9 +62,7 @@ class COCODataset(BaseDataset):
         split = "train2017" if train else "val2017"
         # image archive & annotation archive
         img_url = f"{COCODataset._BASE_URL}/zips/{split}.zip"
-        ann_url = (
-            f"{COCODataset._BASE_URL}/{COCODataset._ANNOTATIONS_DIR}/annotations_trainval2017.zip"
-        )
+        ann_url = f"{COCODataset._BASE_URL}/{COCODataset._ANNOTATIONS_DIR}/annotations_trainval2017.zip"
         img_dir = os.path.join(root, split)
         ann_dir = os.path.join(root, COCODataset._ANNOTATIONS_DIR)
         with temporarily_disable_ssl_verification():
