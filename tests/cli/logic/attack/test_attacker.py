@@ -311,10 +311,15 @@ def test_select_data_partition(
 @pytest.mark.essential
 @patch("cli.logic.attack.attacker.CLIAttacker._prepare_dataset")
 @patch("cli.logic.attack.attacker.CLIAttacker._validate_dataset_availability")
+@patch("cli.logic.attack.attacker.resolve_dataset_config")
 def test_select_data_partition_only_test(
-    mock_validate_dataset, mock_prepare_dataset, attacker_config
+    mock_resolve_dataset_config, mock_validate_dataset, mock_prepare_dataset, attacker_config
 ):
-    attacker_config.dataset.dataset_part = "all"
+    # Mock the dataset config to return splits without "train" or "test"
+    mock_dataset_config = MagicMock()
+    mock_dataset_config.splits = {"all": ""}  # or some other split name
+    mock_resolve_dataset_config.return_value = mock_dataset_config
+    
     test_data = MagicMock()
     attacker = CLIAttacker(attacker_config, AttackType.FGSM)
 
@@ -322,6 +327,7 @@ def test_select_data_partition_only_test(
         test_data=test_data, train_data=None
     )
 
+    mock_resolve_dataset_config.assert_called_once_with(attacker_config.dataset)
     assert returned_data == test_data
 
 
