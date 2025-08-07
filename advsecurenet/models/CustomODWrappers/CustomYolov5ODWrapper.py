@@ -30,10 +30,12 @@ class CustomYolov5ODWrapper(ODWrapper):
             input_shape=input_shape,
         )
         original_torch_load = torch.load
+
         def load_with_weights_only_false(*args, **kwargs):
-            kwargs['weights_only'] = False
+            kwargs["weights_only"] = False
             return original_torch_load(*args, **kwargs)
-        with patch('torch.load', side_effect=load_with_weights_only_false):
+
+        with patch("torch.load", side_effect=load_with_weights_only_false):
             self.inference_model = yolov5.load(
                 str(Path("model_weights") / "yolov5s.pt"),
                 device=device_type,

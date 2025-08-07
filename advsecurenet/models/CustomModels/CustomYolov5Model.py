@@ -4,15 +4,18 @@ from yolov5.utils.loss import ComputeLoss
 from yolov5.models.common import AutoShape
 from unittest.mock import patch
 
+
 class CustomYolov5Model(torch.nn.Module):
     def __init__(self, model_weights_path="yolov5s.pt"):
         super().__init__()
         original_torch_load = torch.load
+
         def load_with_weights_only_false(*args, **kwargs):
-            kwargs['weights_only'] = False
+            kwargs["weights_only"] = False
             return original_torch_load(*args, **kwargs)
+
         # Temporarily patch torch.load to fix weights_only=True default in PyTorch 2.6
-        with patch('torch.load', side_effect=load_with_weights_only_false):
+        with patch("torch.load", side_effect=load_with_weights_only_false):
             self._model = yolov5.load(model_weights_path, autoshape=False).model
             self._autoshape = AutoShape(self._model)
         self._model.hyp = {
