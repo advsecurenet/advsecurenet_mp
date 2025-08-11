@@ -4,7 +4,6 @@ import logging
 import numpy as np
 import torch
 import click
-
 from advsecurenet.evaluation.od_adversarial_evaluator import (
     ObjectDetectorAdversarialEvaluator,
 )
@@ -27,6 +26,22 @@ class AdversarialPatchODAttacker(ODAttacker):
     def __init__(self, config: ODAttackerConfig):
         super().__init__(config)
         self._trained_patch = None
+    
+    def _apply_patch(self, 
+                     images_np_for_dpatch: np.ndarray, 
+                     patch_np: np.ndarray) -> torch.Tensor:
+        """Apply the trained patch to a batch (expects [0,255] np, returns torch float32 [0,1])."""
+        patched_np = (
+            self._config.attack.apply_patch(
+                x=images_np_for_dpatch,
+                patch_external=patch_np,
+                random_location=False,
+            )
+            .detach()
+            .cpu()
+            .numpy()
+        )
+        return torch.from_numpy(patched_np).to(self._device).float().div_(255.0)
 
     def execute(self):
         adversarial_images = []
@@ -34,60 +49,41 @@ class AdversarialPatchODAttacker(ODAttacker):
             evaluators=self._config.evaluators,
             target_models=[self._eval_model],  # we evaluate on the eval_model
         ) as evaluator:
-            # 1) GENERATE the patch
+            logger.info("Starting adversarial patch training and evaluation")
             self._trained_patch = self._config.attack.attack(
                 mask=getattr(self._config.attack, "mask", None),
                 dataloader=self._dataloader,
                 device=self._device,
             )
-
+            try:
+                logger.info(
+                    "Patch trained: shape=%s, min=%.2f, max=%.2f",
+                    tuple(self._trained_patch.shape),
+                    float(self._trained_patch.min().item()),
+                    float(self._trained_patch.max().item()),
+                )
+            except Exception:
+                logger.info("Patch trained: stats unavailable")
             for data_batch in self._dataloader:
-                images, targets_dict = data_batch
-                images, targets_dict = move_batch_to_device(
-                    images, targets_dict, self._device
+                images_preprocessed, targets, images = self.process_batch(data_batch)
+                patched = self._apply_patch(images_preprocessed, self._trained_patch.detach().cpu().numpy())
+                logger.debug(
+                    "Applied patch to batch: patched_shape=%s, targets=%d",
+                    tuple(patched.shape) if hasattr(patched, 'shape') else 'unknown',
+                    len(targets),
                 )
-                images_np_for_dpatch = (images.detach().cpu().numpy() * 255.0).astype(
-                    np.float32
-                )
-                images_np_for_dpatch = np.clip(images_np_for_dpatch, 0, 255)
-                boxes = targets_dict["boxes"]
-                labels = targets_dict["labels"]
-                targets = []
-                for b, l in zip(boxes, labels):
-                    raw = l.detach().cpu().numpy().astype(int)  # e.g. [1, 3, 18, …]
-                    mapped = np.array(raw, dtype=int)
-                    targets.append(
-                        {
-                            "boxes": b.detach().cpu().numpy(),
-                            "labels": mapped,
-                            "scores": np.ones(len(mapped), dtype=float),
-                        }
-                    )
-                # 2) APPLY the patch to *this* batch of images
-                patched_np = (
-                    self._config.attack.apply_patch(
-                        x=images_np_for_dpatch,
-                        patch_external=self._trained_patch.detach().cpu().numpy(),
-                        random_location=False,
-                    )
-                    .detach()
-                    .cpu()
-                    .numpy()
-                )
-                patched = torch.from_numpy(patched_np / 255.0).to(self._device)
-                # #3) EVALUATE on the patched images
                 evaluator.update(
                     model=self._eval_model,
                     original_images=images,
                     adversarial_images=patched,
                     targets=targets,
                 )
+                logger.debug("Evaluator updated for current batch")
                 if self._config.return_adversarial_images:
                     adversarial_images.append(patched.detach().cpu())
-                # free up GPU memory if needed
+                # free up GPU memory
                 if torch.cuda.is_available() and self._device.type == "cuda":
                     torch.cuda.empty_cache()
-            # summary logging
             results = evaluator.get_results()
             click.secho(
                 "Adversarial Patch Attack summary: {}".format(results),

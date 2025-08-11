@@ -357,83 +357,17 @@ class CustomYolov5ODWrapper(ODWrapper):
         return grads
 
     def compute_object_mislabeling_gradient(
-        self, x, detections=None, mode="ml", training=True
+        self, detections, x, target_labels_list=None, training=True
     ):
         """Compute gradients for the mislabeling attack."""
         if not detections or not any(
             len(det.get("labels", [])) > 0 for det in detections
         ):
             return np.zeros_like(x)
-        mode = mode.lower()
-        if mode not in ["ml", "ll"]:
-            print(f"Warning: Unknown mode '{mode}'. Using 'ml' instead.")
-            mode = "ml"
         x_torch = torch.from_numpy(x).to(self.device, dtype=torch.float32)
         x_torch.requires_grad_(True)
         if training:
             self.model.train()
-        # Get number of classes from model
-        num_classes = len(self.inference_model.model.names)
-        target_labels_list = []
-        for det in detections:
-            if len(det.get("labels", [])) == 0:
-                continue
-            boxes = torch.tensor(det["boxes"], dtype=torch.float32, device=self.device)
-            original_labels = torch.from_numpy(det["labels"]).long().to(self.device)
-            # Choose target labels based on the specified mode
-            new_labels = original_labels.clone()
-            for i in range(len(original_labels)):
-                orig_label = original_labels[i].item()
-                # Safe random selection if orig_label is out of range
-                if orig_label >= num_classes:
-                    print(
-                        f"Warning: Label {orig_label} is out of range (num_classes={num_classes})"
-                    )
-                    new_labels[i] = np.random.randint(0, num_classes)
-                    continue
-                # Use prediction confidence to create pseudo-logits if not available
-                if (
-                    "logits" not in det
-                    or det["logits"] is None
-                    or i >= len(det["logits"])
-                ):
-                    # Generate random alternative class
-                    new_label = orig_label
-                    while new_label == orig_label:
-                        new_label = np.random.randint(0, num_classes)
-                    new_labels[i] = new_label
-                else:
-                    # Use actual logits for smart targeting
-                    obj_logits = torch.from_numpy(det["logits"][i]).to(self.device)
-                    # Make sure logits array has enough elements
-                    if len(obj_logits) <= orig_label:
-                        # Generate pseudo-logits to accommodate the original label
-                        pseudo_logits = torch.randn(
-                            max(num_classes, orig_label + 1), device=self.device
-                        )
-                        # Copy existing values
-                        pseudo_logits[: len(obj_logits)] = obj_logits
-                        obj_logits = pseudo_logits
-                    if mode == "ll":
-                        # Least likely: find class with lowest logit value
-                        obj_logits_mod = obj_logits.clone()
-                        obj_logits_mod[orig_label] = float(
-                            "inf"
-                        )  # Exclude original class
-                        new_labels[i] = torch.argmin(obj_logits_mod).item()
-                    else:  # mode == 'ml'
-                        # Most likely: find class with highest logit value (excluding original)
-                        obj_logits_mod = obj_logits.clone()
-                        obj_logits_mod[orig_label] = float(
-                            "-inf"
-                        )  # Exclude original class
-                        new_labels[i] = torch.argmax(obj_logits_mod).item()
-            target_labels_list.append(
-                {
-                    "boxes": boxes,
-                    "labels": new_labels,
-                }
-            )
         if not target_labels_list:
             return np.zeros_like(x)
         # Temporarily modify loss weights to isolate classification loss

@@ -10,7 +10,7 @@ from advsecurenet.computer_vision.object_detection.attacks.attacker.pixel_pertur
 from advsecurenet.shared.types.configs.attack_configs.od_attacker_config import (
     ODAttackerConfig,
 )
-from advsecurenet.computer_vision.object_detection.attacks.pixel_perturbation_based.tog import (
+from advsecurenet.computer_vision.object_detection.attacks.pixel_perturbation_based.tog.tog_attack_type import (
     TOGAttackType,
 )
 
@@ -34,7 +34,7 @@ class DummyDataset(Dataset):
 
 # Dummy attack with .attack()
 class DummyPixelAttack:
-    def attack(self, x, y, mask, tog_variant, tog_mislabeling_mode):
+    def attack(self, x, y=None, mask=None, tog_variant=None, tog_mislabeling_mode=None):
         return np.ones_like(x)
 
 

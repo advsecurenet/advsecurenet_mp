@@ -23,10 +23,8 @@ from cli.shared.utils.model import create_model
 from advsecurenet.computer_vision.object_detection.attacks.adversarial_patch_based.dpatch import (
     DPatch,
 )
-from advsecurenet.computer_vision.object_detection.attacks.pixel_perturbation_based.tog import (
-    TOG,
-    TOGAttackType,
-)
+from advsecurenet.computer_vision.object_detection.attacks.pixel_perturbation_based.tog.tog import TOG
+from advsecurenet.computer_vision.object_detection.attacks.pixel_perturbation_based.tog.tog_attack_type import TOGAttackType
 from advsecurenet.models.detector_factory import get_object_detector
 
 logger = logging.getLogger(__name__)
