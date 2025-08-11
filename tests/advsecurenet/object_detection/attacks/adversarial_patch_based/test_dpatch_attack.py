@@ -346,7 +346,7 @@ def test_dpatch_instantiation_patch_shape_invalid():
     # So we just instantiate and assert shape is as given
     dpatch = DPatch(config)  # type: ignore
     assert dpatch._patch.shape == (10, 10)
-    
+
 
 def test_dpatch_attack_with_3d_mask(dpatch_config):
     dpatch = DPatch(dpatch_config)
@@ -951,19 +951,29 @@ def test_place_patch_into_image_logs_on_mismatch(caplog):
     x = torch.zeros((1, 3, 10, 10))
     patch = torch.ones((3, 5, 5))
     # Deliberately provide mismatched slice 4x4 to trigger log in place_patch_into_image
-    DPatch.place_patch_into_image(x, patch, i_image=0, i_x_1=0, i_x_2=4, i_y_1=0, i_y_2=4)
+    DPatch.place_patch_into_image(
+        x, patch, i_image=0, i_x_1=0, i_x_2=4, i_y_1=0, i_y_2=4
+    )
     # Should not raise; optionally check that something was logged at error/exception level if configured
     assert True
 
 
 def test_attack_step_handles_loss_gradient_exception(dpatch_config, monkeypatch):
     dpatch = DPatch(dpatch_config)
+
     # Force exception inside gradients computation path
     def boom(*a, **k):
         raise RuntimeError("boom")
+
     dpatch._object_detector.loss_gradient = boom  # type: ignore
     x = np.zeros((1, 3, 10, 10), dtype=np.float32)
-    y = [{"boxes": np.array([[0, 0, 1, 1]]), "labels": np.array([1]), "scores": np.array([1.0])}]
+    y = [
+        {
+            "boxes": np.array([[0, 0, 1, 1]]),
+            "labels": np.array([1]),
+            "scores": np.array([1.0]),
+        }
+    ]
     grad, suppress = dpatch._attack_step(x, y, mask=None, device=torch.device("cpu"))
     assert isinstance(grad, torch.Tensor)
     assert isinstance(suppress, bool)

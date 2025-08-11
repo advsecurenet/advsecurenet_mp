@@ -33,7 +33,9 @@ class ODAttacker(ABC):
             dl_len = "unknown"
         logger.info(
             "Initialized ODAttacker: device=%s, dataloader=%s, batches=%s",
-            str(self._device), type(self._dataloader).__name__, dl_len,
+            str(self._device),
+            type(self._dataloader).__name__,
+            dl_len,
         )
 
     def _create_dataloader(self):
@@ -46,7 +48,7 @@ class ODAttacker(ABC):
         if isinstance(dl, torch.utils.data.DataLoader):
             return dl
         return DataLoaderFactory.create_dataloader(dl)
-    
+
     def preprocess_images(self, images):
         # Denormalize if a torchvision Normalize(mean,std) was applied
         images_for_patch = images
@@ -54,8 +56,12 @@ class ODAttacker(ABC):
         tfm = getattr(ds, "transform", None) if ds is not None else None
         for t in getattr(tfm, "transforms", []) if tfm is not None else []:
             if hasattr(t, "mean") and hasattr(t, "std"):
-                mean = torch.as_tensor(t.mean, dtype=images.dtype, device=images.device).view(1, -1, 1, 1)
-                std = torch.as_tensor(t.std, dtype=images.dtype, device=images.device).view(1, -1, 1, 1)
+                mean = torch.as_tensor(
+                    t.mean, dtype=images.dtype, device=images.device
+                ).view(1, -1, 1, 1)
+                std = torch.as_tensor(
+                    t.std, dtype=images.dtype, device=images.device
+                ).view(1, -1, 1, 1)
                 images_for_patch = (images * std + mean).clamp(0.0, 1.0)
                 break
         x_np = images_for_patch.detach().cpu().numpy()
@@ -69,10 +75,14 @@ class ODAttacker(ABC):
             arr = arr * 255.0
         vmin, vmax = float(arr.min()), float(arr.max())
         if vmin < 0 or vmax > 255.0:
-            logger.warning("Image values out of [0,255] before patch: min=%.3f max=%.3f; clipping.", vmin, vmax)
+            logger.warning(
+                "Image values out of [0,255] before patch: min=%.3f max=%.3f; clipping.",
+                vmin,
+                vmax,
+            )
         images_np_for_dpatch = np.clip(arr, 0.0, 255.0)
         return images_np_for_dpatch
-    
+
     def preprocess_targets_dict(self, targets_dict):
         boxes = targets_dict["boxes"]
         labels = targets_dict["labels"]
@@ -91,7 +101,9 @@ class ODAttacker(ABC):
 
     def process_batch(self, data_batch):
         original_images, targets_dict = data_batch
-        original_images, targets_dict = move_batch_to_device(original_images, targets_dict, self._device)
+        original_images, targets_dict = move_batch_to_device(
+            original_images, targets_dict, self._device
+        )
         images_preprocessed = self.preprocess_images(original_images)
         targets = self.preprocess_targets_dict(targets_dict)
         return images_preprocessed, targets, original_images

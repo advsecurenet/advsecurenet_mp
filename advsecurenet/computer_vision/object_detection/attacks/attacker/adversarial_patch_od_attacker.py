@@ -26,10 +26,10 @@ class AdversarialPatchODAttacker(ODAttacker):
     def __init__(self, config: ODAttackerConfig):
         super().__init__(config)
         self._trained_patch = None
-    
-    def _apply_patch(self, 
-                     images_np_for_dpatch: np.ndarray, 
-                     patch_np: np.ndarray) -> torch.Tensor:
+
+    def _apply_patch(
+        self, images_np_for_dpatch: np.ndarray, patch_np: np.ndarray
+    ) -> torch.Tensor:
         """Apply the trained patch to a batch (expects [0,255] np, returns torch float32 [0,1])."""
         patched_np = (
             self._config.attack.apply_patch(
@@ -66,10 +66,12 @@ class AdversarialPatchODAttacker(ODAttacker):
                 logger.info("Patch trained: stats unavailable")
             for data_batch in self._dataloader:
                 images_preprocessed, targets, images = self.process_batch(data_batch)
-                patched = self._apply_patch(images_preprocessed, self._trained_patch.detach().cpu().numpy())
+                patched = self._apply_patch(
+                    images_preprocessed, self._trained_patch.detach().cpu().numpy()
+                )
                 logger.debug(
                     "Applied patch to batch: patched_shape=%s, targets=%d",
-                    tuple(patched.shape) if hasattr(patched, 'shape') else 'unknown',
+                    tuple(patched.shape) if hasattr(patched, "shape") else "unknown",
                     len(targets),
                 )
                 evaluator.update(

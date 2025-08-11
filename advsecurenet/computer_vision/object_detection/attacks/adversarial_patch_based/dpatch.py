@@ -27,8 +27,8 @@ logger = logging.getLogger(__name__)
 
 class DPatch(AdversarialAttack):
     """
-    DPatch attack. This attack applies an adversarial patch to the input images to deceive the object detector. 
-    The goal of DPatch attack is to train the adversarial patch pattern that once attached to the input image, RoIs extracted 
+    DPatch attack. This attack applies an adversarial patch to the input images to deceive the object detector.
+    The goal of DPatch attack is to train the adversarial patch pattern that once attached to the input image, RoIs extracted
     by the detector gather in the region where the patch is attached. It is a white-box and iterative attack.
 
     Args:
@@ -102,9 +102,7 @@ class DPatch(AdversarialAttack):
                 logger.info("Training Step: %d/%d", i_step + 1, self._max_iterations)
 
             patch_gradients_sum = torch.zeros_like(self._patch, device=device)
-            self._patch = self.device_manager.to_device(
-                self._patch
-            )  
+            self._patch = self.device_manager.to_device(self._patch)
             for data_batch in tqdm(
                 dataloader,
                 desc=f"Epoch {i_step + 1}/{self._max_iterations}",
@@ -136,9 +134,7 @@ class DPatch(AdversarialAttack):
                     mask=mask,
                     device=device,
                 )
-                patch_gradients = self.device_manager.to_device(
-                    patch_gradients
-                )
+                patch_gradients = self.device_manager.to_device(patch_gradients)
                 patch_gradients_sum += patch_gradients
 
             if self._target_label is not None:
@@ -156,11 +152,11 @@ class DPatch(AdversarialAttack):
                     )
             self._patch = self._patch.clamp(0.0, 255.0)
         return self._patch
-    
+
     def _attack_step_prepare_x(
-            self, 
-            x: Union[torch.Tensor, np.ndarray, List[np.ndarray]],
-        ) -> torch.Tensor:
+        self,
+        x: Union[torch.Tensor, np.ndarray, List[np.ndarray]],
+    ) -> torch.Tensor:
         """
         Normalize input batch to a torch.Tensor on the configured device.
 
@@ -176,12 +172,14 @@ class DPatch(AdversarialAttack):
             x = torch.tensor(np.stack(x))
         x = self.device_manager.to_device(x)
         return x
-    
+
     def _attack_step_initial_aug(
-            self, 
-            x: torch.Tensor, 
-            mask: Optional[Union[np.ndarray, torch.Tensor]],
-        ) -> Tuple[Optional[Union[np.ndarray, torch.Tensor]], torch.Tensor, List[Dict[str, int]]]:
+        self,
+        x: torch.Tensor,
+        mask: Optional[Union[np.ndarray, torch.Tensor]],
+    ) -> Tuple[
+        Optional[Union[np.ndarray, torch.Tensor]], torch.Tensor, List[Dict[str, int]]
+    ]:
         """
         Create initial patched images and transforms using a cloned patch.
 
@@ -314,17 +312,19 @@ class DPatch(AdversarialAttack):
         _untargeted_attack_should_suppress_from_empty_initial = False
         patch_gradients = torch.zeros_like(self._patch, device=device)
         try:
-            mask, patched_images_initial, transforms_initial = self._attack_step_initial_aug(x, mask)
+            mask, patched_images_initial, transforms_initial = (
+                self._attack_step_initial_aug(x, mask)
+            )
         except Exception as e:
             logger.exception("Initial augmentation failed in _attack_step.")
         transforms = transforms_initial.copy()
         patched_images = patched_images_initial.clone().detach().requires_grad_(True)
-        patched_images = self.device_manager.to_device(
-            patched_images
-        )
+        patched_images = self.device_manager.to_device(patched_images)
         try:
-            patch_target, _untargeted_attack_should_suppress_from_empty_initial = self._attack_step_build_patch_target_and_flag(
-                patched_images, transforms, y
+            patch_target, _untargeted_attack_should_suppress_from_empty_initial = (
+                self._attack_step_build_patch_target_and_flag(
+                    patched_images, transforms, y
+                )
             )
             current_step_patched_images, _ = self.augment_images_with_patch(
                 x,
@@ -334,7 +334,9 @@ class DPatch(AdversarialAttack):
                 transforms=transforms,
             )
         except Exception as e:
-            logger.exception("Current-step patch building and/or augmentation failed in _attack_step.")
+            logger.exception(
+                "Current-step patch building and/or augmentation failed in _attack_step."
+            )
         actual_batch_size = x.shape[0]
         i_batch_start = 0
         i_batch_end = min(actual_batch_size, patched_images.shape[0])
@@ -411,7 +413,9 @@ class DPatch(AdversarialAttack):
         """
         patch_target: list[dict[str, np.ndarray]] = []
         if (self._target_label is not None) and (y is None):
-            logger.info("[DPATCH] targeted attack - target_label: %s", str(self._target_label))
+            logger.info(
+                "[DPATCH] targeted attack - target_label: %s", str(self._target_label)
+            )
             for i_image in range(patched_images.shape[0]):
                 if isinstance(self._target_label, int):
                     t_l = self._target_label
@@ -540,7 +544,9 @@ class DPatch(AdversarialAttack):
         invalid_mask = (all_labels < 0) | (all_labels >= num_classes)
         if invalid_mask.any():
             bad = all_labels[invalid_mask]
-            logger.warning("Invalid labels detected: %s unique: %s", bad, np.unique(bad))
+            logger.warning(
+                "Invalid labels detected: %s unique: %s", bad, np.unique(bad)
+            )
             raise ValueError("Found out-of-range labels in patch_target; see above.")
         gradients = self._object_detector.loss_gradient(
             x=input_batch_np,
@@ -581,9 +587,13 @@ class DPatch(AdversarialAttack):
         """
         required = {"i_x_1", "i_x_2", "i_y_1", "i_y_2"}
         if i_image >= len(transforms):
-            raise ValueError(f"Missing transform for image {i_image} (len={len(transforms)}).")
+            raise ValueError(
+                f"Missing transform for image {i_image} (len={len(transforms)})."
+            )
         if not required.issubset(transforms[i_image].keys()):
-            raise ValueError(f"Transform for image {i_image} missing keys {required - set(transforms[i_image].keys())}.")
+            raise ValueError(
+                f"Transform for image {i_image} missing keys {required - set(transforms[i_image].keys())}."
+            )
         i_x_1 = transforms[i_image]["i_x_1"]
         i_x_2 = transforms[i_image]["i_x_2"]
         i_y_1 = transforms[i_image]["i_y_1"]
@@ -740,10 +750,8 @@ class DPatch(AdversarialAttack):
         """
         if random_location:
             if mask is None:
-                i_x_1, i_y_1 = (
-                    DPatch.augment_images_with_patch_random_location_no_mask(
-                        img_width, img_height, patch_width, patch_height
-                    )
+                i_x_1, i_y_1 = DPatch.augment_images_with_patch_random_location_no_mask(
+                    img_width, img_height, patch_width, patch_height
                 )
             else:
                 i_x_1, i_y_1 = (
@@ -762,10 +770,10 @@ class DPatch(AdversarialAttack):
         i_x_2 = i_x_1 + patch_height
         i_y_2 = i_y_1 + patch_width
         return i_x_1, i_x_2, i_y_1, i_y_2
-    
+
     @staticmethod
     def if_ndarrray_convert_to_tensor(
-        x: Union[torch.Tensor, np.ndarray, List[np.ndarray]]
+        x: Union[torch.Tensor, np.ndarray, List[np.ndarray]],
     ) -> Union[torch.Tensor, np.ndarray, List[np.ndarray]]:
         """
         Convert a NumPy array to a torch.Tensor; return other types unchanged.
@@ -784,8 +792,7 @@ class DPatch(AdversarialAttack):
 
     @staticmethod
     def prepare_tensors_and_shapes(
-        x: torch.Tensor | np.ndarray, 
-        patch: torch.Tensor | np.ndarray
+        x: torch.Tensor | np.ndarray, patch: torch.Tensor | np.ndarray
     ) -> tuple[torch.Tensor, torch.Tensor, int, int, int, int, int, int]:
         """
         Convert inputs to torch tensors, clone them, and return basic shapes.
@@ -833,7 +840,7 @@ class DPatch(AdversarialAttack):
             patch_height,
             patch_width,
         )
-    
+
     @staticmethod
     def place_patch_into_image(
         x_copy: torch.Tensor,

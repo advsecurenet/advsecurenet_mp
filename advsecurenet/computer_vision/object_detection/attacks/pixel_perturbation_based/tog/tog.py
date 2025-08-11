@@ -14,9 +14,7 @@ from typing import Literal, List, Dict
 from advsecurenet.shared.types.configs.attack_configs.tog_attack_config import (
     TOGAttackConfig,
 )
-from advsecurenet.computer_vision.base.adversarial_attack import (
-    AdversarialAttack
-)
+from advsecurenet.computer_vision.base.adversarial_attack import AdversarialAttack
 from advsecurenet.computer_vision.object_detection.attacks.pixel_perturbation_based.tog.tog_attack_type import (
     TOGAttackType,
 )
@@ -40,8 +38,8 @@ class TOG(AdversarialAttack):
         _eps_iter (float): Per-iteration step size for the PGD-style update.
 
     References:
-        [1] Chow, Ka-Ho and Liu, Ling and Loper, Margaret and Bae, Juhyun and Gursoy, Mehmet Emre and Truex, Stacey and Wei, Wenqi and Wu, Yanzhao (2020). 
-        Adversarial Objectness Gradient Attacks in Real-time Object Detection Systems. 
+        [1] Chow, Ka-Ho and Liu, Ling and Loper, Margaret and Bae, Juhyun and Gursoy, Mehmet Emre and Truex, Stacey and Wei, Wenqi and Wu, Yanzhao (2020).
+        Adversarial Objectness Gradient Attacks in Real-time Object Detection Systems.
         2020 Second IEEE International Conference on Trust, Privacy and Security in Intelligent Systems and Applications (TPS-ISA), pages 263-272.
 
     """
@@ -84,16 +82,12 @@ class TOG(AdversarialAttack):
         if mode == "ll":
             # Least likely: find class with lowest logit value
             obj_logits_mod = obj_logits.clone()
-            obj_logits_mod[orig_label] = float(
-                "inf"
-            )  # Exclude original class
+            obj_logits_mod[orig_label] = float("inf")  # Exclude original class
             return torch.argmin(obj_logits_mod).item()
         else:  # mode == 'ml'
             # Most likely: find class with highest logit value (excluding original)
             obj_logits_mod = obj_logits.clone()
-            obj_logits_mod[orig_label] = float(
-                "-inf"
-            )  # Exclude original class
+            obj_logits_mod[orig_label] = float("-inf")  # Exclude original class
             return torch.argmax(obj_logits_mod).item()
 
     def generate_mislabeling_targets(
@@ -140,7 +134,8 @@ class TOG(AdversarialAttack):
                 if orig_label >= num_classes:
                     logger.warning(
                         "Label %d is out of range (num_classes=%d); picking a random alternative.",
-                        int(orig_label), int(num_classes),
+                        int(orig_label),
+                        int(num_classes),
                     )
                     new_labels[i] = np.random.randint(0, num_classes)
                     continue
@@ -171,7 +166,7 @@ class TOG(AdversarialAttack):
                 }
             )
         return target_labels_list
-    
+
     def attack(
         self,
         x: np.ndarray,  # (batch_size, channels, height, width)
@@ -243,7 +238,14 @@ class TOG(AdversarialAttack):
         x_adv = np.clip(x_query + eta, 0.0, 1.0)
         return x_adv
 
-    def _update_x_adv(self, grad: np.ndarray, eps_iter: float, x_query: np.ndarray, x_adv: np.ndarray, eps: float) -> np.ndarray:
+    def _update_x_adv(
+        self,
+        grad: np.ndarray,
+        eps_iter: float,
+        x_query: np.ndarray,
+        x_adv: np.ndarray,
+        eps: float,
+    ) -> np.ndarray:
         """
         Perform a single PGD-style update and projection to enforce the L-infinity constraint.
         Applies a sign-gradient step, then projects back into the L-infinity ball and [0, 1] range.
@@ -286,7 +288,9 @@ class TOG(AdversarialAttack):
         """
         logger.info(
             "Running TOG vanishing attack with n_iter=%d, eps=%.6f, eps_iter=%.6f",
-            n_iter, eps, eps_iter,
+            n_iter,
+            eps,
+            eps_iter,
         )
         x_adv = self._initialise_x_adv(x_query, eps)
         for _ in range(n_iter):
@@ -318,7 +322,9 @@ class TOG(AdversarialAttack):
         """
         logger.info(
             "Running TOG fabrication attack with n_iter=%d, eps=%.6f, eps_iter=%.6f",
-            n_iter, eps, eps_iter,
+            n_iter,
+            eps,
+            eps_iter,
         )
         x_adv = self._initialise_x_adv(x_query, eps)
         for _ in range(n_iter):
@@ -351,7 +357,10 @@ class TOG(AdversarialAttack):
         """
         logger.info(
             "Running TOG mislabeling attack with n_iter=%d, eps=%.6f, eps_iter=%.6f, mode=%s",
-            n_iter, eps, eps_iter, str(mode),
+            n_iter,
+            eps,
+            eps_iter,
+            str(mode),
         )
         if mode.lower() not in ["ml", "ll"]:
             warnings.warn(f"Unknown mode '{mode}'. Using 'ml' instead.")
@@ -365,7 +374,9 @@ class TOG(AdversarialAttack):
         initial_detections = self._object_detector.predict(x_tensor)
         x_adv = self._initialise_x_adv(x_query, eps)
         num_classes = len(self._object_detector.inference_model.model.names)
-        targets = self.generate_mislabeling_targets(initial_detections, num_classes, mode)
+        targets = self.generate_mislabeling_targets(
+            initial_detections, num_classes, mode
+        )
         for i in range(n_iter):
             grad = self._object_detector.compute_object_mislabeling_gradient(
                 detections=initial_detections, x=x_adv, target_labels_list=targets
@@ -401,7 +412,9 @@ class TOG(AdversarialAttack):
         """
         logger.info(
             "Running TOG untargeted attack with n_iter=%d, eps=%.6f, eps_iter=%.6f",
-            n_iter, eps, eps_iter,
+            n_iter,
+            eps,
+            eps_iter,
         )
         x_uint8 = (x_query * 255.0).clip(0, 255).astype(np.uint8)
         detections_list = self._object_detector.predict(x_uint8)

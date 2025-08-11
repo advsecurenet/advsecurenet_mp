@@ -440,7 +440,7 @@ def test_compute_object_mislabeling_gradient_with_detections(wrapper):
     with patch(
         "torch.autograd.grad", return_value=[torch.zeros_like(torch.from_numpy(x))]
     ):
-    # Current API does not accept 'mode'; provide detections and x only
+        # Current API does not accept 'mode'; provide detections and x only
         grad = wrapper.compute_object_mislabeling_gradient(detections=det, x=x)
         assert grad.shape == x.shape
     with patch(
@@ -695,7 +695,11 @@ def test_compute_object_vanishing_gradient_training_true(wrapper):
 def test_compute_object_mislabeling_gradient_with_targets(wrapper):
     x = np.zeros((1, 3, 224, 224), dtype=np.float32)
     detections = [
-        {"boxes": np.array([[10, 20, 30, 40]]), "labels": np.array([1]), "logits": np.ones((1, 80))}
+        {
+            "boxes": np.array([[10, 20, 30, 40]]),
+            "labels": np.array([1]),
+            "logits": np.ones((1, 80)),
+        }
     ]
     # Build target labels list consistent with _translate_labels input
     target_labels_list = [
@@ -705,7 +709,10 @@ def test_compute_object_mislabeling_gradient_with_targets(wrapper):
         "torch.autograd.grad", return_value=[torch.zeros_like(torch.from_numpy(x))]
     ):
         grad = wrapper.compute_object_mislabeling_gradient(
-            detections=detections, x=x, target_labels_list=target_labels_list, training=True
+            detections=detections,
+            x=x,
+            target_labels_list=target_labels_list,
+            training=True,
         )
         assert isinstance(grad, np.ndarray)
         assert grad.shape == x.shape

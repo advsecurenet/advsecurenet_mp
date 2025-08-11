@@ -92,8 +92,12 @@ def test_tog_instantiation(tog_config):
 def test_generate_mislabeling_targets_ml_ll(tog_config):
     tog = TOG(tog_config)
     detections = make_dummy_detections()
-    res_ml = tog.generate_mislabeling_targets(detections=detections, mode="ml", num_classes=3)
-    res_ll = tog.generate_mislabeling_targets(detections=detections, mode="ll", num_classes=3)
+    res_ml = tog.generate_mislabeling_targets(
+        detections=detections, mode="ml", num_classes=3
+    )
+    res_ll = tog.generate_mislabeling_targets(
+        detections=detections, mode="ll", num_classes=3
+    )
     assert isinstance(res_ml, list) and isinstance(res_ll, list)
     assert len(res_ml) == len(detections)
     assert len(res_ll) == len(detections)
@@ -205,7 +209,9 @@ def test_generate_mislabeling_targets_no_boxes(tog_config):
             "logits": np.ones((0, 3)),
         }
     ]
-    res = tog.generate_mislabeling_targets(detections=detections, mode="ml", num_classes=3)
+    res = tog.generate_mislabeling_targets(
+        detections=detections, mode="ml", num_classes=3
+    )
     assert isinstance(res, list)
     assert len(res) == 0
 
@@ -220,7 +226,9 @@ def test_generate_mislabeling_targets_out_of_bounds_label(tog_config):
             "logits": np.ones((1, 3)),
         }
     ]
-    res = tog.generate_mislabeling_targets(detections=detections, mode="ml", num_classes=3)
+    res = tog.generate_mislabeling_targets(
+        detections=detections, mode="ml", num_classes=3
+    )
     # Should not raise; labels tensor should exist
     assert isinstance(res, list) and len(res) == 1
     assert "labels" in res[0]
@@ -237,7 +245,9 @@ def test_generate_mislabeling_targets_background_class(tog_config):
             "logits": np.ones((1, 11)),
         }
     ]
-    res = tog.generate_mislabeling_targets(detections=detections, mode="ll", num_classes=3)
+    res = tog.generate_mislabeling_targets(
+        detections=detections, mode="ll", num_classes=3
+    )
     assert isinstance(res, list) and len(res) == 1
     assert "boxes" in res[0] and "labels" in res[0]
 
@@ -370,7 +380,9 @@ def test_generate_mislabeling_targets_background_class_ml(tog_config):
             "logits": np.ones((1, 7)),
         }
     ]
-    res = tog.generate_mislabeling_targets(detections=detections, mode="ml", num_classes=3)
+    res = tog.generate_mislabeling_targets(
+        detections=detections, mode="ml", num_classes=3
+    )
     assert isinstance(res, list)
     assert len(res) == 1
     assert "boxes" in res[0] and "labels" in res[0]

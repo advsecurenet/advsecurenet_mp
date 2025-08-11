@@ -55,14 +55,15 @@ class PixelPerturbationODAttacker(ODAttacker):
         self._attack_type = attack_type
         self._tog_mislabeling_mode = tog_mislabeling_mode
 
-    def _perturb_images(self, 
-                        images_np_for_tog: np.ndarray,
-                        ) -> np.ndarray:
+    def _perturb_images(
+        self,
+        images_np_for_tog: np.ndarray,
+    ) -> np.ndarray:
         adv_imgs = self._config.attack.attack(
-                    x=images_np_for_tog,
-                    tog_variant=self._attack_type,
-                    tog_mislabeling_mode=self._tog_mislabeling_mode or "ml",
-                )
+            x=images_np_for_tog,
+            tog_variant=self._attack_type,
+            tog_mislabeling_mode=self._tog_mislabeling_mode or "ml",
+        )
         return torch.from_numpy(adv_imgs).to(self._device)
 
     def execute(self):
