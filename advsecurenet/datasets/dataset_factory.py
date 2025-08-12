@@ -70,7 +70,7 @@ class DatasetFactory:
         for logical_name, split_config in resolved_config.splits.items():
             try:
                 # 1. Create the dataset provider instance with constructor args from the config
-                dataset_type = _infner_dataset_type(split_config.identifier)
+                dataset_type = _infer_dataset_type(split_config.identifier)
 
                 identifier = _process_identifier(dataset_type, split_config.identifier)
 
@@ -129,7 +129,7 @@ def _create_provider(
     return dataset_cls(**constructor_args)
 
 
-def _infner_dataset_type(identifier: str) -> DatasetType:
+def _infer_dataset_type(identifier: str) -> DatasetType:
     """
     Infers the dataset type from the identifier.
 

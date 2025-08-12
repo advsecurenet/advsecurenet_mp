@@ -11,7 +11,7 @@ from datasets import load_dataset as hf_hub_load_dataset
 
 from advsecurenet.datasets.dataset_factory import (
     _create_provider,
-    _infner_dataset_type,
+    _infer_dataset_type,
     _infer_dataset_class_from_type,
     _merge_dicts_with_warning,
     _prepare_load_kwargs,
@@ -324,22 +324,22 @@ def test_infer_dataset_class_from_type():
 @patch(
     "advsecurenet.datasets.dataset_factory.huggingface_dataset_utils.verify_hf_dataset_identifier_exists"
 )
-def test_infner_dataset_type(mock_verify_hf):
+def test_infer_dataset_type(mock_verify_hf):
     """
     Tests the inference of dataset type from an identifier string.
     """
     # Positive case: Hugging Face dataset
     mock_verify_hf.return_value = True
-    assert _infner_dataset_type("user/repo") == DatasetType.HUGGINGFACE
+    assert _infer_dataset_type("user/repo") == DatasetType.HUGGINGFACE
 
     # Positive case: Standard dataset
     mock_verify_hf.return_value = False
-    assert _infner_dataset_type("cifar10") == DatasetType.CIFAR10
+    assert _infer_dataset_type("cifar10") == DatasetType.CIFAR10
 
     # Negative case: Unknown identifier
     mock_verify_hf.return_value = False
     with pytest.raises(ValueError, match="Unknown dataset identifier: unknown_dataset"):
-        _infner_dataset_type("unknown_dataset")
+        _infer_dataset_type("unknown_dataset")
 
 
 @pytest.mark.advsecurenet
