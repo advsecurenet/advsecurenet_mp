@@ -103,6 +103,42 @@ def is_huggingface_id(identifier: str) -> bool:
 
 
 def extract_id_from_url(url: str) -> Optional[str]:
+    """
+    Extracts a repository ID from a Hugging Face URL.
+    
+    This function parses a Hugging Face URL and extracts the repository identifier
+    in the standard 'user/repo' format. It handles various URL formats including
+    dataset URLs with optional 'datasets/' prefix and normalizes the output.
+    
+    Args:
+        url (str): The Hugging Face URL to parse. Should be a valid HF URL format.
+                  Can include or omit protocol schemes.
+    
+    Returns:
+        Optional[str]: The extracted repository ID in 'user/repo' format, or None
+                      if the URL is invalid or doesn't contain sufficient path segments.
+    
+    Note:
+        - Validates input using is_huggingface_url() before processing
+        - Automatically handles missing URL schemes by adding 'https://'
+        - Strips optional 'datasets/' prefix from dataset URLs
+        - Requires at least two path segments after prefix removal
+        - Returns None for malformed or non-Hugging Face URLs
+    
+    Examples:
+        >>> extract_id_from_url("https://huggingface.co/microsoft/DialoGPT-medium")
+        "microsoft/DialoGPT-medium"
+        >>> extract_id_from_url("hf.co/datasets/squad/viewer")
+        "squad/viewer"
+        >>> extract_id_from_url("huggingface.co/datasets/user/repo")
+        "user/repo"
+        >>> extract_id_from_url("www.huggingface.co/transformers/bert-base-uncased")
+        "transformers/bert-base-uncased"
+        >>> extract_id_from_url("invalid-url")
+        None
+        >>> extract_id_from_url("huggingface.co/single-segment")
+        None
+    """
     # 1. Early exit if not a valid HF URL
     if not is_huggingface_url(url):
         return None
