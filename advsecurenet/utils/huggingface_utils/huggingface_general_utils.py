@@ -126,28 +126,28 @@ def extract_id_from_url(url: str) -> Optional[str]:
 def process_hf_identifier(identifier: str) -> Optional[str]:
     """
     Processes and normalizes a Hugging Face identifier from various input formats.
-    
+
     This function accepts either a Hugging Face URL or a direct repository ID and
     returns a normalized repository ID in the standard 'user/repo' format. It handles
     URL extraction and validates the format to ensure consistency across the application.
-    
+
     Args:
         identifier (str): The Hugging Face identifier to process. Can be:
                          - A full URL: "https://huggingface.co/microsoft/DialoGPT-medium"
-                         - A domain URL: "huggingface.co/user/repo"  
+                         - A domain URL: "huggingface.co/user/repo"
                          - A dataset URL: "https://hf.co/datasets/squad"
                          - A direct ID: "microsoft/DialoGPT-medium"
-    
+
     Returns:
         Optional[str]: The normalized repository ID in 'user/repo' format if the input
                       is valid, None if the identifier is invalid or malformed.
-    
+
     Note:
         - URLs are parsed to extract the repository ID
         - Handles optional 'datasets/' prefix in URLs automatically
         - Direct IDs are validated and returned unchanged if valid
         - Invalid formats return None rather than raising exceptions
-    
+
     Examples:
         >>> process_hf_identifier("https://huggingface.co/microsoft/DialoGPT-medium")
         "microsoft/DialoGPT-medium"
