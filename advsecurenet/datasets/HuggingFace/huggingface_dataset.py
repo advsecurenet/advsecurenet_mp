@@ -6,7 +6,7 @@ from datasets import load_dataset as hf_hub_load_dataset
 from advsecurenet.utils.kwargs_utils import (
     map_kwargs,
     filter_kwargs_for_callable,
-    pop_keys_from_dict,
+    pop_string_keys_from_dict,
 )
 from advsecurenet.datasets.base_dataset import BaseDataset, DatasetWrapper
 from advsecurenet.shared.types.configs.preprocess_config import PreprocessConfig
@@ -163,7 +163,7 @@ class HuggingFaceDataset(BaseDataset):
         processed_kwargs = map_kwargs(kwargs, mapping)
 
         popped_keys = ["download", "root"]
-        processed_kwargs = pop_keys_from_dict(processed_kwargs, popped_keys)
+        processed_kwargs = pop_string_keys_from_dict(processed_kwargs, popped_keys)
 
         return processed_kwargs
 
