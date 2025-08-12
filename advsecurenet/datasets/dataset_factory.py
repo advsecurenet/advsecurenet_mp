@@ -284,24 +284,24 @@ def _prepare_load_kwargs(
 def _process_identifier(dataset_type: DatasetType, identifier: str) -> str:
     """
     Processes a dataset identifier based on the dataset type.
-    
+
     For Hugging Face datasets, this function normalizes URLs or validates ID format.
     For other dataset types, the identifier is returned unchanged.
-    
+
     Args:
         dataset_type (DatasetType): The type of dataset being processed.
         identifier (str): The dataset identifier (e.g., URL, ID, or name).
-        
+
     Returns:
         str: The processed identifier. For Hugging Face datasets, this returns
              a normalized ID in 'user/repo' format. For other types, returns
              the original identifier unchanged.
-             
+
     Example:
         >>> _process_identifier(DatasetType.HUGGINGFACE, "https://huggingface.co/user/repo")
         "user/repo"
         >>> _process_identifier(DatasetType.CIFAR10, "cifar10")
-    """    
+    """
     if dataset_type == DatasetType.HUGGINGFACE:
         return huggingface_general_utils.process_hf_identifier(identifier)
     else:
