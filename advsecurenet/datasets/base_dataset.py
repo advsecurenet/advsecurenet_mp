@@ -114,7 +114,7 @@ class BaseDataset(TorchDataset, ABC):
         Returns:
             DatasetWrapper: The dataset loaded into memory.
         """
-        if "root" not in kwargs or kwargs["root"] is None:
+        if not kwargs.get("root"):
             kwargs["root"] = pkg_resources.resource_filename("advsecurenet", "data")
 
         kwargs["transform"] = self.get_transforms()
