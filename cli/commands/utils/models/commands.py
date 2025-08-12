@@ -1,6 +1,6 @@
 import click
 from cli.logic.utils.model import cli_huggingface_model
-
+from typing import Optional
 
 @click.group()
 def models():
@@ -92,6 +92,7 @@ def layers(model_name: str, normalization: bool):
     help="Whether to trust remote code when loading the model. Default is False.",
 )
 @click.option(
+    "-c",
     "--model-class-name",
     default=None,
     type=str,
@@ -100,9 +101,9 @@ def layers(model_name: str, normalization: bool):
 def huggingface(
     model_identifier: str,
     pretrained: bool,
-    revision: str,
+    revision: Optional[str],
     trust_remote_code: bool,
-    model_class_name: str,
+    model_class_name: Optional[str],
 ):
     """Command to load and inspect a Hugging Face model.
 
