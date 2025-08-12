@@ -6,26 +6,26 @@ from urllib.parse import urlparse
 def is_huggingface_url(url: str) -> bool:
     """
     Checks if a string is a valid Hugging Face URL format.
-    
+
     This function validates whether the provided URL points to a Hugging Face resource
     by checking the domain and path structure. It supports both full URLs with schemes
     and domain-only URLs, and handles common variations like www prefixes.
-    
+
     Args:
         url (str): The URL string to validate. Can include or omit the protocol scheme.
                   Examples: "huggingface.co/user/repo", "https://hf.co/datasets/user/repo"
-    
+
     Returns:
         bool: True if the URL matches Hugging Face URL format, False otherwise.
               Returns False for empty strings or None inputs.
-    
+
     Note:
         - Accepts both "huggingface.co" and "hf.co" domains
         - Automatically adds "https://" scheme if missing for parsing
         - Strips "www." prefix during validation
         - Requires at least two path segments (user/repo structure)
         - Does not verify if the URL actually exists on the Hub
-    
+
     Examples:
         >>> is_huggingface_url("huggingface.co/microsoft/DialoGPT-medium")
         True
