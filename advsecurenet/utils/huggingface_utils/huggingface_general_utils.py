@@ -57,7 +57,42 @@ def is_huggingface_url(url: str) -> bool:
 def is_huggingface_id(identifier: str) -> bool:
     """
     Checks if a string matches the typical Hugging Face ID format (e.g., 'user/repo').
-    Uses regex for basic format validation, does not check Hub existence.
+    
+    This function validates whether the provided string follows the standard Hugging Face
+    repository ID format using regex pattern matching. It checks for the basic structure
+    but does not verify if the ID actually exists on the Hugging Face Hub.
+    
+    Args:
+        identifier (str): The string to validate as a Hugging Face ID.
+                         Expected format: "username/repository-name"
+    
+    Returns:
+        bool: True if the identifier matches the Hugging Face ID format, False otherwise.
+              Returns False for empty strings, None inputs, or malformed IDs.
+    
+    Note:
+        - Requires exactly one forward slash separating two parts
+        - Allowed characters: letters (a-z, A-Z), numbers (0-9), dots (.), 
+          underscores (_), and hyphens (-)
+        - Both username and repository parts must contain at least one character
+        - Does not validate against Hub existence or user permissions
+        - Case-sensitive validation
+    
+    Examples:
+        >>> is_huggingface_id("microsoft/DialoGPT-medium")
+        True
+        >>> is_huggingface_id("huggingface/transformers")
+        True
+        >>> is_huggingface_id("user_name/repo.name")
+        True
+        >>> is_huggingface_id("single-part")
+        False
+        >>> is_huggingface_id("user/repo/extra")
+        False
+        >>> is_huggingface_id("user/repo with spaces")
+        False
+        >>> is_huggingface_id("")
+        False
     """
     if not identifier:
         return False
