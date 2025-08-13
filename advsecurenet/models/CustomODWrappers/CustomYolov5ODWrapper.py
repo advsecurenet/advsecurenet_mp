@@ -9,6 +9,18 @@ import numpy as np
 from torch.utils.data import TensorDataset, DataLoader
 from advsecurenet.models.CustomODWrappers.ODWrapper import ODWrapper
 from pathlib import Path
+import warnings
+from contextlib import contextmanager
+@contextmanager
+def _suppress_yolov5_autocast_warning():
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            category=FutureWarning,
+            module=r"yolov5\.models\.common",
+            message=r".*`torch\.cuda\.amp\.autocast\(.*\)` is deprecated.*",
+        )
+        yield
 
 
 class CustomYolov5ODWrapper(ODWrapper):
@@ -210,7 +222,8 @@ class CustomYolov5ODWrapper(ODWrapper):
                 for img in imgs
             ]
             with torch.no_grad():
-                outputs = self.inference_model(imgs, size=self.input_shape[1])
+                with _suppress_yolov5_autocast_warning():
+                    outputs = self.inference_model(imgs, size=self.input_shape[1])
                 for i, det in enumerate(outputs.xyxy):
                     arr = det.cpu().numpy() if isinstance(det, torch.Tensor) else det
                     if arr.size == 0:
