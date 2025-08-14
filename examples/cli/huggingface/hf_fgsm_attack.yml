@@ -1,0 +1,27 @@
+device: auto
+logging:
+  use_tensorboard: false
+  log_level: INFO
+attack_config:
+  attack_name: FGSM
+  attack_parameters:
+    epsilon: 0.03
+  targeted: false
+  verbose: true
+dataset:
+  dataset_name: huggingface
+  identifier: uoft-cs/cifar10
+  load_splits:
+    - test
+  constructor_args:
+    input_key: img
+    target_key: label
+model:
+  model_name: huggingface
+  model_identifier: microsoft/resnet-18
+  pretrained: true
+  trust_remote_code: false
+save_config:
+  save_images: true
+  save_folder: attack
+  save_format: png

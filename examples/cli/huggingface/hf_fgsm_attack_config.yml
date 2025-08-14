@@ -1,0 +1,66 @@
+# Hugging Face FGSM Attack Configuration
+# This configuration demonstrates the new Hugging Face integration features
+
+# Dataset Configuration with Split Priority System
+dataset:
+  dataset_name: "huggingface"
+  identifier: "uoft-cs/cifar10"  # Proper Hugging Face dataset ID
+  num_classes: 10
+  
+  # Method 1: Using load_splits (simple approach)
+  load_splits:
+    - "train"
+    - "test"
+  
+  # Method 2: Using split_config (advanced approach) - UNCOMMENT TO USE
+  # split_config has HIGHEST priority and will override load_splits
+  # split_config:
+  #   train:
+  #     identifier: "cifar10"
+  #     split_name: "train"
+  #   test:
+  #     identifier: "fashion_mnist"  # Different dataset for testing
+  #     split_name: "test"
+  #     preprocessing:
+  #       resize: [28, 28]  # Fashion-MNIST specific preprocessing
+  #       normalize_means: [0.5]
+  #       normalize_stds: [0.5]
+  
+  # Sample size for faster testing
+  random_sample_size: 1000
+  
+  # Preprocessing configuration
+  preprocessing:
+    resize: [32, 32]
+    normalize_means: [0.485, 0.456, 0.406]
+    normalize_stds: [0.229, 0.224, 0.225]
+  
+  # Hugging Face specific parameters
+  constructor_args:
+    input_key: "img"      # Key for image data in HF dataset
+    target_key: "label"   # Key for labels in HF dataset
+
+# Model Configuration
+model:
+  model_name: "huggingface"
+  model_identifier: "microsoft/resnet-18"  # Use model_identifier for HF model ID
+  pretrained: true  # Direct attribute
+  trust_remote_code: false  # Direct attribute
+  architecture:
+    num_classes: 10
+
+# Attack Configuration
+attack:
+  attack_name: "fgsm"
+  epsilon: 0.03
+  targeted: false
+
+# Output Configuration
+save_result: true
+result_dir: "./attack_results"
+save_samples: true
+device: "auto"  # Auto-detect best available device
+
+# Logging
+verbose: true
+log_level: "INFO"
