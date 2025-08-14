@@ -33,8 +33,12 @@ setup(
         "einops",
         "filetype",
         "requests",
-        "transformers",
+        "transformers==4.48.3",  # Ensure compatibility with YOLOv5
         "datasets",
+        "mean_average_precision",
+        "yolov5",
+        "huggingface-hub==0.24.1",  # Ensure compatibility with YOLOv5
+        "pycocotools",
     ],
     entry_points={
         "console_scripts": [

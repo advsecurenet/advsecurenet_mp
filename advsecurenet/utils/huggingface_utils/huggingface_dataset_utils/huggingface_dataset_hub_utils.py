@@ -1,9 +1,14 @@
 import warnings
 
 from huggingface_hub import dataset_info
-from huggingface_hub.errors import RepositoryNotFoundError
+
+try:
+    from huggingface_hub.errors import RepositoryNotFoundError
+except ImportError:
+    from huggingface_hub.utils._errors import RepositoryNotFoundError
 
 import advsecurenet.utils.huggingface_utils.huggingface_general_utils as huggingface_general_utils
+
 
 def check_hub_for_dataset_id(dataset_id: str) -> bool:
     """
@@ -21,7 +26,8 @@ def check_hub_for_dataset_id(dataset_id: str) -> bool:
     except RepositoryNotFoundError:
         # The ID is valid in format but does not correspond to any dataset on the hub
         return False
-    
+
+
 def verify_hf_dataset_identifier_exists(identifier: str) -> bool:
     """
     Verifies if a Hugging Face identifier (URL or dataset ID) corresponds
@@ -33,7 +39,7 @@ def verify_hf_dataset_identifier_exists(identifier: str) -> bool:
     Returns:
         bool: True if the identifier points to an existing dataset on the Hub, False otherwise.
                 Returns False also if network errors occur during the check.
-        """
+    """
     dataset_id_to_check = huggingface_general_utils.process_hf_identifier(identifier)
 
     if dataset_id_to_check is None:
@@ -43,5 +49,7 @@ def verify_hf_dataset_identifier_exists(identifier: str) -> bool:
         return check_hub_for_dataset_id(dataset_id_to_check)
     except Exception as e:
         # Treat Hub check errors (network, etc.) as "doesn't exist" for inference purposes
-        warnings.warn(f"Could not verify Hugging Face identifier '{identifier}' due to Hub check error: {e}")
+        warnings.warn(
+            f"Could not verify Hugging Face identifier '{identifier}' due to Hub check error: {e}"
+        )
         return False

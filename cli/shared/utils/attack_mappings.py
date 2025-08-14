@@ -7,6 +7,8 @@ from advsecurenet.shared.types.configs.attack_configs import (
     FgsmAttackConfig,
     LotsAttackConfig,
     PgdAttackConfig,
+    DPatchAttackConfig,
+    TOGAttackConfig,
 )
 from cli.shared.types.attack.attacks import (
     CwAttackCLIConfigType,
@@ -15,6 +17,8 @@ from cli.shared.types.attack.attacks import (
     FgsmAttackCLIConfigType,
     LotsAttackCLIConfigType,
     PgdAttackCLIConfigType,
+    DPatchAttackCLIConfigType,
+    TOGAttackCLIConfigType,
 )
 
 attack_cli_mapping = {
@@ -27,6 +31,8 @@ attack_cli_mapping = {
         DecisionBoundaryAttackCLIConfigType,
     ),
     "LOTS": (AttackType.LOTS, LotsAttackCLIConfigType),
+    "DPATCH": (AttackType.DPATCH, DPatchAttackCLIConfigType),
+    "TOG": (AttackType.TOG, TOGAttackCLIConfigType),
 }
 
 attack_mapping = {
@@ -36,4 +42,6 @@ attack_mapping = {
     "CW": CWAttackConfig,
     "LOTS": LotsAttackConfig,
     "DECISION_BOUNDARY": DecisionBoundaryAttackConfig,
+    "DPATCH": DPatchAttackConfig,
+    "TOG": TOGAttackConfig,
 }

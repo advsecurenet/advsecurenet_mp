@@ -1,20 +1,21 @@
 import re
 from typing import Optional
 
+
 def is_huggingface_url(url: str) -> bool:
     """
     Check if a URL is a Hugging Face URL.
-    
+
      Args:
         url (str): The URL to check.
-          
+
     Returns:
          bool: True if the URL is a Hugging Face URL, False otherwise.
     """
     if not url:
         return False
-        
-    pattern = r'^(https?://) ?(www\.)?(huggingface\.co|hf\.co)/([^/]+/[^/]+).*$'
+
+    pattern = r"^(https?://) ?(www\.)?(huggingface\.co|hf\.co)/([^/]+/[^/]+).*$"
     return bool(re.match(pattern, url))
 
 
@@ -34,17 +35,17 @@ def is_huggingface_id(identifier: str) -> bool:
 def extract_id_from_url(url: str) -> Optional[str]:
     """
     Extract the ID from a Hugging Face URL.
-    
+
     Args:
         url (str): The URL to extract the ID from.
-        
+
     Returns:
         Optional[str]: The ID if the URL is a valid Hugging Face URL, None otherwise.
     """
     if not is_huggingface_url(url):
         return None
 
-    pattern = r'^(https?://)?(www\.)?(huggingface\.co|hf\.co)/(?:datasets/)?([^/]+/[^/]+)(?:[/?#].*)?$'
+    pattern = r"^(https?://)?(www\.)?(huggingface\.co|hf\.co)/(?:datasets/)?([^/]+/[^/]+)(?:[/?#].*)?$"
     match = re.match(pattern, url)
     if match:
         return match.group(4)
@@ -64,4 +65,3 @@ def process_hf_identifier(identifier):
     else:
         # If it's neither, return None
         return None
-

@@ -12,6 +12,7 @@ from advsecurenet.utils.huggingface_utils.huggingface_model_utils import (
 
 # --- huggingface_general_utils.py ---
 
+
 @pytest.mark.parametrize(
     "is_hf_url,hf_url_expected_existence",
     [
@@ -24,7 +25,11 @@ from advsecurenet.utils.huggingface_utils.huggingface_model_utils import (
     ],
 )
 def test_is_huggingface_url(is_hf_url, hf_url_expected_existence):
-    assert huggingface_general_utils.is_huggingface_url(is_hf_url) == hf_url_expected_existence
+    assert (
+        huggingface_general_utils.is_huggingface_url(is_hf_url)
+        == hf_url_expected_existence
+    )
+
 
 @pytest.mark.parametrize(
     "hf_id,hf_id_expected_existence",
@@ -37,7 +42,10 @@ def test_is_huggingface_url(is_hf_url, hf_url_expected_existence):
     ],
 )
 def test_is_huggingface_id(hf_id, hf_id_expected_existence):
-    assert huggingface_general_utils.is_huggingface_id(hf_id) == hf_id_expected_existence
+    assert (
+        huggingface_general_utils.is_huggingface_id(hf_id) == hf_id_expected_existence
+    )
+
 
 @pytest.mark.parametrize(
     "to_extract_hf_url,extracted_hf_url",
@@ -51,7 +59,11 @@ def test_is_huggingface_id(hf_id, hf_id_expected_existence):
     ],
 )
 def test_extract_id_from_url(to_extract_hf_url, extracted_hf_url):
-    assert huggingface_general_utils.extract_id_from_url(to_extract_hf_url) == extracted_hf_url
+    assert (
+        huggingface_general_utils.extract_id_from_url(to_extract_hf_url)
+        == extracted_hf_url
+    )
+
 
 @pytest.mark.parametrize(
     "to_process_hf_identifier,processed_hf_identifier",
@@ -66,9 +78,14 @@ def test_extract_id_from_url(to_extract_hf_url, extracted_hf_url):
     ],
 )
 def test_process_hf_identifier(to_process_hf_identifier, processed_hf_identifier):
-    assert huggingface_general_utils.process_hf_identifier(to_process_hf_identifier) == processed_hf_identifier
+    assert (
+        huggingface_general_utils.process_hf_identifier(to_process_hf_identifier)
+        == processed_hf_identifier
+    )
+
 
 # --- huggingface_dataset_hub_utils.py ---
+
 
 @pytest.mark.integration
 @pytest.mark.parametrize(
@@ -78,8 +95,14 @@ def test_process_hf_identifier(to_process_hf_identifier, processed_hf_identifier
         ("nonexistent-user/nonexistent-dataset", False),
     ],
 )
-def test_check_hub_for_dataset_id(to_exist_hf_dataset_id, dataset_id_expected_existence):
-    assert check_hub_for_dataset_id(to_exist_hf_dataset_id) == dataset_id_expected_existence
+def test_check_hub_for_dataset_id(
+    to_exist_hf_dataset_id, dataset_id_expected_existence
+):
+    assert (
+        check_hub_for_dataset_id(to_exist_hf_dataset_id)
+        == dataset_id_expected_existence
+    )
+
 
 @pytest.mark.integration
 @pytest.mark.parametrize(
@@ -96,10 +119,17 @@ def test_check_hub_for_dataset_id(to_exist_hf_dataset_id, dataset_id_expected_ex
         (None, False),
     ],
 )
-def test_verify_hf_dataset_identifier_exists(to_exist_hf_dataset_identifier, dataset_identifier_expected_existence):
-    assert verify_hf_dataset_identifier_exists(to_exist_hf_dataset_identifier) == dataset_identifier_expected_existence
+def test_verify_hf_dataset_identifier_exists(
+    to_exist_hf_dataset_identifier, dataset_identifier_expected_existence
+):
+    assert (
+        verify_hf_dataset_identifier_exists(to_exist_hf_dataset_identifier)
+        == dataset_identifier_expected_existence
+    )
+
 
 # --- huggingface_model_hub_utils.py ---
+
 
 @pytest.mark.integration
 @pytest.mark.parametrize(
@@ -112,6 +142,7 @@ def test_verify_hf_dataset_identifier_exists(to_exist_hf_dataset_identifier, dat
 )
 def test_check_hub_for_model_id(to_check_model_id, model_id_expected_existence):
     assert check_hub_for_model_id(to_check_model_id) == model_id_expected_existence
+
 
 @pytest.mark.integration
 @pytest.mark.parametrize(
@@ -128,5 +159,10 @@ def test_check_hub_for_model_id(to_check_model_id, model_id_expected_existence):
         (None, False),
     ],
 )
-def test_verify_hf_model_identifier_exists(to_verify_hf_model_identifier, hf_model_identifier_expected_existence):
-    assert verify_hf_model_identifier_exists(to_verify_hf_model_identifier) == hf_model_identifier_expected_existence
+def test_verify_hf_model_identifier_exists(
+    to_verify_hf_model_identifier, hf_model_identifier_expected_existence
+):
+    assert (
+        verify_hf_model_identifier_exists(to_verify_hf_model_identifier)
+        == hf_model_identifier_expected_existence
+    )
