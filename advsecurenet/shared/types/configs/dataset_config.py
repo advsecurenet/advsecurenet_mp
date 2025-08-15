@@ -245,7 +245,7 @@ def resolve_dataset_config(config: CreateDatasetCliConfig) -> ResolvedDatasetCon
         resolved_split = _create_resolved_split(
             global_config=config,
             split_name=split_name,
-            user_split_config=user_split_config
+            user_split_config=user_split_config,
         )
         # The key in the final dictionary is the split name itself (e.g., 'train', 'test').
         final_splits[split_name] = resolved_split
