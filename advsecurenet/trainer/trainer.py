@@ -33,7 +33,8 @@ class Trainer:
         """
 
         self._config = config
-        self._device = setup_device(config.device_config.processor)
+        self._processor = config.device_config.processor
+        self._device = self._setup_device()
         self._loss_fn = get_loss_function(config.training_process_config.criterion)
         self._needs_global_patch = False
 
@@ -198,3 +199,6 @@ class Trainer:
         Initializes the model and moves it to the device.
         """
         return model.to(self._device)
+    
+    def _setup_device(self):
+        setup_device(self._processor)

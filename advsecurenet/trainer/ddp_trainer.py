@@ -5,6 +5,8 @@ from tqdm.auto import tqdm, trange
 from advsecurenet.distributed.ddp_base_task import DDPBaseTask
 from advsecurenet.shared.types.configs.train_config import TrainConfig
 from advsecurenet.trainer.trainer import Trainer
+from advsecurenet.trainer import trainer_logic
+
 
 
 class DDPTrainer(DDPBaseTask, Trainer):
@@ -104,7 +106,6 @@ class DDPTrainer(DDPBaseTask, Trainer):
             data_iterator = self._train_loader
             
         # Use trainer_logic for actual batch processing
-        from advsecurenet.trainer import trainer_logic
         for source, targets in data_iterator:
             source, targets = source.to(self._device), targets.to(self._device)
             loss = trainer_logic.run_batch(source, targets, self.model, self.optimizer, self._loss_fn, self._scheduler)
@@ -115,15 +116,13 @@ class DDPTrainer(DDPBaseTask, Trainer):
 
         # Only log on rank 0
         if self._rank == 0:
-            import click
-            click.echo(click.style(f"Epoch {epoch} - Average loss: {total_loss:.4f}", fg="blue"))
+            trainer_logic.log_loss(epoch, total_loss)
 
     def _post_training(self) -> None:
         """
         DDP-specific: Only save final model on rank 0.
         """
         if self._rank == 0:
-            from advsecurenet.trainer import trainer_logic
             trainer_logic.post_training(
                 save_final_model_flag=self._config.final_model_config.save_final_model, 
                 model=self.model, 
