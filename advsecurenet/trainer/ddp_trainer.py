@@ -1,6 +1,6 @@
 import torch
 from torch.utils.data.distributed import DistributedSampler
-from tqdm.auto import tqdm
+from tqdm.auto import tqdm, trange
 
 from advsecurenet.distributed.ddp_base_task import DDPBaseTask
 from advsecurenet.shared.types.configs.train_config import TrainConfig
@@ -33,11 +33,11 @@ class DDPTrainer(DDPBaseTask, Trainer):
         """
         Loads the given model state dict.
         """
-        self._model.module.load_state_dict(state_dict)
+        self.model.module.load_state_dict(state_dict)
 
     def _get_model_state_dict(self) -> dict:
         # Returns the model state dict.
-        return self._model.module.state_dict()
+        return self.model.module.state_dict()
 
     def _assign_device_to_optimizer_state(self):
         """
@@ -88,33 +88,72 @@ class DDPTrainer(DDPBaseTask, Trainer):
 
     def _run_epoch(self, epoch: int) -> None:
         """
-        Runs the given epoch.
-        Args:
-            epoch (int): Current epoch number.
+        DDP-specific epoch running with distributed sampler handling.
         """
-        total_loss = 0.0
+        # Set epoch for distributed sampler
         sampler = self._config.training_process_config.train_loader.sampler
-        assert isinstance(
-            sampler, DistributedSampler
-        ), "Sampler must be of type DistributedSampler"
-        sampler.set_epoch(epoch)
-
+        if isinstance(sampler, DistributedSampler):
+            sampler.set_epoch(epoch)
+        
+        total_loss = 0.0
+        
+        # Only show tqdm on rank 0 to avoid cluttered output
         if self._rank == 0:
-            # Only initialize tqdm in the master process, use as context manager
-            with tqdm(self._config.training_process_config.train_loader, leave=False, position=1) as data_iterator:
-                for source, targets in data_iterator:
-                    source, targets = source.to(self._device), targets.to(self._device)
-                    loss = self._run_batch(source, targets)
-                    total_loss += loss
+            data_iterator = tqdm(self._train_loader, leave=False, position=1)
         else:
-            data_iterator = self._config.training_process_config.train_loader
-            for source, targets in data_iterator:
-                source, targets = source.to(self._device), targets.to(self._device)
-                loss = self._run_batch(source, targets)
-                total_loss += loss
+            data_iterator = self._train_loader
+            
+        # Use trainer_logic for actual batch processing
+        from advsecurenet.trainer import trainer_logic
+        for source, targets in data_iterator:
+            source, targets = source.to(self._device), targets.to(self._device)
+            loss = trainer_logic.run_batch(source, targets, self.model, self.optimizer, self._loss_fn, self._scheduler)
+            total_loss += loss
 
-        # Compute average loss across all batches and all processes
-        total_loss /= len(self._config.training_process_config.train_loader) * self._world_size
+        # DDP-specific: divide by world_size for proper averaging across processes
+        total_loss /= len(self._train_loader) * self._world_size
 
+        # Only log on rank 0
         if self._rank == 0:
-            self._log_loss(epoch, total_loss)
+            import click
+            click.echo(click.style(f"Epoch {epoch} - Average loss: {total_loss:.4f}", fg="blue"))
+
+    def _post_training(self) -> None:
+        """
+        DDP-specific: Only save final model on rank 0.
+        """
+        if self._rank == 0:
+            from advsecurenet.trainer import trainer_logic
+            trainer_logic.post_training(
+                save_final_model_flag=self._config.final_model_config.save_final_model, 
+                model=self.model, 
+                save_path=self._config.final_model_config.save_model_path, 
+                save_name=self._config.final_model_config.save_model_name, 
+                model_name=None, 
+                dataset_name=None, 
+                use_ddp=True,  # Set to True for DDP
+                privacy_engine=self._privacy_engine, 
+                delta=self._config.differential_privacy_config.delta if self._config.differential_privacy_config else None
+            )
+
+    def _get_checkpoint_path(self, epoch: int) -> str:
+        """
+        DDP-specific: Generate checkpoint path (same as base but for clarity).
+        """
+        from advsecurenet.trainer import trainer_logic
+        return trainer_logic.define_save_checkpoint_path(
+            save_checkpoint_path=self._config.checkpoint_config.save_checkpoint_path,
+            save_checkpoint_name=self._config.checkpoint_config.save_checkpoint_name,
+            checkpoint_sub_dir=None,  # Not available in config
+            model_name="model",  # Default fallback
+            dataset_name="dataset",  # Default fallback
+            epoch=epoch
+        )
+
+    def _save_checkpoint(self, epoch: int, checkpoint_path: str) -> None:
+        """
+        DDP-specific: Only save checkpoint on rank 0.
+        """
+        if self._rank == 0:
+            from advsecurenet.trainer import trainer_logic
+            trainer_logic.save_checkpoint(epoch, self.optimizer, self.model, checkpoint_path)
