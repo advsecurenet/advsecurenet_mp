@@ -93,6 +93,9 @@ class Trainer:
             self._train_loader = train_loader
             self._privacy_engine = None
 
+        # Setup model (handles DDP wrapping if needed)
+        self.model = self._setup_model(self.model)
+
         self._scheduler = trainer_logic.get_scheduler(
             scheduler=config.optimization_config.scheduler,
             optimizer=self.optimizer,
@@ -110,26 +113,61 @@ class Trainer:
             self.start_epoch, self._config.training_process_config.epochs + 1, leave=True, position=0
         ) as epoch_iterator:
             for epoch in epoch_iterator:
-                trainer_logic.run_epoch(
-                    epoch, 
-                    self._train_loader, 
-                    self._device, 
-                    self.model, 
-                    self.optimizer, 
-                    self._loss_fn, 
-                    self._scheduler
-                )
-                if trainer_logic.should_save_checkpoint(epoch, self._config.checkpoint_config.save_checkpoint, self._config.checkpoint_config.checkpoint_interval):
-                    checkpoint_path = trainer_logic.define_save_checkpoint_path(
-                        save_checkpoint_path=self._config.checkpoint_config.save_checkpoint_path,
-                        save_checkpoint_name=self._config.checkpoint_config.save_checkpoint_name,
-                        checkpoint_sub_dir=None,  # Not available in config
-                        model_name="model",  # Default fallback
-                        dataset_name="dataset",  # Default fallback
-                        epoch=epoch
-                    )
-                    trainer_logic.save_checkpoint(epoch, self.optimizer, self.model, checkpoint_path)
+                self._run_epoch(epoch)
+                
+                if self._should_save_checkpoint(epoch):
+                    checkpoint_path = self._get_checkpoint_path(epoch)
+                    self._save_checkpoint(epoch, checkpoint_path)
         
+        self._post_training()
+
+    def _run_epoch(self, epoch: int) -> None:
+        """
+        Runs a single training epoch. Can be overridden for DDP.
+        """
+        trainer_logic.run_epoch(
+            epoch, 
+            self._train_loader, 
+            self._device, 
+            self.model, 
+            self.optimizer, 
+            self._loss_fn, 
+            self._scheduler
+        )
+
+    def _should_save_checkpoint(self, epoch: int) -> bool:
+        """
+        Determines if a checkpoint should be saved. Can be overridden for DDP.
+        """
+        return trainer_logic.should_save_checkpoint(
+            epoch, 
+            self._config.checkpoint_config.save_checkpoint, 
+            self._config.checkpoint_config.checkpoint_interval
+        )
+
+    def _get_checkpoint_path(self, epoch: int) -> str:
+        """
+        Gets the checkpoint path. Can be overridden for DDP.
+        """
+        return trainer_logic.define_save_checkpoint_path(
+            save_checkpoint_path=self._config.checkpoint_config.save_checkpoint_path,
+            save_checkpoint_name=self._config.checkpoint_config.save_checkpoint_name,
+            checkpoint_sub_dir=None,  # Not available in config
+            model_name="model",  # Default fallback
+            dataset_name="dataset",  # Default fallback
+            epoch=epoch
+        )
+
+    def _save_checkpoint(self, epoch: int, checkpoint_path: str) -> None:
+        """
+        Saves a checkpoint. Can be overridden for DDP.
+        """
+        trainer_logic.save_checkpoint(epoch, self.optimizer, self.model, checkpoint_path)
+
+    def _post_training(self) -> None:
+        """
+        Post-training logic. Can be overridden for DDP.
+        """
         trainer_logic.post_training(
             save_final_model_flag=self._config.final_model_config.save_final_model, 
             model=self.model, 
@@ -155,3 +193,8 @@ class Trainer:
             # Otherwise, run the loop normally.
             self._execute_training_loop()
 
+    def _setup_model(self, model) -> torch.nn.Module:
+        """
+        Initializes the model and moves it to the device.
+        """
+        return model.to(self._device)
