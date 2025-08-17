@@ -15,6 +15,8 @@ from advsecurenet.trainer.trainer import Trainer
 from advsecurenet.trainer import trainer_logic
 from advsecurenet.utils.adversarial_target_generator import AdversarialTargetGenerator
 
+import advsecurenet.trainer.trainer_logic 
+
 
 class AdversarialTraining(Trainer):
     """
@@ -219,7 +221,7 @@ class AdversarialTraining(Trainer):
                 images, adv_source, true_labels, adv_targets
             )
 
-            loss = self._run_batch(combined_data, combined_targets)
+            loss = trainer_logic.run_batch(combined_data, combined_targets, self.model, self.optimizer, self._loss_fn, self._scheduler)
             total_loss += loss
 
         total_loss /= self._get_loss_divisor()
@@ -243,14 +245,3 @@ class AdversarialTraining(Trainer):
 
     def _get_loss_divisor(self):
         return len(self.config.train_config.training_process_config.train_loader)
-
-    def _run_batch(self, source: torch.Tensor, targets: torch.Tensor) -> float:
-        """Run a batch through the target model and return the loss."""
-        from advsecurenet.trainer.trainer_logic import run_batch
-        
-        model = self.config.train_config.model_config.model
-        optimizer = self.optimizer
-        loss_fn = self._loss_fn
-        scheduler = self._scheduler
-        
-        return run_batch(source, targets, model, optimizer, loss_fn, scheduler)
