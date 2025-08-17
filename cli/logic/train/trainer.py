@@ -54,7 +54,7 @@ class CLITrainer:
         DDP Training function. Initializes the DDPCoordinator and runs the training.
         """
         # if no gpu ids are provided, use all available gpus
-        if self.config.device.gpu_ids is None or len(self.config.device.gpu_ids) == 0:
+        if self.config.device.gpu_ids is None or len(self.config.device.gpu_ids) == 0: 
             self.config.device.gpu_ids = list(range(torch.cuda.device_count()))
 
         world_size = len(self.config.device.gpu_ids)
@@ -66,7 +66,7 @@ class CLITrainer:
             world_size,
         )
 
-        if self.config.training.verbose:
+        if self.config.training.training_hyperparameter.verbose:
             click.echo(
                 f"Running DDP training on {world_size} GPUs with the following IDs: {self.config.device.gpu_ids}"
             )
