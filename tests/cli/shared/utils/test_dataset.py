@@ -4,7 +4,7 @@ import pytest
 from torch.utils.data import Dataset as TorchDataset
 
 from advsecurenet.shared.types.dataset import DatasetType
-from cli.shared.types.utils.dataset import (
+from advsecurenet.shared.types.configs.dataset_config import (
     CreateDatasetCliConfig,
     CreateDatasetCliConfig,
     UserSplitConfig,

@@ -262,7 +262,6 @@ def _create_resolved_split(
     global_config: CreateDatasetCliConfig,
     split_name: str,
     user_split_config: Optional[UserSplitConfig] = None,
-    user_split_config: Optional[UserSplitConfig] = None,
 ) -> ResolvedSplitConfig:
     """
     Creates a single ResolvedSplitConfig, overriding global settings with

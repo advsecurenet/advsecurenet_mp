@@ -21,6 +21,7 @@ from advsecurenet.shared.types.configs.device_config import DeviceConfig
 from cli.logic.attack.attacker import CLIAttacker
 from cli.shared.types.attack import BaseAttackCLIConfigType
 
+
 logger = logging.getLogger("cli.logic.attack.attacker")
 
 
@@ -298,7 +299,7 @@ def test_select_data_partition_with_splits(
 
     returned_data = attacker._select_data_partition(train_data, test_data)
 
-    mock_resolve_config.assert_called_once_with(attacker_config.dataset)
+    mock_resolve_dataset_config.assert_called_once_with(attacker_config.dataset)
     mock_validate_dataset.assert_called_once_with(
         train_data if split_key == "train" else test_data, split_key
     )

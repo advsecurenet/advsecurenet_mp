@@ -25,7 +25,7 @@ from cli.shared.types.utils.target import TargetCLIConfigType
 from cli.shared.utils.dataset import get_datasets
 from cli.shared.utils.helpers import read_data_from_file, save_images
 from cli.shared.utils.model import create_model
-from cli.shared.types.utils.dataset import resolve_dataset_config
+from advsecurenet.shared.types.configs.dataset_config import resolve_dataset_config
 
 logger = logging.getLogger(__name__)
 
