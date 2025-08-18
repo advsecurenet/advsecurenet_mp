@@ -201,4 +201,4 @@ class Trainer:
         return model.to(self._device)
     
     def _setup_device(self):
-        setup_device(self._processor)
+        return setup_device(self._processor)

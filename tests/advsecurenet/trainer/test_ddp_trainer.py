@@ -66,6 +66,15 @@ def train_config(processor):
 @patch("advsecurenet.trainer.ddp_trainer.DDPBaseTask._setup_model")
 @patch("advsecurenet.trainer.trainer_logic.get_optimizer")
 def ddp_trainer(mock_optimizer, mock_setup_model, mock_setup_device, train_config):
+    # Make _setup_device return a real torch.device instead of a mock
+    mock_setup_device.return_value = processor
+    
+    # Mock the model in the config to have a proper .to() method
+    mock_model = MagicMock()
+    mock_model.to.return_value = mock_model  # .to() should return the model itself
+    mock_model.module = MagicMock()  # DDP models have a .module attribute
+    train_config.model_config.model = mock_model
+    
     rank = 0
     world_size = 2
     return DDPTrainer(config=train_config, rank=rank, world_size=world_size)
@@ -83,18 +92,19 @@ def test_init(ddp_trainer, train_config):
 @pytest.mark.essential
 def test_load_model_state_dict(ddp_trainer):
     state_dict = {"key": "value"}
-    ddp_trainer._model = MagicMock()
-    ddp_trainer._model.module = MagicMock()
+    # Mock the model attribute (not _model) and its module
+    ddp_trainer.model = MagicMock()
+    ddp_trainer.model.module = MagicMock()
     ddp_trainer._load_model_state_dict(state_dict)
-    ddp_trainer._model.module.load_state_dict.assert_called_once_with(state_dict)
+    ddp_trainer.model.module.load_state_dict.assert_called_once_with(state_dict)
 
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
 def test_get_model_state_dict(ddp_trainer):
     state_dict = {"key": "value"}
-    ddp_trainer._model = MagicMock()
-    ddp_trainer._model.module.state_dict.return_value = state_dict
+    ddp_trainer.model = MagicMock()
+    ddp_trainer.model.module.state_dict.return_value = state_dict
     result = ddp_trainer._get_model_state_dict()
     assert result == state_dict
 
@@ -165,10 +175,11 @@ def test_should_save_final_model(ddp_trainer):
 @pytest.mark.advsecurenet
 @pytest.mark.essential
 @patch("tqdm.auto.tqdm", wraps=tqdm)
-def test_run_epoch(mock_tqdm, ddp_trainer, processor):
+@patch("advsecurenet.trainer.trainer_logic.run_batch")
+def test_run_epoch(mock_run_batch, mock_tqdm, ddp_trainer, processor):
     ddp_trainer._config.training_process_config.train_loader = MagicMock(spec=DataLoader)
     ddp_trainer._config.training_process_config.train_loader.sampler = MagicMock(spec=DistributedSampler)
-    ddp_trainer._run_batch = MagicMock(return_value=1.0)
+    mock_run_batch.return_value = 1.0
     ddp_trainer._log_loss = MagicMock()
     ddp_trainer._config.training_process_config.train_loader.__len__.return_value = 1
 
