@@ -11,7 +11,7 @@ from advsecurenet.shared.types.configs.dataset_config import (
     CreateDatasetCliConfig,
 )
 
-from cli.shared.types.utils.dataset import (
+from advsecurenet.shared.types.configs.dataset_config import (
     CreateDatasetCliConfig,
     resolve_dataset_config,
 )

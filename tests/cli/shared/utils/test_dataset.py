@@ -12,11 +12,12 @@ from advsecurenet.shared.types.configs.dataset_config import (
     ResolvedSplitConfig,
 )
 from cli.shared.utils.dataset import get_datasets
+from advsecurenet.shared.types.configs.dataset_config import _get_identifier, _create_resolved_split, _get_user_splits
 
 
 @pytest.mark.cli
 @pytest.mark.essential
-@patch("cli.shared.utils.dataset.DatasetFactory.load_dataset_from_config")
+@patch("advsecurenet.datasets.DatasetFactory.load_dataset_from_config")
 def test_get_datasets_standard(mock_create_dataset):
     mock_dataset = {
         "train": MagicMock(spec=TorchDataset),
@@ -69,7 +70,7 @@ def test_get_datasets_standard(mock_create_dataset):
 
 @pytest.mark.cli
 @pytest.mark.essential
-@patch("cli.shared.utils.dataset.DatasetFactory.load_dataset_from_config")
+@patch("advsecurenet.datasets.DatasetFactory.load_dataset_from_config")
 def test_get_datasets_attacks(mock_create_dataset):
     mock_dataset = {
         "train": MagicMock(spec=TorchDataset),
@@ -126,8 +127,6 @@ def test_get_datasets_attacks(mock_create_dataset):
 @pytest.mark.essential
 def test_get_identifier_with_identifier():
     """Test _get_identifier returns config.identifier when provided"""
-    from cli.shared.types.utils.dataset import _get_identifier
-
     config = CreateDatasetCliConfig(
         dataset_name="CIFAR10", identifier="custom-identifier"
     )
@@ -139,8 +138,6 @@ def test_get_identifier_with_identifier():
 @pytest.mark.essential
 def test_get_identifier_without_identifier():
     """Test _get_identifier returns dataset_name when no identifier"""
-    from cli.shared.types.utils.dataset import _get_identifier
-
     config = CreateDatasetCliConfig(dataset_name="CIFAR10")
     result = _get_identifier(config)
     assert result == "CIFAR10"
@@ -150,8 +147,6 @@ def test_get_identifier_without_identifier():
 @pytest.mark.essential
 def test_get_user_splits_default():
     """Test _get_user_splits returns default ['train', 'test'] when no split config or load_splits"""
-    from cli.shared.types.utils.dataset import _get_user_splits
-
     config = CreateDatasetCliConfig(dataset_name="CIFAR10")
     result = _get_user_splits(config)
     assert result == ["train", "test"]
@@ -161,8 +156,6 @@ def test_get_user_splits_default():
 @pytest.mark.essential
 def test_get_user_splits_with_load_splits():
     """Test _get_user_splits returns load_splits when provided"""
-    from cli.shared.types.utils.dataset import _get_user_splits
-
     config = CreateDatasetCliConfig(
         dataset_name="CIFAR10", load_splits=["train", "validation", "test"]
     )
@@ -174,7 +167,6 @@ def test_get_user_splits_with_load_splits():
 @pytest.mark.essential
 def test_create_resolved_split_global_only():
     """Test _create_resolved_split with global settings only (no user_split_config)"""
-    from cli.shared.types.utils.dataset import _create_resolved_split
 
     preprocessing_mock = MagicMock()
     global_config = CreateDatasetCliConfig(

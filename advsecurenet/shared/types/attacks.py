@@ -9,6 +9,7 @@ from advsecurenet.computer_vision.image_classification.attacks import (
     DeepFool,
 )
 
+from advsecurenet.computer_vision.object_detection.attacks import DPatch, TOG
 
 class AttackType(Enum):
     """

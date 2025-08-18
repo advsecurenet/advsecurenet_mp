@@ -124,3 +124,19 @@ class DataLoaderFactory:
         dataloader = TorchDataLoader(**params)
 
         return dataloader
+    
+    @staticmethod
+    def create_od_dataloader(
+        config: Optional[DataLoaderConfig] = None, *, collate_fn=None, **kwargs
+    ) -> TorchDataLoader:
+        """
+        Like create_dataloader, but defaults to the COCO object-detection collate.
+        You can pass in either a DataLoaderConfig or the same kwargs you'd pass to
+        create_dataloader. Any explicit kwarg here overrides the config.
+        """
+        if config is None:
+            config = DataLoaderConfig(**kwargs)
+        fn = collate_fn or od_collate_fn
+        return DataLoaderFactory.create_dataloader(
+            config=config, collate_fn=fn, **kwargs
+        )

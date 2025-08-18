@@ -17,7 +17,7 @@ from advsecurenet.datasets.targeted_adv_dataset import AdversarialDataset
 from advsecurenet.distributed.ddp_coordinator import DDPCoordinator
 from advsecurenet.shared.types.attacks import AttackType
 from advsecurenet.shared.types.configs.dataloader_config import DataLoaderConfig
-from cli.shared.types.utils.dataset import resolve_dataset_config
+from advsecurenet.shared.types.configs.dataset_config import resolve_dataset_config
 from advsecurenet.utils.adversarial_target_generator import AdversarialTargetGenerator
 from advsecurenet.utils.ddp import set_visible_gpus
 from cli.shared.types.attack import BaseAttackCLIConfigType

@@ -1,7 +1,7 @@
 import cv2
 import torch
 
-from advsecurenet.computer_vision.image_classification.attacks.base.adversarial_attack import (
+from advsecurenet.computer_vision.base.adversarial_attack import (
     AdversarialAttack,
 )
 from advsecurenet.models.base_model import BaseModel
