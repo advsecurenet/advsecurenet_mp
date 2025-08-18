@@ -113,6 +113,7 @@ def mock_config(mock_model, mock_attack, mock_data_loader):
         models=[mock_model],
         attacks=[mock_attack],
         train_loader=mock_data_loader,
+        
     )
 
 
@@ -545,7 +546,7 @@ def test_perform_attack_lots(
 @patch.object(AdversarialTraining, "_prepare_data")
 @patch.object(AdversarialTraining, "_generate_adversarial_batch")
 @patch.object(AdversarialTraining, "_combine_clean_and_adversarial_data")
-@patch.object(AdversarialTraining, "_run_batch")
+@patch("advsecurenet.trainer.trainer_logic.run_batch")
 @patch.object(AdversarialTraining, "_get_loss_divisor", return_value=1)
 @patch("advsecurenet.trainer.trainer_logic.log_loss")
 def test_run_epoch(
@@ -598,7 +599,7 @@ def test_run_epoch(
 @patch.object(AdversarialTraining, "_prepare_data")
 @patch.object(AdversarialTraining, "_generate_adversarial_batch")
 @patch.object(AdversarialTraining, "_combine_clean_and_adversarial_data")
-@patch.object(AdversarialTraining, "_run_batch")
+@patch("advsecurenet.trainer.trainer_logic.run_batch")
 @patch.object(AdversarialTraining, "_get_loss_divisor", return_value=1)
 @patch("advsecurenet.trainer.trainer_logic.log_loss")
 def test_run_epoch_no_target_data(
