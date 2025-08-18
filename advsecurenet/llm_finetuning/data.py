@@ -1,4 +1,3 @@
-# in llm_finetune/data.py
 from datasets import load_dataset, DatasetDict
 from transformers import PreTrainedTokenizerBase
 from .config import DataConfig

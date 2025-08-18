@@ -1,5 +1,4 @@
-# llm_finetune/config.py
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from typing import Optional, Literal, List
 import yaml
 from pathlib import Path
@@ -11,10 +10,6 @@ class PEFTConfig(BaseModel):
     lora_alpha: int = 16
     lora_dropout: float = 0.05
     target_modules: List[str] = Field(default_factory=lambda: ["q_proj", "v_proj"])
-
-# config.py
-from pydantic import BaseModel, Field, model_validator
-from typing import Optional, List
 
 class DataConfig(BaseModel):
     # Local JSONL option

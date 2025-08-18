@@ -1,5 +1,3 @@
-# advsecurenet/llm_finetuning/cli.py
-
 import click
 
 from advsecurenet.llm_finetuning.config import (

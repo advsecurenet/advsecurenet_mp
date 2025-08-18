@@ -1,4 +1,3 @@
-# llm_finetune/train.py
 from transformers import TrainingArguments, Trainer
 from transformers import DataCollatorForLanguageModeling
 from advsecurenet.llm_finetuning.config import Config

@@ -1,4 +1,3 @@
-# llm_finetune/model.py
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 from advsecurenet.llm_finetuning.config import Config
