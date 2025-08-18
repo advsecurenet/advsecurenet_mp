@@ -10,7 +10,7 @@ from advsecurenet.datasets.COCO import COCODataset
 from advsecurenet.datasets.svhn import SVHNDataset
 from advsecurenet.datasets.HuggingFace import HuggingFaceDataset
 from advsecurenet.shared.types import DatasetType
-from advsecurenet.shared.types.configs.dataset_config import (
+from cli.shared.types.utils.dataset import (
     ResolvedDatasetConfig,
     ResolvedSplitConfig,
     UserSplitConfig,

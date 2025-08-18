@@ -3,7 +3,9 @@ from typing import List
 
 import click
 
-from advsecurenet.computer_vision.base.adversarial_attack import AdversarialAttack
+from advsecurenet.computer_vision.image_classification.attacks.base.adversarial_attack import (
+    AdversarialAttack,
+)
 from advsecurenet.computer_vision.image_classification.defenses.adversarial_training import (
     AdversarialTraining,
 )

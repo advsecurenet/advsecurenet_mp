@@ -1,4 +1,6 @@
-from advsecurenet.computer_vision.base.adversarial_attack import AdversarialAttack
+from advsecurenet.computer_vision.image_classification.attacks.base.adversarial_attack import (
+    AdversarialAttack,
+)
 from advsecurenet.computer_vision.image_classification.attacks.decision_based.boundary import (
     DecisionBoundary,
 )

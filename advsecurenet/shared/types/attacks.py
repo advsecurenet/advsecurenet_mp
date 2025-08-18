@@ -8,7 +8,6 @@ from advsecurenet.computer_vision.image_classification.attacks import (
     DecisionBoundary,
     DeepFool,
 )
-from advsecurenet.computer_vision.object_detection.attacks import DPatch, TOG
 
 
 class AttackType(Enum):

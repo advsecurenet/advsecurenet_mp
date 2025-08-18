@@ -281,15 +281,13 @@ def test_get_target_parameters_none(attacker_config):
 @patch("cli.logic.attack.attacker.resolve_dataset_config")
 @pytest.mark.parametrize("dataset_part", ["train", "test"])
 def test_select_data_partition(
-    mock_resolve_config,
-    mock_validate_dataset,
-    mock_prepare_dataset,
-    attacker_config,
-    dataset_part,
+    mock_resolve_dataset_config, mock_validate_dataset, mock_prepare_dataset, attacker_config, dataset_part
 ):
-    mock_resolved_config = MagicMock()
-    mock_resolved_config.splits = [dataset_part]
-    mock_resolve_config.return_value = mock_resolved_config
+    # Mock the dataset config to return splits with the dataset_part
+    mock_dataset_config = MagicMock()
+    mock_dataset_config.splits = {dataset_part: ""}
+    mock_resolve_dataset_config.return_value = mock_dataset_config
+    
     train_data = MagicMock()
     test_data = MagicMock()
     attacker = CLIAttacker(attacker_config, AttackType.FGSM)
@@ -299,7 +297,7 @@ def test_select_data_partition(
 
     returned_data = attacker._select_data_partition(train_data, test_data)
 
-    mock_resolve_config.assert_called_once_with(attacker_config.dataset)
+    mock_resolve_dataset_config.assert_called_once_with(attacker_config.dataset)
     mock_validate_dataset.assert_called_once_with(
         train_data if dataset_part == "train" else test_data, dataset_part
     )
