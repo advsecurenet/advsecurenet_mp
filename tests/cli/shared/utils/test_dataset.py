@@ -12,7 +12,11 @@ from advsecurenet.shared.types.configs.dataset_config import (
     ResolvedSplitConfig,
 )
 from cli.shared.utils.dataset import get_datasets
-from advsecurenet.shared.types.configs.dataset_config import _get_identifier, _create_resolved_split, _get_user_splits
+from advsecurenet.shared.types.configs.dataset_config import (
+    _get_identifier,
+    _create_resolved_split,
+    _get_user_splits,
+)
 
 
 @pytest.mark.cli

@@ -124,7 +124,7 @@ class DataLoaderFactory:
         dataloader = TorchDataLoader(**params)
 
         return dataloader
-    
+
     @staticmethod
     def create_od_dataloader(
         config: Optional[DataLoaderConfig] = None, *, collate_fn=None, **kwargs

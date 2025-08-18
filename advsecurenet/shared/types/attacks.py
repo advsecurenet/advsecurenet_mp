@@ -11,6 +11,7 @@ from advsecurenet.computer_vision.image_classification.attacks import (
 
 from advsecurenet.computer_vision.object_detection.attacks import DPatch, TOG
 
+
 class AttackType(Enum):
     """
     This Enum class is used to store the types of attacks.
