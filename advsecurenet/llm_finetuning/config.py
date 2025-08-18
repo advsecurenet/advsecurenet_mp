@@ -53,7 +53,7 @@ class TrainConfig(BaseModel):
     lr_scheduler_type: Literal["cosine", "linear", "constant_with_warmup"] = "cosine"
     warmup_ratio: float = 0.03
     bf16: bool = False
-    gradient_checkpointing: bool = True
+    gradient_checkpointing: bool = False
     push_to_hub: bool = False
     seed: int = 42
 

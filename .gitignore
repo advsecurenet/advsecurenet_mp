@@ -115,3 +115,24 @@ Qwen/
 *.json
 *.txt
 *.md
+
+
+# Shell and editor configs
+.bashrc
+.bash_logout
+.profile
+.zshrc
+.zcompdump
+.viminfo
+.wget-hsts
+
+# Git credentials/config
+.git-credentials
+.gitconfig
+
+# Local user files
+.local/
+
+# Project-specific
+outputs/
+dev/
