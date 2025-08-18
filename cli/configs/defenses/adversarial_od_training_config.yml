@@ -1,0 +1,52 @@
+# Description: Adversarial training config for Object Detection (uses TOG attack).
+
+training:
+  # --- Model (same as tog_attack_config.yml) ---
+  model: !include ../shared/od_model_config.yml
+  dataset: 
+    dataset_name: coco
+    download: true
+    num_classes: 80
+    dataset_part: test
+    train_dataset_path: "advsecurenet/data/train2017"
+    test_dataset_path: "advsecurenet/data/val2017"
+    random_sample_size: 5
+    preprocessing:
+      steps:
+      - name: Resize
+        params:
+          size: [640, 640]
+      - name: ToTensor
+        params:
+      - name: ToDtype
+        params:
+          dtype: torch.float32
+  dataloader:
+    train: !include ../shared/dataloader_config.yml 
+    test: !include ../shared/dataloader_config.yml
+  device: !include ../shared/device_config.yml
+  training: !include ../shared/training_config.yml
+
+  # --- Dataloaders (train/test use same base, override batch size/workers like TOG) ---
+  dataloader:
+    train: !include ../shared/dataloader_config.yml
+    train.batch_size: 16
+    train.num_workers: 0
+    test: !include ../shared/dataloader_config.yml
+    test.batch_size: 16
+    test.num_workers: 0
+
+  # --- Device (reuse shared, override processor like TOG) ---
+  device: !include ../shared/device_config.yml
+  device.processor: cuda:0
+
+  # --- Core training hyperparameters (epochs, optimizer, etc.) ---
+  training: !include ../shared/training_config.yml
+  # You can override here if needed, e.g.:
+  # training.epochs: 10
+
+adversarial_training:
+  # Optional: explicit models list (attack-generation pool). Using the same OD model.
+  models: null
+  attacks:
+    - tog: ../attacks/tog_attack_config.yml

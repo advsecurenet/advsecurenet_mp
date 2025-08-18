@@ -1,5 +1,5 @@
 import random
-from typing import Optional
+from typing import Optional, Union
 
 import torch
 from torch.utils.data import DataLoader
@@ -11,11 +11,11 @@ from advsecurenet.models.base_model import BaseModel
 from advsecurenet.shared.types.configs.defense_configs.adversarial_training_config import (
     AdversarialTrainingConfig,
 )
-from advsecurenet.trainer.trainer import Trainer
+from advsecurenet.computer_vision.base.base_adversarial_training import BaseAdversarialTraining
 from advsecurenet.utils.adversarial_target_generator import AdversarialTargetGenerator
 
 
-class AdversarialTraining(Trainer):
+class AdversarialTraining(BaseAdversarialTraining):
     """
     Adversarial Training class. This module implements the Adversarial Training defense.
 
@@ -26,7 +26,6 @@ class AdversarialTraining(Trainer):
 
     def __init__(self, config: AdversarialTrainingConfig) -> None:
         self._check_config(config)
-        self.config: AdversarialTrainingConfig = config
         self.adversarial_target_generator = AdversarialTargetGenerator()
         super().__init__(config)
 
@@ -39,16 +38,7 @@ class AdversarialTraining(Trainer):
         return data[permutation], target[permutation]
 
     def _check_config(self, config: AdversarialTrainingConfig) -> None:
-        # Check configuration validity
-        if not isinstance(config.model, BaseModel):
-            raise ValueError("Target model must be a subclass of BaseModel!")
-        if not all(isinstance(model, BaseModel) for model in config.models):
-            raise ValueError("All models must be a subclass of BaseModel!")
-        if not all(isinstance(attack, AdversarialAttack) for attack in config.attacks):
-            raise ValueError("All attacks must be a subclass of AdversarialAttack!")
-        if not isinstance(config.train_loader, DataLoader):
-            raise ValueError("train_dataloader must be a DataLoader!")
-
+        self._check_config_base(config)
         # check if any of the attacks are targeted and if so, check if the dataloader dataset is an instance of AdversarialDataset
         if any(attack.targeted for attack in config.attacks) and not isinstance(
             config.train_loader.dataset, AdversarialDataset
@@ -84,17 +74,6 @@ class AdversarialTraining(Trainer):
             torch.cat([true_labels, adv_targets], dim=0),
         )
         return combined_data, combined_target
-
-    def _pre_training(self):
-        # add target model to list of models if not already present
-        if self.config.model not in self.config.models:
-            self.config.models.append(self.config.model)
-
-        # set each model to train mode
-        self.config.models = [model.train() for model in self.config.models]
-
-        # move each model to device
-        self.config.models = [model.to(self._device) for model in self.config.models]
 
     def _generate_adversarial_batch(
         self,
@@ -224,21 +203,8 @@ class AdversarialTraining(Trainer):
         total_loss /= self._get_loss_divisor()
         self._log_loss(epoch, total_loss)
 
-    def _get_train_loader(self, epoch: int):
-        return tqdm(
-            self.config.train_loader,
-            desc="Adversarial Training",
-            leave=False,
-            position=1,
-            unit="batch",
-            colour="blue",
-        )
-
     def _prepare_data(self, *args):
         """
         Move the required data to the device.
         """
         return [arg.to(self._device) for arg in args if arg is not None]
-
-    def _get_loss_divisor(self):
-        return len(self.config.train_loader)

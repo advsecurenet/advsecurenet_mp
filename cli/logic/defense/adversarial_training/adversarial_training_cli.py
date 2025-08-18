@@ -8,6 +8,12 @@ from advsecurenet.computer_vision.image_classification.defenses.adversarial_trai
     AdversarialTraining,
 )
 from advsecurenet.computer_vision.image_classification.defenses.ddp_adversarial_training import (
+                    DDPAdversarialTraining,
+)
+from advsecurenet.computer_vision.object_detection.defenses.adversarial_od_training import (
+    AdversarialODTraining,
+)
+from advsecurenet.computer_vision.image_classification.defenses.ddp_adversarial_training import (
     DDPAdversarialTraining,
 )
 from advsecurenet.models.base_model import BaseModel
@@ -47,6 +53,38 @@ class ATCLITrainer(CLITrainer):
             self._execute_ddp_training()
         else:
             self._execute_training()
+
+    def _infer_task(self, model, train_loader):
+        # 1) explicit override from config
+        explicit = getattr(self, "config", None)
+        explicit_task = getattr(explicit, "task", None) if explicit else None
+        if explicit_task in ("classification", "detection"):
+            return explicit_task
+        # 2) dataset-driven inference (most reliable)
+        try:
+            sample = train_loader.dataset[0]
+            if isinstance(sample, tuple) and len(sample) == 2:
+                _, tgt = sample
+                if isinstance(tgt, list) and all(isinstance(d, dict) for d in tgt):
+                    return "detection"
+                if isinstance(tgt, list) and all(isinstance(d, dict) for d in tgt):
+                    return "detection"
+        except Exception:
+            pass
+        # 3) model hint as a fallback
+        if getattr(model, "task", None) == "detection" or getattr(model, "is_detection", False):
+            return "detection"
+        # Default: classification (backward compatible)
+        return "classification"
+
+    def _select_trainer_cls(self, task: str, ddp: bool):
+        if task == "detection":
+            ddp = False  # DDP not supported for detection yet
+            return AdversarialODTraining
+        else:
+            if ddp:
+                return DDPAdversarialTraining
+            return AdversarialTraining
 
     def _prepare_attacks(self) -> list[AdversarialAttack]:
         """
@@ -132,6 +170,18 @@ class ATCLITrainer(CLITrainer):
         # the model must be initialized in each process
 
         config = self._prepare_training_environment()
+        
+        task = self._infer_task(config.model, config.train_loader)
+        if task == "detection":
+            if rank == 0:
+                click.secho(
+                    "DDP requested but not supported for detection yet. "
+                    "Falling back to single-process OD training.",
+                    fg="yellow",
+                )
+                trainer = AdversarialODTraining(config)
+                trainer.train()
+            return
 
         ddp_trainer = DDPAdversarialTraining(config, rank, world_size)
         ddp_trainer.train()
@@ -148,6 +198,8 @@ class ATCLITrainer(CLITrainer):
             ValueError: If the dataset name is not supported.
         """
         config = self._prepare_training_environment()
-
-        adversarial_training = AdversarialTraining(config)
+        task = self._infer_task(config.model, config.train_loader)
+        TrainerCls = self._select_trainer_cls(task, ddp=False)
+        click.secho(f"Task detected: {task}. Using {TrainerCls.__name__}.", fg="blue")
+        adversarial_training = TrainerCls(config)
         adversarial_training.train()

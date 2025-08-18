@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict, List, TypedDict
+from typing import Dict, List, TypedDict, Optional, Literal
 
 from cli.shared.types.train import TrainingCliConfigType
 
@@ -31,3 +31,4 @@ class ATCliConfigType:
 
     training: TrainingCliConfigType
     adversarial_training: AdversarialTrainingConfig
+    task: Optional[Literal["classification", "detection"]] = None
