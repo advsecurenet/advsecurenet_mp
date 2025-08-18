@@ -5,7 +5,7 @@ import torch
 
 from advsecurenet.models.base_model import BaseModel
 from advsecurenet.shared.types.configs.attack_configs.attack_config import AttackConfig
-from advsecurenet.utils.device_manager import DeviceManager
+from advsecurenet.utils.device_utils import DeviceManager
 
 
 class AdversarialAttack(ABC):
