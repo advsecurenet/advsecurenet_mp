@@ -1,12 +1,13 @@
 from typing import Optional
 import torch
 
+
 def setup_device(processor: Optional[str]) -> torch.device:
     """
     Sets up the device for training by auto-detecting or using the specified processor.
 
     Args:
-        processor (Optional[str]): The device to use, e.g., "cuda", "cpu", "mps". 
+        processor (Optional[str]): The device to use, e.g., "cuda", "cpu", "mps".
                                    If None, it will auto-detect available hardware.
 
     Returns:
