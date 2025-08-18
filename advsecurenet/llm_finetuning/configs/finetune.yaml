@@ -1,0 +1,62 @@
+train:
+  model_name: Qwen/Qwen1.5-0.5B
+  output_dir: outputs/gsm8k-sft
+  learning_rate: 0.0002
+  max_steps: 250
+  per_device_train_batch_size: 2
+  gradient_accumulation_steps: 1
+  bf16: false
+  gradient_checkpointing: true
+  logging_steps: 10
+  save_steps: 50
+  eval_steps: 50
+  eval_strategy: steps
+
+data:
+  hub_name: wikitext
+  hub_config: wikitext-2-raw-v1
+  hub_train_split: train
+  hub_eval_split: validation
+  max_seq_len: 128
+
+peft:
+  enabled: false
+  quantization: qlora
+  r: 8
+  lora_alpha: 16
+  lora_dropout: 0.05
+  target_modules: ["q_proj","k_proj","v_proj","o_proj"]
+
+
+
+
+
+
+
+
+# train:
+#   model_name: sshleifer/tiny-gpt2
+#   output_dir: outputs/mistral-sft
+#   learning_rate: 0.0002
+#   max_steps: 1000
+#   per_device_train_batch_size: 1
+#   gradient_accumulation_steps: 16
+#   bf16: true
+#   gradient_checkpointing: true
+
+# data:
+#   train_file: data/train.jsonl
+#   eval_file: data/val.jsonl
+#   # choose ONE style:
+#   # text_field: text
+#   prompt_field: prompt
+#   response_field: response
+#   max_seq_len: 2048
+
+# peft:
+#   enabled: true
+#   quantization: qlora
+#   r: 8
+#   lora_alpha: 16
+#   lora_dropout: 0.05
+#   target_modules: ["q_proj", "v_proj"]
