@@ -41,6 +41,7 @@ class ATCLITrainer(CLITrainer):
     def __init__(self, config: ATCliConfigType):
         super().__init__(config.training)
         self.at_config = config.adversarial_training
+        self._task_override = config.task
         self.adversarial_target_generator = AdversarialTargetGenerator()
 
     def train(self):
@@ -54,12 +55,10 @@ class ATCLITrainer(CLITrainer):
         else:
             self._execute_training()
 
-    def _infer_task(self, model, train_loader):
+    def _infer_task(self, model, train_loader = None):
         # 1) explicit override from config
-        explicit = getattr(self, "config", None)
-        explicit_task = getattr(explicit, "task", None) if explicit else None
-        if explicit_task in ("classification", "detection"):
-            return explicit_task
+        if self._task_override in ("classification", "detection"):
+            return self._task_override
         # 2) dataset-driven inference (most reliable)
         try:
             sample = train_loader.dataset[0]
@@ -144,8 +143,9 @@ class ATCLITrainer(CLITrainer):
 
         # configure the model that will be adversarially trained
         model = self._initialize_model()
-
-        train_loader = self._prepare_dataloader()
+        task = self._infer_task(model)
+        is_od = task == "detection"
+        train_loader = self._prepare_dataloader(is_object_detection=is_od)
         train_config = self._prepare_train_config(model, train_loader)
 
         attacks = self._prepare_attacks()

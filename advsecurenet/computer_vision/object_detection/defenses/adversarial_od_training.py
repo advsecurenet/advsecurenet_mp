@@ -2,6 +2,7 @@ import logging
 import random
 from typing import Optional, Union
 
+from advsecurenet.computer_vision.object_detection.attacks.pixel_perturbation_based.tog.tog_attack_type import TOGAttackType
 import torch
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
@@ -74,8 +75,8 @@ class AdversarialODTraining(BaseAdversarialTraining):
     ) -> tuple[torch.Tensor, list[dict]]:
         assert images.shape == adv_images.shape, "images and adv_images must match shape"
         combined_data = torch.cat([images, adv_images], dim=0)
-        combined_targets = targets + targets  # OD training keeps GTs unchanged
-        return self._shuffle_data(combined_data, combined_targets)
+        combined_targets = {k: v + v for k, v in targets.items()}
+        return combined_data, combined_targets
     
     def _generate_adversarial_batch(
         self,
@@ -107,7 +108,7 @@ class AdversarialODTraining(BaseAdversarialTraining):
             images = torch.stack([img.to(self._device) for img in images], dim=0)
         else:
             images = images.to(self._device)
-        targets = [{k: v.to(self._device) for k, v in t.items()} for t in targets]
+        targets = {k: [t.to(self._device) for t in v] for k, v in targets.items()}
         return images, targets
 
     def _perform_attack(
@@ -143,7 +144,10 @@ class AdversarialODTraining(BaseAdversarialTraining):
             # TOG's numpy-based transform doesn't need grads
             with torch.no_grad():
                 images_np = images.detach().cpu().numpy()
-                adv_np = attack.attack(x=images_np, tog_variant="untargeted")
+                tog_variant = getattr(attack, "attack_type", TOGAttackType.UNTARGETED)
+                if isinstance(tog_variant, str):
+                    tog_variant = TOGAttackType(tog_variant.lower())
+                adv_np = attack.attack(x=images_np, tog_variant=tog_variant, tog_mislabeling_mode=getattr(attack, "tog_mislabeling_mode", "ml"))
                 return torch.from_numpy(adv_np).to(self._device)
 
         # Default: leave grads enabled so gradient-based attacks work

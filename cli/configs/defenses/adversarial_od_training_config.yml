@@ -1,5 +1,7 @@
 # Description: Adversarial training config for Object Detection (uses TOG attack).
 
+task: detection # either detection or classification; if left empty/unspecified, defaults to classification
+
 training:
   # --- Model (same as tog_attack_config.yml) ---
   model: !include ../shared/od_model_config.yml

@@ -19,6 +19,7 @@ def get_dataloader(
     dataset_type: Optional[str] = "default",
     use_ddp: Optional[bool] = False,
     sampler: Optional[DistributedSampler] = DistributedSampler,
+    is_object_detection: bool = False,
 ) -> torch.utils.data.DataLoader:
     """
     Get the dataloader based on the provided configuration and dataset type.
@@ -28,6 +29,7 @@ def get_dataloader(
         dataset_type (Optional[str]): The type of the dataset ('train', 'test', or other).
         dataset (Optional[torch.utils.data.Dataset]): The dataset to be loaded.
         use_ddp (Optional[bool]): Whether to use Distributed Data Parallel.
+        is_object_detection (bool): Whether the task is object detection.
 
     Returns:
         torch.utils.data.DataLoader: The configured DataLoader instance.
@@ -49,16 +51,19 @@ def get_dataloader(
         loader_config.shuffle = False
 
     sampler = sampler(dataset) if use_ddp else None
-
-    # Create the DataLoader using the factory
-    return DataLoaderFactory.create_dataloader(
-        DataLoaderConfig(
-            dataset=dataset,
-            batch_size=loader_config.batch_size,
-            num_workers=loader_config.num_workers,
-            shuffle=loader_config.shuffle,
-            drop_last=loader_config.drop_last,
-            pin_memory=loader_config.pin_memory,
-            sampler=sampler,
-        )
+    # Prepare the config for the factory
+    dataloader_config = DataLoaderConfig(
+        dataset=dataset,
+        batch_size=loader_config.batch_size,
+        num_workers=loader_config.num_workers,
+        shuffle=loader_config.shuffle,
+        drop_last=loader_config.drop_last,
+        pin_memory=loader_config.pin_memory,
+        sampler=sampler,
     )
+
+    if is_object_detection:
+        return DataLoaderFactory.create_od_dataloader(config=dataloader_config)
+    else:
+        return DataLoaderFactory.create_dataloader(config=dataloader_config)
+    
