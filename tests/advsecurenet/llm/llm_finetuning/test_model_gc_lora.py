@@ -9,7 +9,6 @@ from types import SimpleNamespace
 import pytest
 
 
-# ---------- Fakes for external deps (installed before importing the target) ----------
 class _FakeModel:
     def __init__(self, tag, base=None, config=None):
         self.tag = tag
