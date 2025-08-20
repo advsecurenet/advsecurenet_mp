@@ -83,6 +83,7 @@ def install_stub_pkg(monkeypatch):
                 lr_scheduler_type="linear",
                 warmup_ratio=0.0,
                 bf16=False,
+                fp16=False,
                 gradient_checkpointing=False,
                 push_to_hub=False,
             ),

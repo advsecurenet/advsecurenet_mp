@@ -35,6 +35,7 @@ def run_training(cfg: Config):
         lr_scheduler_type=cfg.train.lr_scheduler_type,
         warmup_ratio=cfg.train.warmup_ratio,
         bf16=cfg.train.bf16,
+        fp16=cfg.train.fp16,
         gradient_checkpointing=cfg.train.gradient_checkpointing,
         push_to_hub=cfg.train.push_to_hub,
         report_to=["none"],  # swap to "wandb" if you wire it
@@ -62,3 +63,6 @@ if __name__ == "__main__":
 
     cfg = load_yaml(str(cfg_path))
     run_training(cfg)
+
+
+    
