@@ -1,6 +1,8 @@
 from dataclasses import asdict
 from typing import List
 
+from torch.utils.data import Subset
+
 import click
 
 from advsecurenet.computer_vision.base.adversarial_attack import AdversarialAttack
@@ -146,6 +148,23 @@ class ATCLITrainer(CLITrainer):
         task = self._infer_task(model)
         is_od = task == "detection"
         train_loader = self._prepare_dataloader(is_object_detection=is_od)
+        try:
+            rs = getattr(self.config.dataset, "random_sample_size", None)
+            if rs and rs > 0 and len(train_loader.dataset) > rs:
+                # deterministic first rs samples; adjust if you prefer random selection
+                train_subset = Subset(train_loader.dataset, list(range(rs)))
+                # rebuild dataloader with same params (keep shuffle=False to avoid reordering subset unexpectedly)
+                train_loader = type(train_loader)(
+                    train_subset,
+                    batch_size=train_loader.batch_size,
+                    shuffle=train_loader.shuffle if hasattr(train_loader, "shuffle") else False,
+                    num_workers=train_loader.num_workers,
+                    pin_memory=train_loader.pin_memory,
+                    drop_last=train_loader.drop_last,
+                    collate_fn=train_loader.collate_fn,
+                )
+        except Exception:
+            pass
         train_config = self._prepare_train_config(model, train_loader)
 
         attacks = self._prepare_attacks()

@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List
+from typing import List, Any
 
 from advsecurenet.computer_vision.base.adversarial_attack import AdversarialAttack
 from advsecurenet.models.base_model import BaseModel
@@ -12,5 +12,5 @@ class AdversarialTrainingConfig(TrainConfig):
     This class is used to store the configuration of the adversarial training defense.
     """
 
-    models: List[BaseModel]
+    models: List[BaseModel] | List[Any]
     attacks: List[AdversarialAttack]
