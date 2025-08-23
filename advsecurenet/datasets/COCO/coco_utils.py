@@ -175,10 +175,12 @@ def map_raw_to_contiguous(raw_label: int) -> int:
 
 def extract_predictions(predictions_, conf_thresh):
     # Get the predicted class
-    predictions_class = [
-        COCO_INSTANCE_CATEGORY_NAMES[i] for i in list(predictions_["labels"])
-    ]
-    #  print("\npredicted classes:", predictions_class)
+    if "label_names" in predictions_:
+        predictions_class = list(predictions_["label_names"])
+    else:
+        predictions_class = [
+            COCO_INSTANCE_CATEGORY_NAMES[i] for i in list(predictions_["labels"])
+        ]
     if len(predictions_class) < 1:
         return [], [], []
     # Get the predicted bounding boxes
