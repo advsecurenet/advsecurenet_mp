@@ -34,6 +34,30 @@ class CustomFasterRCNNODWrapper(ODWrapper):
             # Default to COCO classes if not specified
             self.num_classes = 91  # COCO has 90 classes + background
         self.categories = FasterRCNN_ResNet50_FPN_V2_Weights.DEFAULT.meta["categories"]
+        self.expects_numpy_images = False
+
+
+    def _empty_target_np(self):
+    # An empty target the torchvision detector accepts
+        return {
+            "boxes":  np.empty((0, 4), dtype=np.float32),
+            "labels": np.empty((0,),   dtype=np.int64),
+        }
+
+
+    def _align_targets_to_batch(self, y, batch_size: int):
+        """
+        Ensure we have exactly one target dict per image.
+        Pads with empty targets or truncates if needed.
+        """
+        if y is None:
+            return [self._empty_target_np() for _ in range(batch_size)]
+        y = list(y)
+        if len(y) < batch_size:
+            y = y + [self._empty_target_np() for _ in range(batch_size - len(y))]
+        elif len(y) > batch_size:
+            y = y[:batch_size]
+        return y
 
 
     def _translate_labels(self, labels: list[dict[str, torch.Tensor | np.ndarray]]):
@@ -52,6 +76,31 @@ class CustomFasterRCNNODWrapper(ODWrapper):
                 "labels": classes.to(self.device),
             })
         return targets
+    
+
+    def filter_boxes(self, predictions, conf_thresh):
+        # tolerate missing keys, create consistent empty arrays
+        boxes  = predictions.get("boxes")
+        scores = predictions.get("scores")
+        labels = predictions.get("labels")
+        names  = predictions.get("label_names", None)
+        if boxes is None:
+            boxes = np.empty((0, 4), dtype=np.float32)
+        if scores is None:
+            scores = np.empty((0,), dtype=np.float32)
+        if labels is None:
+            labels = np.empty((0,), dtype=np.int64)
+        # boolean mask; safe when empty
+        mask = scores >= conf_thresh #if scores.size else np.zeros((boxes.shape[0],), dtype=bool)
+        out = {
+            "boxes":  boxes[mask] if boxes.size else boxes,    # -> (0,4) when empty
+            "scores": scores[mask] if scores.size else scores, # -> (0,)
+            "labels": labels[mask] if labels.size else labels, # -> (0,)
+        }
+        if names is not None:
+            # keep key but return empty array when no detections
+            out["label_names"] = names[mask] if len(names) else np.empty((0,), dtype=names.dtype)
+        return out
 
 
     def _translate_predictions(self, outputs: list[dict[str, torch.Tensor]]):
@@ -94,8 +143,9 @@ class CustomFasterRCNNODWrapper(ODWrapper):
                 if t.max() > 1:
                     t = t / 255.0
                 imgs = [t]
-        targets = self._translate_labels(y)
         x_tensor = torch.stack(imgs, dim=0)
+        y = self._align_targets_to_batch(y, batch_size=x_tensor.shape[0])
+        targets = self._translate_labels(y)
         x_tensor.requires_grad_(True)
         imgs = [x_tensor[i] for i in range(x_tensor.shape[0])]
         loss_dict = self.model(imgs, targets)
@@ -157,7 +207,8 @@ class CustomFasterRCNNODWrapper(ODWrapper):
                 outs = self.inference_model(batch)
                 outputs.extend(outs)
         preds = self._translate_predictions(outputs)
-        return [self.filter_boxes(p, self.conf_thresh) for p in preds]
+        filtered_preds = [self.filter_boxes(p, self.conf_thresh) for p in preds]
+        return filtered_preds
 
 
     def compute_object_vanishing_gradient(self, x: np.ndarray, training: bool = False) -> np.ndarray:

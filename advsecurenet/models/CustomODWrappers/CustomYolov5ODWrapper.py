@@ -60,6 +60,7 @@ class CustomYolov5ODWrapper(ODWrapper):
         self.channels_first = True
         self.attack_losses = attack_losses
         self.weight_dict = weight_dict
+        self.expects_numpy_images = True
 
     def _translate_labels(
         self, labels: list[dict[str, "torch.Tensor"]]

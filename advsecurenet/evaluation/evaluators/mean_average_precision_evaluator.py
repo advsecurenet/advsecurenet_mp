@@ -31,14 +31,22 @@ class MeanAveragePrecisionEvaluator(BaseEvaluator):
         self.clean_metric.reset()
         self.adv_metric.reset()
 
-    def detections_to_dicts(self, detections):
+    def detections_to_dicts(self, detections, expects_numpy=False):
         results = []
-        for det_tensor in detections.pred:
-            det_tensor_cpu = det_tensor.detach().cpu()
-            boxes = det_tensor_cpu[:, :4].numpy()
-            scores = det_tensor_cpu[:, 4].numpy()
-            labels = det_tensor_cpu[:, 5].numpy().astype(int)
-            results.append({"boxes": boxes, "labels": labels, "scores": scores})
+        if expects_numpy:
+            for det_tensor in detections.pred:
+                det_tensor_cpu = det_tensor.detach().cpu()
+                boxes = det_tensor_cpu[:, :4].numpy()
+                scores = det_tensor_cpu[:, 4].numpy()
+                labels = det_tensor_cpu[:, 5].numpy().astype(int)
+                results.append({"boxes": boxes, "labels": labels, "scores": scores})
+        else:
+            for d in detections:
+                results.append({
+                    "boxes":  d["boxes"].detach().cpu().numpy(),
+                    "scores": d["scores"].detach().cpu().numpy(),
+                    "labels": d["labels"].detach().cpu().numpy().astype(int),
+                })
         return results
 
     def _process_and_update(self, metric_builder, predictions, ground_truths):
@@ -74,6 +82,29 @@ class MeanAveragePrecisionEvaluator(BaseEvaluator):
                 img_np = img_np.astype(np.uint8)
             imgs.append(img_np)
         return imgs
+    
+    def to_tensor_list(self, x, device):
+        imgs = []
+        if isinstance(x, np.ndarray):
+            x = torch.from_numpy(x)
+        if isinstance(x, torch.Tensor) and x.ndim == 4:
+            it = [x[i] for i in range(x.shape[0])]
+        elif isinstance(x, torch.Tensor) and x.ndim == 3:
+            it = [x]
+        elif isinstance(x, list):
+            it = [torch.from_numpy(i) if isinstance(i, np.ndarray) else i for i in x]
+        else:
+            raise TypeError(type(x))
+        for t in it:
+            if t.ndim != 3:
+                raise ValueError(f"Each image must be 3D; got {tuple(t.shape)}")
+            if t.shape[0] not in (1,3) and t.shape[-1] in (1,3):  # HWC->CHW
+                t = t.permute(2,0,1)
+            t = t.float()
+            if t.max().item() > 1.5:
+                t = t / 255.0
+            imgs.append(t.to(device, non_blocking=True))
+        return imgs
 
     def update(
         self,
@@ -92,14 +123,27 @@ class MeanAveragePrecisionEvaluator(BaseEvaluator):
             targets (List[Dict[str, Any]]): A list of ground truth dictionaries, each with 'boxes' and 'labels'.
         """
         model.eval()
-        with torch.no_grad():
-            # 1. Run predictions on original and adversarial images
-            clean_predictions = self.detections_to_dicts(
-                model(self.tensor_to_numpy_images(original_images))
-            )
-            adv_predictions = self.detections_to_dicts(
-                model(self.tensor_to_numpy_images(adversarial_images))
-            )
+        device = next(model.parameters()).device
+        expects_numpy = getattr(model, "expects_numpy_images", False)
+        if expects_numpy:
+            with torch.no_grad():
+                # 1. Run predictions on original and adversarial images
+                clean_predictions = self.detections_to_dicts(
+                    model(self.tensor_to_numpy_images(original_images)),
+                    expects_numpy=expects_numpy
+                )
+                adv_predictions = self.detections_to_dicts(
+                    model(self.tensor_to_numpy_images(adversarial_images)),
+                    expects_numpy=expects_numpy
+                )
+        else:
+            with torch.no_grad():
+                clean_predictions = self.detections_to_dicts(
+                    model(self.to_tensor_list(original_images, device)), expects_numpy=expects_numpy
+                )
+                adv_predictions = self.detections_to_dicts(
+                    model(self.to_tensor_list(adversarial_images, device)), expects_numpy=expects_numpy
+                )
         # Update both clean and adversarial metrics
         self._process_and_update(self.clean_metric, clean_predictions, targets)
         self._process_and_update(self.adv_metric, adv_predictions, targets)
