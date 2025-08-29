@@ -38,6 +38,11 @@ setup(
         "datasets",
         "pandas",
         "numpy",
+        "pydantic>=2,<3",
+        "soundfile>=0.12,<0.14",  
+        "safetensors>=0.4",     # commonly needed with HF models
+        "accelerate>=0.33",
+        "peft>=0.12",
     ],
     entry_points={
         "console_scripts": [
