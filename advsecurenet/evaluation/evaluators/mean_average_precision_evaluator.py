@@ -124,25 +124,25 @@ class MeanAveragePrecisionEvaluator(BaseEvaluator):
         """
         model.eval()
         device = next(model.parameters()).device
-        expects_numpy = getattr(model, "expects_numpy_images", False)
-        if expects_numpy:
+        is_custom_yolov5 = bool(getattr(model.model, "IS_CUSTOM_YOLOV5", False)) # yolov5 expects numpy
+        if is_custom_yolov5:
             with torch.no_grad():
                 # 1. Run predictions on original and adversarial images
                 clean_predictions = self.detections_to_dicts(
                     model(self.tensor_to_numpy_images(original_images)),
-                    expects_numpy=expects_numpy
+                    expects_numpy=is_custom_yolov5
                 )
                 adv_predictions = self.detections_to_dicts(
                     model(self.tensor_to_numpy_images(adversarial_images)),
-                    expects_numpy=expects_numpy
+                    expects_numpy=is_custom_yolov5
                 )
         else:
             with torch.no_grad():
                 clean_predictions = self.detections_to_dicts(
-                    model(self.to_tensor_list(original_images, device)), expects_numpy=expects_numpy
+                    model(self.to_tensor_list(original_images, device)), expects_numpy=is_custom_yolov5
                 )
                 adv_predictions = self.detections_to_dicts(
-                    model(self.to_tensor_list(adversarial_images, device)), expects_numpy=expects_numpy
+                    model(self.to_tensor_list(adversarial_images, device)), expects_numpy=is_custom_yolov5
                 )
         # Update both clean and adversarial metrics
         self._process_and_update(self.clean_metric, clean_predictions, targets)

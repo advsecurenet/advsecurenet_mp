@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 
 class CustomYolov5Model(torch.nn.Module):
+    IS_CUSTOM_YOLOV5 = True
     def __init__(self, model_weights_path="yolov5s.pt"):
         super().__init__()
         original_torch_load = torch.load
