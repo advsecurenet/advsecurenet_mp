@@ -30,7 +30,10 @@ class CustomYolov5Model(torch.nn.Module):
         self.compute_loss = ComputeLoss(self._model)
 
     def forward(self, x, targets=None):
-        x = x.float()
+        try:
+            x = x.float()
+        except Exception as e:
+            pass
         if self.training and targets is not None:
             outputs = self._model(x)  # raw logits, pre-nms
             loss, loss_items = self.compute_loss(outputs, targets)
