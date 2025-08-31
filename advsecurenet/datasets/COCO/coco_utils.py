@@ -173,13 +173,14 @@ def map_raw_to_contiguous(raw_label: int) -> int:
     return ID_TO_CONTIGUOUS[raw_label]
 
 
-def extract_predictions(predictions_, conf_thresh):
+def extract_predictions(predictions_, conf_thresh, label_names=None):
     # Get the predicted class
+    names = label_names or COCO_INSTANCE_CATEGORY_NAMES
     if "label_names" in predictions_:
         predictions_class = list(predictions_["label_names"])
     else:
         predictions_class = [
-            COCO_INSTANCE_CATEGORY_NAMES[i] for i in list(predictions_["labels"])
+            names[i] for i in list(predictions_["labels"])
         ]
     if len(predictions_class) < 1:
         return [], [], []

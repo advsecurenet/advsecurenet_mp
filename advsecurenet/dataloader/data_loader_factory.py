@@ -47,7 +47,7 @@ def od_collate_fn(batch):
                 raise ValueError(f"Malformed annotation object: {obj}")
             x, y, w, h = obj["bbox"]
             img_boxes.append([x, y, x + w, y + h])
-            img_labels.append(map_raw_to_contiguous(obj["category_id"]))
+            img_labels.append(int(obj["category_id"]))
             img_scores.append(1.0)  # ground truth label
         if img_boxes:
             boxes.append(torch.tensor(img_boxes, dtype=torch.float32))

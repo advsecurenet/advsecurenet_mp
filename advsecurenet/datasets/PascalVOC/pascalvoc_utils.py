@@ -62,7 +62,7 @@ def voc_to_coco_anns(target: Dict) -> List[Dict]:
         out.append(
             {
                 "bbox": [float(xmin), float(ymin), float(w), float(h)],
-                "category_id": int(NAME_TO_RAW_ID[name]),
+                "category_id": int(NAME_TO_RAW_ID[name] - 1),
                 "area": float(w * h),
                 "iscrowd": 0,
                 "difficult": difficult,
