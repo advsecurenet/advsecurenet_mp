@@ -6,7 +6,7 @@ import torch.multiprocessing as mp
 from absl import app
 from ml_collections import config_flags
 
-from llm_attacks import get_goals_and_targets, get_workers
+from advsecurenet.llm.GCG.llm_attacks.base.attack_manager import get_goals_and_targets, get_workers
 
 _CONFIG = config_flags.DEFINE_config_file('config')
 
@@ -20,7 +20,7 @@ def main(_):
 
     params = _CONFIG.value
 
-    attack_lib = dynamic_import(f'llm_attacks.{params.attack}')
+    attack_lib = dynamic_import(f'advsecurenet.llm.GCG.llm_attacks.{params.attack}')
 
     print(params)
 
