@@ -2,6 +2,10 @@ import os
 import pkg_resources
 from typing import Optional
 import ssl
+import logging
+import tarfile
+from urllib.request import urlretrieve
+from urllib.error import URLError, HTTPError
 from contextlib import contextmanager
 
 from advsecurenet.datasets.PascalVOC.pascalvoc_utils import voc_to_coco_anns
@@ -12,6 +16,8 @@ from advsecurenet.datasets.base_dataset import BaseDataset, DatasetWrapper
 from advsecurenet.shared.normalization_params import NormalizationParameters
 from advsecurenet.shared.types.configs.preprocess_config import PreprocessConfig
 from advsecurenet.shared.types import DatasetType, DataType
+
+logger = logging.getLogger(__name__)
 
 @contextmanager
 def temporarily_disable_ssl_verification():
@@ -54,6 +60,37 @@ class PascalVOCDataset(BaseDataset):
                 self.input_size = (224, 224)
         else:
             self.input_size = (224, 224)
+
+    def _fallback_voc_download(self, root: str, year: str = "2012") -> None:
+        os.makedirs(root, exist_ok=True)
+        # If already extracted, skip downloading/extracting
+        voc_dir = os.path.join(root, "VOCdevkit", f"VOC{year}")
+        if os.path.isdir(voc_dir):
+            logger.info(f"Found existing {voc_dir}, skipping mirror download.")
+            return
+        if str(year) == "2007":
+            urls = [
+                "https://data.brainchip.com/dataset-mirror/voc/VOCtrainval_06-Nov-2007.tar",
+                "https://data.brainchip.com/dataset-mirror/voc/VOCtest_06-Nov-2007.tar",
+            ]
+        else:
+            urls = [
+                "https://data.brainchip.com/dataset-mirror/voc/VOCtrainval_11-May-2012.tar",
+            ]
+        for url in urls:
+            fname = os.path.join(root, os.path.basename(url))
+            if not os.path.exists(fname):
+                logger.info(f"Downloading {url} -> {fname}")
+                try:
+                    urlretrieve(url, fname)
+                except (URLError, HTTPError) as e:
+                    raise RuntimeError(f"Mirror download failed for {url}: {e}") from e
+            # extract (plain .tar)
+            logger.info(f"Extracting {fname} into {root}")
+            with tarfile.open(fname, "r") as tf:
+                tf.extractall(path=root)
+        if not os.path.isdir(voc_dir):
+            raise RuntimeError(f"Expected directory not found after extraction: {voc_dir}")
 
     def get_dataset_class(self):
         return datasets.VOCDetection
@@ -99,15 +136,33 @@ class PascalVOCDataset(BaseDataset):
             return voc_to_coco_anns(target_dict)
         # 5) instantiate
         with temporarily_disable_ssl_verification():
-            voc_ds = datasets.VOCDetection(
-                root=root,
-                year=str(year),
-                image_set=image_set,
-                download=download,
-                transform=transform,
-                target_transform=target_transform,
-                **kwargs,
-            )
+            try:
+                voc_ds = datasets.VOCDetection(
+                    root=root,
+                    year=str(year),
+                    image_set=image_set,
+                    download=download,
+                    transform=transform,
+                    target_transform=target_transform,
+                    **kwargs,
+                )
+            except Exception as e:
+                if download:
+                    logger.warning(
+                        f"torchvision VOC download failed: {e}. Falling back to mirror..."
+                    )
+                    self._fallback_voc_download(root, year=str(year))
+                    voc_ds = datasets.VOCDetection(
+                        root=root,
+                        year=str(year),
+                        image_set=image_set,
+                        download=False,
+                        transform=transform,
+                        target_transform=target_transform,
+                        **kwargs,
+                    )
+                else:
+                    raise
         # 6) wrap
         self._dataset = DatasetWrapper(dataset=voc_ds, name=self.name)
         # Treat train & trainval as TRAIN, everything else as TEST
