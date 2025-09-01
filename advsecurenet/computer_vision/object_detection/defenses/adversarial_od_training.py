@@ -59,8 +59,15 @@ class AdversarialODTraining(BaseAdversarialTraining):
     def __init__(self, config: AdversarialTrainingConfig) -> None:
         self._check_config(config)
         super().__init__(config)
-        if hasattr(self._model, "model"):
-            self._model = self._model.model
+        self._trainable = getattr(self._model, "model", self._model)
+        for p in self._trainable.parameters():
+            p.requires_grad_(True)
+        if not any(g["params"] for g in self._optimizer.param_groups):
+            kwargs = self._config.optimizer_kwargs or {}
+            self._optimizer = self._get_optimizer(
+                self._config.optimizer, self._trainable, self._config.learning_rate, **kwargs
+            )
+            self._scheduler = self._get_scheduler(self._config.scheduler, self._optimizer)
 
     def _check_config(self, config: AdversarialTrainingConfig) -> None:
         self._check_config_base(config)
@@ -83,8 +90,15 @@ class AdversarialODTraining(BaseAdversarialTraining):
             )
         
     def _shuffle_data(
-        self, data: Union[torch.Tensor, list], target: Union[torch.Tensor, list]
-    ) -> tuple[Union[torch.Tensor, list], Union[torch.Tensor, list]]:
+        self, data: Union[torch.Tensor, list], target: Union[torch.Tensor, list, dict]
+    ) -> tuple[Union[torch.Tensor, list], Union[torch.Tensor, list, dict]]:
+        if isinstance(target, dict):
+            assert isinstance(data, torch.Tensor), "images must be a Tensor when targets are dict-of-lists"
+            perm = torch.randperm(data.size(0), device=data.device)
+            data = data[perm]
+            idx = perm.tolist()
+            target = {k: [v[i] for i in idx] for k, v in target.items()}
+            return data, target
         if isinstance(data, list):
             perm = torch.randperm(len(data))
             data_shuffled = [data[i] for i in perm]
@@ -93,13 +107,12 @@ class AdversarialODTraining(BaseAdversarialTraining):
             else:
                 target_shuffled = [target[i] for i in perm]
             return data_shuffled, target_shuffled
-
         permutation = torch.randperm(data.size(0))
         if isinstance(target, torch.Tensor):
             return data[permutation], target[permutation]
         shuffled_target = [target[i] for i in permutation]
         return data[permutation], shuffled_target
-        
+
     def _combine_clean_and_adversarial_data(
         self,
         images: torch.Tensor,
@@ -108,7 +121,8 @@ class AdversarialODTraining(BaseAdversarialTraining):
     ) -> tuple[torch.Tensor, list[dict]]:
         assert images.shape == adv_images.shape, "images and adv_images must match shape"
         combined_data = torch.cat([images, adv_images], dim=0)
-        combined_targets = {k: v + v for k, v in targets.items()}
+        combined_targets = {k: (v + v) for k, v in targets.items()}
+        combined_data, combined_targets = self._shuffle_data(combined_data, combined_targets)
         return combined_data, combined_targets
     
     def _generate_adversarial_batch(
@@ -118,20 +132,22 @@ class AdversarialODTraining(BaseAdversarialTraining):
         target_images: Optional[torch.Tensor] = None,
         target_targets: Optional[list[dict]] = None,
     ) -> tuple[torch.Tensor, list[dict]]:
-        # Randomly pick a model/attack for diversity (same idea as your classification trainer).
         model = random.choice(self.config.models).to(self._device).eval()
         attack = random.choice(self.config.attacks)
-
-        adv_images = self._perform_attack(
-            attack=attack,
-            model=model,
-            images=images,
-            targets=targets,
-            target_images=target_images,
-            target_targets=target_targets,
-        )
-
-        # For OD, ground-truth targets remain the same (untargeted by default).
+        was_training = self._trainable.training
+        self._trainable.eval()
+        try:
+            adv_images = self._perform_attack(
+                attack=attack,
+                model=self._trainable,
+                images=images,
+                targets=targets,
+                target_images=target_images,
+                target_targets=target_targets,
+            )
+        finally:
+            if was_training:
+                self._trainable.train()
         return adv_images, targets
 
     def _move_to_device(
@@ -165,7 +181,7 @@ class AdversarialODTraining(BaseAdversarialTraining):
                 from advsecurenet.models.detector_factory import get_object_detector
                 det_name = attack._object_detector if isinstance(attack._object_detector, str) else "yolov5"
                 detector_wrapper = get_object_detector(det_name.lower())
-                underlying = getattr(model, "model", model)
+                underlying = getattr(self._trainable, "model", self._trainable)
                 detector_wrapper.model = underlying
                 attack._object_detector = detector_wrapper
                 attack._detector_resolved = True
@@ -221,11 +237,11 @@ class AdversarialODTraining(BaseAdversarialTraining):
         Runs a batch for object detection adversarial training.
         Uses the model's own loss (e.g. YOLOv5's composite loss).
         """
-        self._model.train()
+        self._trainable.train()
         self._optimizer.zero_grad()
         yolo_targets = coco_targets_to_yolov5(targets, input_shape=source.shape, device=source.device)
         source.requires_grad = True
-        output = self._model(source, yolo_targets)
+        output = self._trainable(source, yolo_targets)
         # Use the model's loss dict
         if isinstance(output, dict) and "loss_total" in output:
             loss = output["loss_total"]
