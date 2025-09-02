@@ -1,4 +1,4 @@
-import os
+as far as i understand correctly now, this setup only allows for llama and vicunia tokenizers. Is this correct?import os
 
 from setuptools import find_packages, setup
 
@@ -33,16 +33,6 @@ setup(
         "einops",
         "filetype",
         "requests",
-        "fschat==0.2.20",
-        "nltk==3.8.1",
-        "numpy==1.26.0",
-        "openai==0.28.1",
-        "transformers==4.28.0",
-        "sentencepiece==0.1.99",
-        "protobuf==4.24.4",
-        "accelerate==0.23.0",
-        "ml_collections",
-
     ],
     entry_points={
         "console_scripts": [
