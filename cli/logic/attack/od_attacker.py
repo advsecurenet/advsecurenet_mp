@@ -15,6 +15,9 @@ from advsecurenet.computer_vision.object_detection.attacks.attacker.od_attacker 
     ODAttackerConfig,
 )
 from cli.shared.types.attack import BaseAttackCLIConfigType
+from advsecurenet.distributed.ddp_coordinator import DDPCoordinator
+from advsecurenet.utils.ddp import set_visible_gpus
+from advsecurenet.computer_vision.object_detection.attacks.attacker.ddp_od_attacker import DDPODAttacker
 from advsecurenet.dataloader.data_loader_factory import od_collate_fn, DataLoaderFactory
 from advsecurenet.shared.types.configs.dataloader_config import DataLoaderConfig
 from cli.shared.utils.dataset import get_datasets
@@ -30,6 +33,7 @@ from advsecurenet.computer_vision.object_detection.attacks.pixel_perturbation_ba
     TOGAttackType,
 )
 from advsecurenet.models.detector_factory import get_object_detector
+from advsecurenet.models.CustomModels.CustomYolov5Model import CustomYolov5Model
 
 logger = logging.getLogger(__name__)
 
@@ -48,10 +52,55 @@ class CLIODAttacker:
     def execute(self):
         logger.info(
             "Starting %s attack (object detection).", self.od_main_attack_type.name
-        )
-        self._execute_attack()
+            )
+        if getattr(self._config.device, "use_ddp", False):
+            logger.info("Using DDP for attack with GPUs: %s", self._config.device.gpu_ids)
+            self._execute_ddp_attack()
+        else:
+            self._execute_attack()
         click.secho("Attack completed successfully.", fg="green")
         logger.info("%s attack completed successfully.", self.od_main_attack_type.name)
+
+    def _execute_ddp_attack(self):
+        if not self._config.device.gpu_ids or len(self._config.device.gpu_ids) == 0:
+            self._config.device.gpu_ids = list(range(torch.cuda.device_count()))
+        world_size = len(self._config.device.gpu_ids)
+        set_visible_gpus(self._config.device.gpu_ids)
+        ddp_attacker = DDPCoordinator(self._ddp_attack_fn, world_size)
+        ddp_attacker.run()
+        # Only rank0 process collects results (after spawn join) – gather stored per-rank files
+        if self._config.attack_procedure.save_result_images:
+            try:
+                adv_imgs = DDPODAttacker.gather_results(world_size)
+                if adv_imgs:
+                    self._save_images_if_needed(adv_imgs)
+            except Exception as e:
+                logger.error("Failed to gather DDP OD adversarial images: %s", e)
+
+    def _ddp_attack_fn(self, rank: int, world_size: int) -> None:
+        try:
+            if getattr(self._config.device, "gpu_ids", None):
+                torch.cuda.set_device(rank)
+                self._config.device.processor = f"cuda:{rank}"
+            else:
+                # Fallback: ensure processor string reflects local rank even if gpu_ids absent
+                torch.cuda.set_device(rank)
+                self._config.device.processor = f"cuda:{rank}"
+            logger.info("[DDP OD] Rank %d using device %s (physical GPU %s)", rank, self._config.device.processor, getattr(self._config.device, 'gpu_ids', [None])[rank] if getattr(self._config.device, 'gpu_ids', None) else rank)
+        except Exception as e:
+            logger.error("[DDP OD] Failed to set device for rank %d: %s", rank, e)
+        config, extra_kwargs = self._prepare_attack_config()
+        ddp_wrapper = DDPODAttacker(attacker_class=self._build_concrete_attacker_class(), config=config, **extra_kwargs)
+        ddp_wrapper.setup()
+        ddp_wrapper.run_task()
+
+    def _build_concrete_attacker_class(self):
+        if self.od_main_attack_type.name.upper() == "DPATCH":
+            return AdversarialPatchODAttacker
+        elif self.od_main_attack_type.name.upper() == "TOG":
+            return PixelPerturbationODAttacker
+        else:
+            raise ValueError(f"Unknown attack type: {self.od_main_attack_type}")
 
     def _execute_attack(self):
         config, extra_kwargs = self._prepare_attack_config()

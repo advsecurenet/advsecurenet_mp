@@ -2,6 +2,7 @@ from advsecurenet.evaluation.base_evaluator import BaseEvaluator
 from advsecurenet.models.base_model import BaseModel
 from mean_average_precision import MetricBuilder
 import torch
+import torch.distributed as dist
 import warnings
 import numpy as np
 from typing import List, Dict, Any
@@ -23,6 +24,8 @@ class MeanAveragePrecisionEvaluator(BaseEvaluator):
         self.adv_metric = MetricBuilder.build_evaluation_metric(
             "map_2d", async_mode=True, num_classes=num_classes
         )
+        self._clean_entries = []
+        self._adv_entries = []
 
     def reset(self):
         """
@@ -30,6 +33,8 @@ class MeanAveragePrecisionEvaluator(BaseEvaluator):
         """
         self.clean_metric.reset()
         self.adv_metric.reset()
+        self._clean_entries.clear()
+        self._adv_entries.clear()
 
     def detections_to_dicts(self, detections, expects_numpy=False):
         results = []
@@ -50,6 +55,7 @@ class MeanAveragePrecisionEvaluator(BaseEvaluator):
         return results
 
     def _process_and_update(self, metric_builder, predictions, ground_truths):
+        distributed = dist.is_available() and dist.is_initialized()
         for pred_idx, (pred, gt) in enumerate(zip(predictions, ground_truths)):
             try:
                 # Process ground truth data
@@ -66,7 +72,13 @@ class MeanAveragePrecisionEvaluator(BaseEvaluator):
                 gts_formatted = [
                     list(b) + [int(l), 0, 0] for b, l in zip(gt_boxes, gt_labels)
                 ]
-                metric_builder.add(np.array(preds_formatted), np.array(gts_formatted))
+                entry = (np.array(preds_formatted), np.array(gts_formatted))
+                if metric_builder is self.clean_metric:
+                    self._clean_entries.append(entry)
+                else:
+                    self._adv_entries.append(entry)
+                if not distributed:
+                    metric_builder.add(entry[0], entry[1])
             except Exception as e:
                 warnings.warn(f"Error processing prediction {pred_idx}: {e}")
 
@@ -158,8 +170,44 @@ class MeanAveragePrecisionEvaluator(BaseEvaluator):
             "recall_thresholds": np.arange(0.0, 1.01, 0.01),
             "mpolicy": "soft",
         }
-        clean_map = self.clean_metric.value(**coco_format)["mAP"]
-        adv_map = self.adv_metric.value(**coco_format)["mAP"]
+        distributed = dist.is_available() and dist.is_initialized()
+        if distributed:
+            world_size = dist.get_world_size()
+            rank = dist.get_rank()
+            # Gather entries
+            try:
+                clean_lists = [None] * world_size
+                adv_lists = [None] * world_size
+                dist.barrier()
+                dist.all_gather_object(clean_lists, self._clean_entries)
+                dist.all_gather_object(adv_lists, self._adv_entries)
+                if rank == 0:
+                    # Rebuild metrics centrally
+                    self.clean_metric.reset()
+                    self.adv_metric.reset()
+                    for entries in clean_lists:
+                        if entries:
+                            for preds_arr, gts_arr in entries:
+                                self.clean_metric.add(preds_arr, gts_arr)
+                    for entries in adv_lists:
+                        if entries:
+                            for preds_arr, gts_arr in entries:
+                                self.adv_metric.add(preds_arr, gts_arr)
+                    clean_map = self.clean_metric.value(**coco_format)["mAP"]
+                    adv_map = self.adv_metric.value(**coco_format)["mAP"]
+                    t = torch.tensor([clean_map, adv_map], dtype=torch.float32, device="cuda" if torch.cuda.is_available() else "cpu")
+                else:
+                    t = torch.zeros(2, dtype=torch.float32, device="cuda" if torch.cuda.is_available() else "cpu")
+                # Broadcast final maps to all ranks
+                dist.broadcast(t, src=0)
+                clean_map, adv_map = float(t[0].item()), float(t[1].item())
+            except Exception:
+                # Fallback: compute local only
+                clean_map = self.clean_metric.value(**coco_format)["mAP"]
+                adv_map = self.adv_metric.value(**coco_format)["mAP"]
+        else:
+            clean_map = self.clean_metric.value(**coco_format)["mAP"]
+            adv_map = self.adv_metric.value(**coco_format)["mAP"]
         return {
             "clean_mAP": clean_map,
             "adversarial_mAP": adv_map,
