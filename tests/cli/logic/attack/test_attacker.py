@@ -282,7 +282,11 @@ def test_get_target_parameters_none(attacker_config):
 @patch("cli.logic.attack.attacker.resolve_dataset_config")
 @pytest.mark.parametrize("split_key", ["train", "test"])
 def test_select_data_partition_with_splits(
-    mock_resolve_dataset_config, mock_validate_dataset, mock_prepare_dataset, attacker_config, split_key
+    mock_resolve_dataset_config,
+    mock_validate_dataset,
+    mock_prepare_dataset,
+    attacker_config,
+    split_key,
 ):
     # Mock the resolved_config to have splits.keys() return [split_key]
     mock_splits = {split_key: None}
@@ -292,7 +296,7 @@ def test_select_data_partition_with_splits(
 
     train_data = MagicMock()
     test_data = MagicMock()
-  
+
     attacker = CLIAttacker(attacker_config, AttackType.FGSM)
     mock_validate_dataset.return_value = (
         train_data if split_key == "train" else test_data
