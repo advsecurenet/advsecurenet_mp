@@ -331,31 +331,8 @@ of the second dataclass will overwrite the fields of the first dataclass.</p>
 </dd></dl>
 
 </section>
-<section id="module-advsecurenet.utils.device_manager">
-<span id="advsecurenet-utils-device-manager-module"></span><h2>advsecurenet.utils.device_manager module<a class="headerlink" href="#module-advsecurenet.utils.device_manager" title="Link to this heading"></a></h2>
-<dl class="py class">
-<dt class="sig sig-object py" id="advsecurenet.utils.device_manager.DeviceManager">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">advsecurenet.utils.device_manager.</span></span><span class="sig-name descname"><span class="pre">DeviceManager</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">device</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">device</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">distributed_mode</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#advsecurenet.utils.device_manager.DeviceManager" title="Link to this definition"></a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
-<p>Device manager module for handling device placement in both single and distributed modes. In single mode, the device manager will place the tensors on the specified device. In distributed mode, the device manager will assume that the tensors are already placed correctly.
-This centralizes the device placement logic and makes it easier to switch between single and distributed modes.</p>
-<dl class="py method">
-<dt class="sig sig-object py" id="advsecurenet.utils.device_manager.DeviceManager.get_current_device">
-<span class="sig-name descname"><span class="pre">get_current_device</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#advsecurenet.utils.device_manager.DeviceManager.get_current_device" title="Link to this definition"></a></dt>
-<dd><p>Returns the current device. In distributed mode, it returns the device of the current process.
-In single mode, it returns the initialized device.</p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="advsecurenet.utils.device_manager.DeviceManager.to_device">
-<span class="sig-name descname"><span class="pre">to_device</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#advsecurenet.utils.device_manager.DeviceManager.to_device" title="Link to this definition"></a></dt>
-<dd><p>Places the provided tensors on the correct device based on the current mode.
-In distributed mode, it places tensors on the device of the current process.
-In single mode, it places tensors on the initialized device.</p>
-</dd></dl>
-
-</dd></dl>
-
+<section id="advsecurenet-utils-device-manager-module">
+<h2>advsecurenet.utils.device_manager module<a class="headerlink" href="#advsecurenet-utils-device-manager-module" title="Link to this heading"></a></h2>
 </section>
 <section id="module-advsecurenet.utils.dot_dict">
 <span id="advsecurenet-utils-dot-dict-module"></span><h2>advsecurenet.utils.dot_dict module<a class="headerlink" href="#module-advsecurenet.utils.dot_dict" title="Link to this heading"></a></h2>

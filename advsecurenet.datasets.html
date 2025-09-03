@@ -360,7 +360,56 @@ that resolves the configuration internally.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="advsecurenet.datasets.dataset_factory.DatasetFactory.load_dataset_from_config">
 <em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">load_dataset_from_config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">resolved_config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ResolvedDatasetConfig</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">runtime_kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#advsecurenet.datasets.base_dataset.BaseDataset" title="advsecurenet.datasets.base_dataset.BaseDataset"><span class="pre">BaseDataset</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="advsecurenet.dataloader.html#advsecurenet.dataloader.data_loader_factory.DataLoaderFactory.None" title="advsecurenet.dataloader.data_loader_factory.DataLoaderFactory.None"><span class="pre">None</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#advsecurenet.datasets.dataset_factory.DatasetFactory.load_dataset_from_config" title="Link to this definition"></a></dt>
-<dd><p>The main entry point for loading datasets from a resolved configuration.</p>
+<dd><p>Loads one or more dataset splits from a resolved configuration.</p>
+<p>This is the main entry point for loading datasets from a fully resolved configuration.
+It processes each split defined in the configuration, creates appropriate dataset providers,
+and loads the actual datasets with proper error handling.</p>
+<p>The function performs the following steps for each split:
+1. Infers dataset type from the identifier (e.g., CIFAR10, HUGGINGFACE)
+2. Processes the identifier (normalizes Hugging Face URLs, validates format)
+3. Creates a dataset provider instance with constructor arguments
+4. Prepares load arguments by merging config kwargs, overrides, and runtime kwargs
+5. Processes the arguments through the provider’s preprocessing
+6. Loads the actual dataset using the provider</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>resolved_config</strong> (<em>ResolvedDatasetConfig</em>) – A fully resolved dataset configuration
+containing splits with their identifiers, paths, preprocessing configs, etc.</p></li>
+<li><p><strong>**runtime_kwargs</strong> – Additional keyword arguments passed at runtime that can
+override configuration values. Common examples include batch_size,
+num_workers, or dataset-specific parameters.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><dl class="simple">
+<dt>A dictionary mapping logical split names</dt><dd><p>(e.g., ‘train’, ‘test’, ‘validation’) to their corresponding loaded
+dataset instances. If a split fails to load, its value will be None.</p>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Dict[str, Optional[<a class="reference internal" href="#advsecurenet.datasets.base_dataset.BaseDataset" title="advsecurenet.datasets.base_dataset.BaseDataset">BaseDataset</a>]]</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>No exceptions are raised directly. Individual split loading errors are caught</strong><strong>,</strong> – </p></li>
+<li><p><strong>logged as warnings</strong><strong>, </strong><strong>and result in None values in the returned dictionary.</strong> – </p></li>
+</ul>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">config</span> <span class="o">=</span> <span class="n">resolve_dataset_config</span><span class="p">(</span><span class="n">some_config</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">datasets</span> <span class="o">=</span> <span class="n">DatasetFactory</span><span class="o">.</span><span class="n">load_dataset_from_config</span><span class="p">(</span>
+<span class="gp">... </span>    <span class="n">config</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">batch_size</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">num_workers</span><span class="o">=</span><span class="mi">4</span>
+<span class="gp">... </span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">train_dataset</span> <span class="o">=</span> <span class="n">datasets</span><span class="p">[</span><span class="s1">&#39;train&#39;</span><span class="p">]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">test_dataset</span> <span class="o">=</span> <span class="n">datasets</span><span class="p">[</span><span class="s1">&#39;test&#39;</span><span class="p">]</span>
+</pre></div>
+</div>
 </dd></dl>
 
 </dd></dl>
