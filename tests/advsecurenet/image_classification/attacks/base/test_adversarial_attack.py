@@ -3,7 +3,9 @@ from unittest.mock import Mock
 import pytest
 import torch
 
-from advsecurenet.computer_vision.base.adversarial_attack import AdversarialAttack
+from advsecurenet.computer_vision.base.adversarial_attack import (
+    AdversarialAttack,
+)
 from advsecurenet.models.base_model import BaseModel
 from advsecurenet.shared.types.configs.attack_configs.attack_config import AttackConfig
 from advsecurenet.shared.types.configs.device_config import DeviceConfig

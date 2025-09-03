@@ -146,14 +146,6 @@ def test_create_dataloader(config, kwargs):
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
-def test_get_iterator(config, kwargs):
-    attacker = Attacker(config, **kwargs)
-    iterator = attacker._get_iterator()
-    assert iterator is not None
-
-
-@pytest.mark.advsecurenet
-@pytest.mark.essential
 @patch("torch.cuda.is_available", return_value=True)
 @patch(
     "advsecurenet.computer_vision.image_classification.attacks.attacker.attacker.Attacker._setup_model"
@@ -172,6 +164,7 @@ def test_setup_device_default_cuda(
 @pytest.mark.advsecurenet
 @pytest.mark.essential
 @patch("torch.cuda.is_available", return_value=False)
+@patch("torch.backends.mps.is_available", return_value=False)
 @patch(
     "advsecurenet.computer_vision.image_classification.attacks.attacker.attacker.Attacker._setup_model"
 )

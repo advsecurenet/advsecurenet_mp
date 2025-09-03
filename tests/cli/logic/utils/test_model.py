@@ -11,6 +11,7 @@ from cli.logic.utils.model import (
     cli_download_weights,
     cli_model_layers,
     cli_models,
+    cli_huggingface_model,
 )
 
 
@@ -229,8 +230,125 @@ def test_get_models_standard():
         mock_available_standard_models.assert_called_once()
 
 
+pytest.mark.cli
+
+
+@pytest.mark.essential
+@pytest.mark.parametrize(
+    "model_name, dataset_name",
+    [
+        ("", "cifar10"),
+        ("resnet18", ""),
+    ],
+)
+def test_cli_download_weights_missing_names(model_name, dataset_name):
+    """
+    Covers: `cli_download_weights` -> `raise ValueError("Please provide both model name and dataset name!")`
+    """
+    with pytest.raises(
+        ValueError, match="Please provide both model name and dataset name!"
+    ):
+        cli_download_weights(model_name, dataset_name, "filename", "save_path")
+
+
 @pytest.mark.cli
 @pytest.mark.essential
 def test_get_models_invalid():
     with pytest.raises(ValueError):
         _get_models("invalid_type")
+
+
+@pytest.mark.cli
+@pytest.mark.essential
+@patch("click.secho")
+@patch("click.echo")
+@patch("advsecurenet.models.model_factory.ModelFactory.create_model")
+def test_cli_huggingface_model_success(mock_create_model, mock_echo, mock_secho):
+    # Arrange
+    mock_model = MagicMock()
+    mock_model.get_layer_names.return_value = ["layer1", "layer2"]
+    mock_layer = MagicMock()
+    mock_layer.__class__.__name__ = "Linear"
+    mock_model.get_layer.return_value = mock_layer
+    mock_create_model.return_value = mock_model
+
+    # Act
+    cli_huggingface_model(
+        model_identifier="test-model",
+        pretrained=True,
+        revision="main",
+        trust_remote_code=True,
+        model_class_name=None,
+        architecture=None,
+    )
+
+    # Assert
+    mock_create_model.assert_called_once()
+    mock_secho.assert_any_call(
+        "Successfully loaded Hugging Face model: test-model",
+        bold=True,
+        fg="green",
+    )
+    mock_echo.assert_any_call(f"{'Layer Name':<30}{'Layer Type':<30}")
+    mock_echo.assert_any_call(f"{'layer1':<30}{'Linear':<30}")
+    mock_echo.assert_any_call(f"{'layer2':<30}{'Linear':<30}")
+
+
+@pytest.mark.cli
+@pytest.mark.essential
+@patch("click.echo")
+@patch("advsecurenet.models.model_factory.ModelFactory.create_model")
+def test_cli_huggingface_model_not_pretrained(mock_create_model, mock_echo):
+    # Arrange
+    mock_model = MagicMock()
+    mock_model.get_layer_names.return_value = []
+    mock_create_model.return_value = mock_model
+
+    # Act
+    cli_huggingface_model(
+        model_identifier="test-model",
+        pretrained=False,
+        revision="main",
+        trust_remote_code=True,
+        model_class_name=None,
+        architecture=None,
+    )
+
+    # Assert
+    mock_echo.assert_any_call("Note: Loading model without pretrained weights")
+
+
+@pytest.mark.cli
+@pytest.mark.essential
+def test_cli_huggingface_model_no_identifier():
+    # Act & Assert
+    with pytest.raises(click.ClickException) as excinfo:
+        cli_huggingface_model(
+            model_identifier="",
+            pretrained=True,
+            revision="main",
+            trust_remote_code=True,
+            model_class_name=None,
+            architecture=None,
+        )
+    assert "Model ID must be provided!" in str(excinfo.value)
+
+
+@pytest.mark.cli
+@pytest.mark.essential
+@patch(
+    "advsecurenet.models.model_factory.ModelFactory.create_model",
+    side_effect=Exception("Loading failed"),
+)
+def test_cli_huggingface_model_load_error(mock_create_model):
+    # Act & Assert
+    with pytest.raises(click.ClickException) as excinfo:
+        cli_huggingface_model(
+            model_identifier="test-model",
+            pretrained=True,
+            revision="main",
+            trust_remote_code=True,
+            model_class_name=None,
+            architecture=None,
+        )
+    assert "Error loading Hugging Face model: Loading failed" in str(excinfo.value)

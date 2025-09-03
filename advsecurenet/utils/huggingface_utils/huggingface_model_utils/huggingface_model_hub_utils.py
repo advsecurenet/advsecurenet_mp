@@ -1,11 +1,7 @@
 import warnings
 
 from huggingface_hub import model_info
-
-try:
-    from huggingface_hub.utils import RepositoryNotFoundError
-except ImportError:
-    from huggingface_hub.utils._errors import RepositoryNotFoundError
+from huggingface_hub.utils import RepositoryNotFoundError
 
 import advsecurenet.utils.huggingface_utils.huggingface_general_utils as huggingface_general_utils
 

@@ -15,7 +15,7 @@ from advsecurenet.shared.types.configs.preprocess_config import (
 from advsecurenet.shared.types.dataset import DataType
 from advsecurenet.utils.kwargs_utils import (
     filter_kwargs_for_callable,
-    pop_keys_from_dict,
+    pop_string_keys_from_dict,
     map_kwargs,
 )
 
@@ -114,7 +114,7 @@ class BaseDataset(TorchDataset, ABC):
         Returns:
             DatasetWrapper: The dataset loaded into memory.
         """
-        if "root" not in kwargs or kwargs["root"] is None:
+        if not kwargs.get("root"):
             kwargs["root"] = pkg_resources.resource_filename("advsecurenet", "data")
 
         kwargs["transform"] = self.get_transforms()
@@ -271,6 +271,6 @@ class BaseDataset(TorchDataset, ABC):
         # Map generic keys to dataset-specific ones
         kwargs = self.process_dataset_kwargs(kwargs)
 
-        kwargs = pop_keys_from_dict(kwargs, ["dataset_name", "num_classes"])
+        kwargs = pop_string_keys_from_dict(kwargs, ["dataset_name", "num_classes"])
 
         return kwargs

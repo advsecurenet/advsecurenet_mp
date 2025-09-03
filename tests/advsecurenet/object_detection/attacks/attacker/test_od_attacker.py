@@ -66,10 +66,19 @@ def test_setup_device_default_cuda(mock_cuda, config):
 
 
 @patch("torch.cuda.is_available", return_value=False)
-def test_setup_device_default_cpu(mock_cuda, config):
+@patch("torch.backends.mps.is_available", return_value=False)
+def test_setup_device_default_cpu(mock_cuda, mock_mps, config):
     config.device.processor = None
     attacker = DummyODAttacker(config)
     assert attacker._device == torch.device("cpu")
+
+
+@patch("torch.cuda.is_available", return_value=False)
+@patch("torch.backends.mps.is_available", return_value=True)
+def test_setup_device_default_mps(mock_cuda, mock_mps, config):
+    config.device.processor = None
+    attacker = DummyODAttacker(config)
+    assert attacker._device == torch.device("mps")
 
 
 def test_create_dataloader_with_instance(config):
