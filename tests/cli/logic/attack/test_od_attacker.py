@@ -222,6 +222,7 @@ def test_sample_data_if_required_no_sampling(od_attacker_config):
         name = "DPATCH"
 
     od_attacker_config.dataset.random_sample_size = None
+    od_attacker_config.dataset.split_config = None
     attacker = CLIODAttacker(od_attacker_config, DummyAttackType())
     mock_data = MagicMock()
     result = attacker._sample_data_if_required(mock_data)
