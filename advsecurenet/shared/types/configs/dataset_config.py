@@ -244,8 +244,8 @@ def _get_user_splits(config: CreateDatasetCliConfig) -> List[str]:
         >>> _get_user_splits(config)
         ['train', 'test']
     """
-    # First priority: use the keys from split_config if it's provided.
-    if config.split_config:
+    # First priority: use the keys from split_config if it's provided and has keys.
+    if config.split_config and config.split_config.keys():
         return list(config.split_config.keys())
 
 
