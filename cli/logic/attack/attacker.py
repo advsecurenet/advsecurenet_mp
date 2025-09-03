@@ -49,7 +49,7 @@ class CLIAttacker:
         The main attack function. This function parses the CLI arguments and executes the attack.
         """
         logger.info("Starting %s attack.", self._attack_type.value)
-        
+
         if self._config.device.use_ddp:
             logger.info(
                 "Using DDP for attack with the following GPUs: %s",
@@ -229,11 +229,15 @@ class CLIAttacker:
         # This is much more flexible than hardcoded dataset_part
         resolved_config = resolve_dataset_config(self._config.dataset)
         available_splits = list(resolved_config.splits.keys())
-        
+
         if not available_splits:
             # Fallback: if no splits specified, prefer test over train for attacks
-            return self._validate_dataset_availability(test_data, "test") if test_data else train_data
-        
+            return (
+                self._validate_dataset_availability(test_data, "test")
+                if test_data
+                else train_data
+            )
+
         # Use the first specified split
         first_split = available_splits[0]
         if first_split == "train":
@@ -242,7 +246,11 @@ class CLIAttacker:
             return self._validate_dataset_availability(test_data, "test")
         else:
             # For custom splits, prefer test data as fallback
-            return self._validate_dataset_availability(test_data, "test") if test_data else train_data
+            return (
+                self._validate_dataset_availability(test_data, "test")
+                if test_data
+                else train_data
+            )
 
     def _sample_data_if_required(self, all_data):
         sample_size = self._config.dataset.random_sample_size

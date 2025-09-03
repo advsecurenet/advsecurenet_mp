@@ -1,6 +1,7 @@
 from typing import Optional
 import torch
 
+
 def setup_device(processor: Optional[str]) -> torch.device:
     """
     Sets up the device for training by auto-detecting or using the specified processor.

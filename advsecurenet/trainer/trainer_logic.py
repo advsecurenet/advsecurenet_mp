@@ -24,7 +24,15 @@ logger = logging.getLogger(__name__)
 
 # This file contains the pure, stateless logic functions for the training process.
 
-def run_batch(source: torch.Tensor, targets: torch.Tensor, model: nn.Module, optimizer: optim.Optimizer, loss_fn: nn.Module, scheduler: Optional[lr_scheduler.LRScheduler]) -> float:
+
+def run_batch(
+    source: torch.Tensor,
+    targets: torch.Tensor,
+    model: nn.Module,
+    optimizer: optim.Optimizer,
+    loss_fn: nn.Module,
+    scheduler: Optional[lr_scheduler.LRScheduler],
+) -> float:
     """Runs a single batch."""
     model.train()
     optimizer.zero_grad()
@@ -40,7 +48,16 @@ def run_batch(source: torch.Tensor, targets: torch.Tensor, model: nn.Module, opt
         scheduler.step()
     return loss.item()
 
-def run_epoch(epoch: int, train_loader: DataLoader, device: torch.device, model: nn.Module, optimizer: optim.Optimizer, loss_fn: nn.Module, scheduler: Optional[lr_scheduler.LRScheduler]) -> None:
+
+def run_epoch(
+    epoch: int,
+    train_loader: DataLoader,
+    device: torch.device,
+    model: nn.Module,
+    optimizer: optim.Optimizer,
+    loss_fn: nn.Module,
+    scheduler: Optional[lr_scheduler.LRScheduler],
+) -> None:
     """Runs a single training epoch using an explicit iterator to ensure DataLoader worker cleanup."""
     total_loss = 0.0
     loader_length = len(train_loader)  # Save length before cleanup
@@ -51,16 +68,26 @@ def run_epoch(epoch: int, train_loader: DataLoader, device: torch.device, model:
         source, targets = source.to(device), targets.to(device)
         loss = run_batch(source, targets, model, optimizer, loss_fn, scheduler)
         total_loss += loss
-        #break #TO DELETE
+        # break #TO DELETE
     del data_iter  # Explicitly delete iterator to trigger worker shutdown
     total_loss /= loader_length
-    click.echo(click.style(f"Epoch {epoch} - Average loss: {total_loss:.4f}", fg="blue"))
+    click.echo(
+        click.style(f"Epoch {epoch} - Average loss: {total_loss:.4f}", fg="blue")
+    )
 
-def should_save_checkpoint(epoch: int, save_checkpoint: bool, checkpoint_interval: int) -> bool:
+
+def should_save_checkpoint(
+    epoch: int, save_checkpoint: bool, checkpoint_interval: int
+) -> bool:
     """Determines if a checkpoint should be saved."""
-    return save_checkpoint and checkpoint_interval > 0 and epoch % checkpoint_interval == 0
+    return (
+        save_checkpoint and checkpoint_interval > 0 and epoch % checkpoint_interval == 0
+    )
 
-def save_checkpoint(epoch: int, optimizer: optim.Optimizer, model: nn.Module, checkpoint_path: str) -> None:
+
+def save_checkpoint(
+    epoch: int, optimizer: optim.Optimizer, model: nn.Module, checkpoint_path: str
+) -> None:
     """Saves the checkpoint."""
     torch.save(
         {
@@ -72,7 +99,18 @@ def save_checkpoint(epoch: int, optimizer: optim.Optimizer, model: nn.Module, ch
     )
     click.echo(click.style(f"Saved checkpoint to {checkpoint_path}", fg="green"))
 
-def post_training(save_final_model_flag: bool, model: nn.Module, save_path: Optional[str], save_name: Optional[str], model_name: Optional[str], dataset_name: Optional[str], use_ddp: bool, privacy_engine, delta) -> None:
+
+def post_training(
+    save_final_model_flag: bool,
+    model: nn.Module,
+    save_path: Optional[str],
+    save_name: Optional[str],
+    model_name: Optional[str],
+    dataset_name: Optional[str],
+    use_ddp: bool,
+    privacy_engine,
+    delta,
+) -> None:
     """Logic to run after training ends."""
     if save_final_model_flag:
         save_final_model(model, save_path, save_name, model_name, dataset_name, use_ddp)
@@ -86,7 +124,9 @@ def post_training(save_final_model_flag: bool, model: nn.Module, save_path: Opti
             )
         )
 
+
 # Optimizer and Scheduler utilities
+
 
 def create_scheduler_from_string(
     scheduler_name: str,
@@ -103,7 +143,7 @@ def create_scheduler_from_string(
 
     Returns:
         lr_scheduler.LRScheduler: The scheduler instance.
-    
+
     Raises:
         ValueError: If the scheduler name is not supported.
     """
@@ -129,7 +169,7 @@ def create_scheduler_from_string(
         normalized_name = "LINEAR_LR"
     elif normalized_name == "REDUCELRONPLATEAU":
         normalized_name = "REDUCE_LR_ON_PLATEAU"
-    
+
     if normalized_name not in Scheduler.__members__:
         raise ValueError(
             "Unsupported scheduler! Choose from: "
@@ -158,7 +198,7 @@ def get_scheduler(
     """
     if scheduler is None:
         return None
-    
+
     if isinstance(scheduler, str):
         return create_scheduler_from_string(scheduler, optimizer, scheduler_kwargs)
     elif isinstance(scheduler, lr_scheduler.LRScheduler):
@@ -215,7 +255,9 @@ def get_optimizer(
     return cast(optim.Optimizer, optimizer)
 
 
-def assign_device_to_optimizer_state(optimizer: optim.Optimizer, device: torch.device) -> None:
+def assign_device_to_optimizer_state(
+    optimizer: optim.Optimizer, device: torch.device
+) -> None:
     """
     Assigns the specified device to all tensors in the optimizer state.
 
@@ -231,7 +273,10 @@ def assign_device_to_optimizer_state(optimizer: optim.Optimizer, device: torch.d
 
 # Checkpoint utilities
 
-def get_save_checkpoint_prefix(save_checkpoint_name: Optional[str], model_name: str, dataset_name: str) -> str:
+
+def get_save_checkpoint_prefix(
+    save_checkpoint_name: Optional[str], model_name: str, dataset_name: str
+) -> str:
     """
     Returns the save checkpoint prefix.
 
@@ -244,7 +289,7 @@ def get_save_checkpoint_prefix(save_checkpoint_name: Optional[str], model_name: 
         str: The save checkpoint prefix.
 
     Notes:
-        If the save checkpoint name is provided, it will be used as the prefix. 
+        If the save checkpoint name is provided, it will be used as the prefix.
         Otherwise, the model name and the dataset name will be used as the prefix.
     """
     if save_checkpoint_name:
@@ -253,7 +298,14 @@ def get_save_checkpoint_prefix(save_checkpoint_name: Optional[str], model_name: 
         return f"{model_name}_{dataset_name}_checkpoint"
 
 
-def define_save_checkpoint_path(save_checkpoint_path: Optional[str], save_checkpoint_name: Optional[str], checkpoint_sub_dir: Optional[str], model_name: str, dataset_name: str, epoch: int) -> str:
+def define_save_checkpoint_path(
+    save_checkpoint_path: Optional[str],
+    save_checkpoint_name: Optional[str],
+    checkpoint_sub_dir: Optional[str],
+    model_name: str,
+    dataset_name: str,
+    epoch: int,
+) -> str:
     """
     Defines the full path for saving a checkpoint.
 
@@ -275,7 +327,9 @@ def define_save_checkpoint_path(save_checkpoint_path: Optional[str], save_checkp
     if not os.path.exists(checkpoint_dir):
         os.makedirs(checkpoint_dir)
 
-    save_checkpoint_prefix = get_save_checkpoint_prefix(save_checkpoint_name, model_name, dataset_name)
+    save_checkpoint_prefix = get_save_checkpoint_prefix(
+        save_checkpoint_name, model_name, dataset_name
+    )
     checkpoint_filename = f"{save_checkpoint_prefix}_epoch_{epoch}.pth"
 
     return os.path.join(checkpoint_dir, checkpoint_filename)
@@ -329,7 +383,9 @@ def save_final_model(
     )
 
 
-def log_loss(epoch: int, loss: float, dir: Optional[str] = None, filename: str = "loss.log") -> None:
+def log_loss(
+    epoch: int, loss: float, dir: Optional[str] = None, filename: str = "loss.log"
+) -> None:
     """
     Logs the loss for a given epoch to a file.
 
@@ -339,9 +395,7 @@ def log_loss(epoch: int, loss: float, dir: Optional[str] = None, filename: str =
         dir (Optional[str]): Directory to save the log file.
         filename (str): Name of the log file.
     """
-    path = (
-        os.path.join(dir, filename) if dir else os.path.join(os.getcwd(), filename)
-    )
+    path = os.path.join(dir, filename) if dir else os.path.join(os.getcwd(), filename)
     # Save the loss to the log file. If the log file does not exist, create it in the current directory.
     if not os.path.exists(path):
         with open(path, "w", encoding="utf-8") as f:
@@ -366,13 +420,19 @@ def load_checkpoint_data(
     if not checkpoint_path or not os.path.isfile(checkpoint_path):
         logger.warning("Checkpoint file not found at %s. Not loading.", checkpoint_path)
         return None
-    
+
     try:
         logger.info("Loading checkpoint from %s", checkpoint_path)
         checkpoint = torch.load(checkpoint_path, map_location=device)
         # Basic validation to ensure essential keys exist
-        if "model_state_dict" not in checkpoint or "optimizer_state_dict" not in checkpoint or "epoch" not in checkpoint:
-            logger.error("Checkpoint is malformed or missing required keys. Not loading.")
+        if (
+            "model_state_dict" not in checkpoint
+            or "optimizer_state_dict" not in checkpoint
+            or "epoch" not in checkpoint
+        ):
+            logger.error(
+                "Checkpoint is malformed or missing required keys. Not loading."
+            )
             return None
         return checkpoint
     except Exception as e:

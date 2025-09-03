@@ -74,15 +74,18 @@ def test_setup_device_none_cuda_available():
 
 
 def test_setup_device_none_cuda_and_mps_not_available():
-    with patch("torch.cuda.is_available", return_value=False), \
-        patch("torch.backends.mps.is_available", return_value=False):
+    with patch("torch.cuda.is_available", return_value=False), patch(
+        "torch.backends.mps.is_available", return_value=False
+    ):
         device = setup_device(None)
         assert isinstance(device, torch.device)
         assert device.type == "cpu"
 
+
 def test_setup_device_none_cuda_not_available_mps_avialable():
-    with patch("torch.cuda.is_available", return_value=False), \
-        patch("torch.backends.mps.is_available", return_value=True):
+    with patch("torch.cuda.is_available", return_value=False), patch(
+        "torch.backends.mps.is_available", return_value=True
+    ):
         device = setup_device(None)
         assert isinstance(device, torch.device)
-        assert device.type == "mps"   
+        assert device.type == "mps"

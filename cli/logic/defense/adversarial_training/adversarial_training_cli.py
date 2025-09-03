@@ -120,7 +120,7 @@ class ATCLITrainer(CLITrainer):
 
         config = AdversarialTrainingConfig(
             models=models, attacks=attacks, train_config=train_config
-            )
+        )
         return config
 
     def _ddp_training_fn(self, rank: int, world_size: int):

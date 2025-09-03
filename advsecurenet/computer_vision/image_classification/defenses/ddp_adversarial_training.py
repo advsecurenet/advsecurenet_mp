@@ -21,7 +21,9 @@ class DDPAdversarialTraining(DDPTrainer, AdversarialTraining):
     def __init__(
         self, config: AdversarialTrainingConfig, rank: int, world_size: int
     ) -> None:
-        DDPTrainer.__init__(self, config=config.train_config, rank=rank, world_size=world_size)
+        DDPTrainer.__init__(
+            self, config=config.train_config, rank=rank, world_size=world_size
+        )
         AdversarialTraining.__init__(self, config=config)
 
     def _get_train_loader(self, epoch: int):
@@ -44,4 +46,7 @@ class DDPAdversarialTraining(DDPTrainer, AdversarialTraining):
             return self.config.train_config.training_process_config.train_loader
 
     def _get_loss_divisor(self):
-        return len(self.config.train_config.training_process_config.train_loader) * self._world_size
+        return (
+            len(self.config.train_config.training_process_config.train_loader)
+            * self._world_size
+        )

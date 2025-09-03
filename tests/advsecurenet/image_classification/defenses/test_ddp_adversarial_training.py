@@ -15,35 +15,32 @@ from advsecurenet.shared.types.configs.defense_configs.adversarial_training_conf
 def create_mock_adversarial_training_config(mock_train_loader):
     """Helper function to create a properly structured mock config."""
     from advsecurenet.shared.types.configs.train_config import (
-        ModelConfig, 
-        TrainingProcessConfig, 
-        OptimizationConfig, 
-        CheckpointConfig, 
-        FinalModelConfig
+        ModelConfig,
+        TrainingProcessConfig,
+        OptimizationConfig,
+        CheckpointConfig,
+        FinalModelConfig,
     )
     from advsecurenet.shared.types.configs.device_config import DeviceConfig
     from advsecurenet.shared.types.configs.train_config import TrainConfig
 
     mock_model = MagicMock()
     mock_attack = MagicMock()
-    
+
     # Create a TrainConfig with the new nested structure
     train_config = TrainConfig(
         model_config=ModelConfig(model=mock_model),
         training_process_config=TrainingProcessConfig(
-            train_loader=mock_train_loader,
-            epochs=1
+            train_loader=mock_train_loader, epochs=1
         ),
         optimization_config=OptimizationConfig(optimizer="adam"),
         checkpoint_config=CheckpointConfig(save_checkpoint=False),
         final_model_config=FinalModelConfig(save_final_model=False),
-        device_config=DeviceConfig(processor="cpu")
+        device_config=DeviceConfig(processor="cpu"),
     )
-    
+
     return AdversarialTrainingConfig(
-        train_config=train_config,
-        models=[mock_model],
-        attacks=[mock_attack]
+        train_config=train_config, models=[mock_model], attacks=[mock_attack]
     )
 
 

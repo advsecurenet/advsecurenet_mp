@@ -151,7 +151,8 @@ def download_weights(
     else:
         logger.info("Weights file already exists. Skipping download.")
 
-            #disable_inplace_operations(self.model)
+        # disable_inplace_operations(self.model)
+
 
 @contextmanager
 def non_inplace_operations():
@@ -161,7 +162,9 @@ def non_inplace_operations():
     """
     original_iadd = torch.Tensor.__iadd__
     torch.Tensor.__iadd__ = torch.Tensor.__add__
-    logger.info("Temporarily patched 'torch.Tensor.__iadd__' to enforce out-of-place addition for DP compatibility.")
+    logger.info(
+        "Temporarily patched 'torch.Tensor.__iadd__' to enforce out-of-place addition for DP compatibility."
+    )
     try:
         yield
     finally:

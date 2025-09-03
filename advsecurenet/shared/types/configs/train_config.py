@@ -41,11 +41,13 @@ class OptimizationConfig:
     scheduler: Optional[Union[str, lr_scheduler._LRScheduler]] = None
     scheduler_kwargs: Optional[dict] = None
 
+
 @dataclass
 class DifferentialPrivacyConfig:
     """
     Configuration for Differential Privacy using Opacus.
     """
+
     enable: bool = False
     noise_multiplier: float = 1.0
     max_grad_norm: float = 1.0
@@ -83,6 +85,7 @@ class TrainConfig:
     """
     Dataclass to store the overall training configuration by aggregating other configurations.
     """
+
     model_config: ModelConfig
     training_process_config: TrainingProcessConfig
     optimization_config: OptimizationConfig = field(default_factory=OptimizationConfig)

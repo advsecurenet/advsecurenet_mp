@@ -7,6 +7,7 @@ from opacus.validators import ModuleValidator
 
 from advsecurenet.shared.types.configs.train_config import DifferentialPrivacyConfig
 
+
 def setup_privacy_engine(
     model: nn.Module,
     optimizer: optim.Optimizer,
@@ -28,7 +29,7 @@ def setup_privacy_engine(
         the PrivacyEngine instance, and a new loss function if fast clipping is used (otherwise None).
     """
     privacy_engine = PrivacyEngine()
-    
+
     # Correctly unpack kwargs for the make_private call
     kwargs = differential_privacy_config.kwargs or {}
 
@@ -42,11 +43,13 @@ def setup_privacy_engine(
         max_grad_norm=differential_privacy_config.max_grad_norm,
         **kwargs,
     )
-    
+
     # Check if fast clipping was used by checking the number of returned items
     if kwargs.get("clipping") == "fast":
         if len(results) != 4:
-            raise ValueError("Opacus with 'fast' clipping did not return the expected 4 values.")
+            raise ValueError(
+                "Opacus with 'fast' clipping did not return the expected 4 values."
+            )
         # Unpack the 4 values: model, optimizer, loss_fn, data_loader
         private_model, private_optimizer, private_loss_fn, private_data_loader = results
     else:
@@ -56,4 +59,10 @@ def setup_privacy_engine(
         private_model, private_optimizer, private_data_loader = results
         private_loss_fn = None
 
-    return private_model, private_optimizer, private_data_loader, privacy_engine, private_loss_fn
+    return (
+        private_model,
+        private_optimizer,
+        private_data_loader,
+        privacy_engine,
+        private_loss_fn,
+    )

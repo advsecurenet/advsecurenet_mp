@@ -8,7 +8,6 @@ from advsecurenet.trainer.trainer import Trainer
 from advsecurenet.trainer import trainer_logic
 
 
-
 class DDPTrainer(DDPBaseTask, Trainer):
     """
     DDPTrainer module is specialized module for training a model using DistributedDataParallel in a multi-GPU setting.
@@ -28,7 +27,9 @@ class DDPTrainer(DDPBaseTask, Trainer):
     def __init__(self, config: TrainConfig, rank: int, world_size: int) -> None:
         self._rank = rank
         self._world_size = world_size
-        DDPBaseTask.__init__(self, model=config.model_config.model, rank=rank, world_size=world_size)
+        DDPBaseTask.__init__(
+            self, model=config.model_config.model, rank=rank, world_size=world_size
+        )
         Trainer.__init__(self, config)
 
     def _load_model_state_dict(self, state_dict):
@@ -45,7 +46,7 @@ class DDPTrainer(DDPBaseTask, Trainer):
         """
         Assigns the optimizer state tensors to the appropriate CUDA device based on rank.
         """
-        if hasattr(self, 'optimizer') and self.optimizer is not None:
+        if hasattr(self, "optimizer") and self.optimizer is not None:
             for state in self.optimizer.state.values():
                 for k, v in state.items():
                     if isinstance(v, torch.Tensor):
@@ -96,19 +97,26 @@ class DDPTrainer(DDPBaseTask, Trainer):
         sampler = self._config.training_process_config.train_loader.sampler
         if isinstance(sampler, DistributedSampler):
             sampler.set_epoch(epoch)
-        
+
         total_loss = 0.0
-        
+
         # Only show tqdm on rank 0 to avoid cluttered output
         if self._rank == 0:
             data_iterator = tqdm(self._train_loader, leave=False, position=1)
         else:
             data_iterator = self._train_loader
-            
+
         # Use trainer_logic for actual batch processing
         for source, targets in data_iterator:
             source, targets = source.to(self._device), targets.to(self._device)
-            loss = trainer_logic.run_batch(source, targets, self.model, self.optimizer, self._loss_fn, self._scheduler)
+            loss = trainer_logic.run_batch(
+                source,
+                targets,
+                self.model,
+                self.optimizer,
+                self._loss_fn,
+                self._scheduler,
+            )
             total_loss += loss
 
         # DDP-specific: divide by world_size for proper averaging across processes
@@ -124,15 +132,19 @@ class DDPTrainer(DDPBaseTask, Trainer):
         """
         if self._rank == 0:
             trainer_logic.post_training(
-                save_final_model_flag=self._config.final_model_config.save_final_model, 
-                model=self.model, 
-                save_path=self._config.final_model_config.save_model_path, 
-                save_name=self._config.final_model_config.save_model_name, 
-                model_name=None, 
-                dataset_name=None, 
+                save_final_model_flag=self._config.final_model_config.save_final_model,
+                model=self.model,
+                save_path=self._config.final_model_config.save_model_path,
+                save_name=self._config.final_model_config.save_model_name,
+                model_name=None,
+                dataset_name=None,
                 use_ddp=True,  # Set to True for DDP
-                privacy_engine=self._privacy_engine, 
-                delta=self._config.differential_privacy_config.delta if self._config.differential_privacy_config else None
+                privacy_engine=self._privacy_engine,
+                delta=(
+                    self._config.differential_privacy_config.delta
+                    if self._config.differential_privacy_config
+                    else None
+                ),
             )
 
     def _get_checkpoint_path(self, epoch: int) -> str:
@@ -140,13 +152,14 @@ class DDPTrainer(DDPBaseTask, Trainer):
         DDP-specific: Generate checkpoint path (same as base but for clarity).
         """
         from advsecurenet.trainer import trainer_logic
+
         return trainer_logic.define_save_checkpoint_path(
             save_checkpoint_path=self._config.checkpoint_config.save_checkpoint_path,
             save_checkpoint_name=self._config.checkpoint_config.save_checkpoint_name,
             checkpoint_sub_dir=None,  # Not available in config
             model_name="model",  # Default fallback
             dataset_name="dataset",  # Default fallback
-            epoch=epoch
+            epoch=epoch,
         )
 
     def _save_checkpoint(self, epoch: int, checkpoint_path: str) -> None:
@@ -155,4 +168,7 @@ class DDPTrainer(DDPBaseTask, Trainer):
         """
         if self._rank == 0:
             from advsecurenet.trainer import trainer_logic
-            trainer_logic.save_checkpoint(epoch, self.optimizer, self.model, checkpoint_path)
+
+            trainer_logic.save_checkpoint(
+                epoch, self.optimizer, self.model, checkpoint_path
+            )

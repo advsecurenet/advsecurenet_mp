@@ -6,7 +6,15 @@ import torch
 
 from advsecurenet.distributed.ddp_coordinator import DDPCoordinator
 from advsecurenet.models.base_model import BaseModel
-from advsecurenet.shared.types.configs.train_config import TrainConfig, ModelConfig, TrainingProcessConfig, OptimizationConfig, DifferentialPrivacyConfig, CheckpointConfig, FinalModelConfig
+from advsecurenet.shared.types.configs.train_config import (
+    TrainConfig,
+    ModelConfig,
+    TrainingProcessConfig,
+    OptimizationConfig,
+    DifferentialPrivacyConfig,
+    CheckpointConfig,
+    FinalModelConfig,
+)
 from advsecurenet.trainer.ddp_trainer import DDPTrainer
 from advsecurenet.trainer.trainer import Trainer
 from advsecurenet.utils.ddp import set_visible_gpus
@@ -54,7 +62,7 @@ class CLITrainer:
         DDP Training function. Initializes the DDPCoordinator and runs the training.
         """
         # if no gpu ids are provided, use all available gpus
-        if self.config.device.gpu_ids is None or len(self.config.device.gpu_ids) == 0: 
+        if self.config.device.gpu_ids is None or len(self.config.device.gpu_ids) == 0:
             self.config.device.gpu_ids = list(range(torch.cuda.device_count()))
 
         world_size = len(self.config.device.gpu_ids)
@@ -140,16 +148,14 @@ class CLITrainer:
         """
         training_process_config = TrainingProcessConfig(
             train_loader=train_data_loader,
-            **asdict(self.config.training.training_hyperparameter)
+            **asdict(self.config.training.training_hyperparameter),
         )
 
         optimization_config = OptimizationConfig(
             **asdict(self.config.training.optimization)
         )
 
-        checkpoint_config = CheckpointConfig(
-            **asdict(self.config.training.checkpoint)
-        )
+        checkpoint_config = CheckpointConfig(**asdict(self.config.training.checkpoint))
 
         final_model_config = FinalModelConfig(
             **asdict(self.config.training.final_model)

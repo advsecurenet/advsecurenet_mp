@@ -13,7 +13,7 @@ from .training_base import (
 
 __all__ = [
     "TrainingHyperparametersBase",
-    "OptimizationBase", 
+    "OptimizationBase",
     "CheckpointBase",
     "FinalModelBase",
     "DifferentialPrivacyBase",

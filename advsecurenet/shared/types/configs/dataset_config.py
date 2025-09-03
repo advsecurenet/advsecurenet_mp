@@ -9,18 +9,15 @@ from advsecurenet.shared.types.configs.preprocess_config import PreprocessConfig
 # ----------------------------------------------------------------
 
 
-
 @dataclass
 class BaseDatasetCliConfig:
     """
     Base configuration containing the most essential, non-optional dataset properties.
     """
 
-
     dataset_name: str
     num_classes: int = 10
     preprocessing: Optional[PreprocessConfig] = None
-
 
 
 @dataclass
@@ -29,7 +26,6 @@ class UserSplitConfig:
     User-provided overrides for a single logical split (e.g., 'train' or 'test').
     Any field set here will override the global setting for that specific split.
     """
-
 
     # The name of the dataset to use for this split, if different from the global one.
     identifier: Optional[str] = None
@@ -44,14 +40,12 @@ class UserSplitConfig:
     path: Optional[str] = None
 
 
-
 @dataclass
 class CreateDatasetCliConfig(BaseDatasetCliConfig):
     """
     The comprehensive, user-facing configuration for creating datasets, typically
     loaded from a YAML file. It supports both simple and advanced setups.
     """
-
 
     # An optional, alternative identifier for the dataset (e.g., a HuggingFace repo ID).
     # If provided, this will be used instead of `dataset_name` for loading.
@@ -68,22 +62,18 @@ class CreateDatasetCliConfig(BaseDatasetCliConfig):
     random_sample_size: Optional[int] = None
 
 
-
 @dataclass
 class AttacksDatasetCliConfig(CreateDatasetCliConfig):
     """
     A specialized configuration for attacks, adding attack-specific parameters.
     """
 
-
     random_sample_size: Optional[int] = None
-
 
 
 # ----------------------------------------------------------------
 # 2. Internal, Resolved Configuration Classes (for application use)
 # ----------------------------------------------------------------
-
 
 
 @dataclass
@@ -92,7 +82,6 @@ class ResolvedSplitConfig:
     Internal, fully-resolved configuration for a single dataset split.
     This object contains all the final, unambiguous settings needed to load one split.
     """
-
 
     identifier: str
     num_classes: Optional[int] = 10
@@ -103,7 +92,6 @@ class ResolvedSplitConfig:
     path: Optional[str] = None
 
 
-
 @dataclass
 class ResolvedDatasetConfig:
     """
@@ -111,11 +99,9 @@ class ResolvedDatasetConfig:
     It is the result of processing a CreateDatasetCliConfig.
     """
 
-
     dataset_name: str
     splits: Dict[str, ResolvedSplitConfig]
     random_sample_size: Optional[int] = None
-
 
 
 # ----------------------------------------------------------------
@@ -123,13 +109,11 @@ class ResolvedDatasetConfig:
 # ----------------------------------------------------------------
 
 
-
 def _get_identifier(config: CreateDatasetCliConfig) -> str:
     """Determines the primary dataset identifier to use from the global configuration."""
     if config.identifier:
         return config.identifier
     return config.dataset_name
-
 
 
 def _get_user_splits(config: CreateDatasetCliConfig) -> List[str]:
@@ -189,14 +173,12 @@ def _get_user_splits(config: CreateDatasetCliConfig) -> List[str]:
     if config.split_config:
         return list(config.split_config.keys())
 
-
     # Second priority: use load_splits if it's explicitly provided and not empty.
     if config.load_splits:
         return config.load_splits
 
     # Default case: if neither of the above is provided, default to train and test.
     return ["train", "test"]
-
 
 
 def _create_resolved_split(
@@ -242,7 +224,6 @@ def _create_resolved_split(
     )
 
 
-
 def resolve_dataset_config(config: CreateDatasetCliConfig) -> ResolvedDatasetConfig:
     """
     Resolves a user-facing CreateDatasetCliConfig into a structured,
@@ -250,7 +231,7 @@ def resolve_dataset_config(config: CreateDatasetCliConfig) -> ResolvedDatasetCon
     split-specific overrides.
     """
     user_splits_to_process = _get_user_splits(config)
-    
+
     if not user_splits_to_process:
         raise ValueError(
             f"No splits defined for dataset '{config.dataset_name}'. "
@@ -279,4 +260,3 @@ def resolve_dataset_config(config: CreateDatasetCliConfig) -> ResolvedDatasetCon
         splits=final_splits,
         random_sample_size=config.random_sample_size,
     )
-

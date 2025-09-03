@@ -39,7 +39,7 @@ class Attacker:
         """
         if isinstance(self._config.dataloader, torch.utils.data.DataLoader):
             return self._config.dataloader
-        
+
         dataloader_config = self._config.dataloader
         return DataLoaderFactory.create_dataloader(dataloader_config)
 

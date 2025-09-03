@@ -15,11 +15,11 @@ from advsecurenet.shared.types.configs.train_config import TrainConfig
 from advsecurenet.trainer.ddp_trainer import DDPTrainer
 
 from advsecurenet.shared.types.configs.train_config import (
-    ModelConfig, 
-    TrainingProcessConfig, 
-    OptimizationConfig, 
-    CheckpointConfig, 
-    FinalModelConfig
+    ModelConfig,
+    TrainingProcessConfig,
+    OptimizationConfig,
+    CheckpointConfig,
+    FinalModelConfig,
 )
 from advsecurenet.shared.types.configs.device_config import DeviceConfig
 
@@ -40,23 +40,16 @@ def train_config(processor):
     test_data = dataset["test"]
     dataloader = DataLoaderFactory.create_dataloader(dataset=test_data, batch_size=32)
 
-
-
     # Define the training config using the new nested structure
     config = TrainConfig(
         model_config=ModelConfig(model=model),
         training_process_config=TrainingProcessConfig(
-            train_loader=dataloader,
-            epochs=2,
-            verbose=False
+            train_loader=dataloader, epochs=2, verbose=False
         ),
         optimization_config=OptimizationConfig(optimizer="adam"),
-        checkpoint_config=CheckpointConfig(
-            save_checkpoint=True,
-            checkpoint_interval=5
-        ),
+        checkpoint_config=CheckpointConfig(save_checkpoint=True, checkpoint_interval=5),
         final_model_config=FinalModelConfig(save_final_model=True),
-        device_config=DeviceConfig(processor=processor)
+        device_config=DeviceConfig(processor=processor),
     )
     return config
 
@@ -68,13 +61,13 @@ def train_config(processor):
 def ddp_trainer(mock_optimizer, mock_setup_model, mock_setup_device, train_config):
     # Make _setup_device return a real torch.device instead of a mock
     mock_setup_device.return_value = processor
-    
+
     # Mock the model in the config to have a proper .to() method
     mock_model = MagicMock()
     mock_model.to.return_value = mock_model  # .to() should return the model itself
     mock_model.module = MagicMock()  # DDP models have a .module attribute
     train_config.model_config.model = mock_model
-    
+
     rank = 0
     world_size = 2
     return DDPTrainer(config=train_config, rank=rank, world_size=world_size)
@@ -146,7 +139,9 @@ def test_get_save_checkpoint_prefix(ddp_trainer):
 
     ddp_trainer._config.checkpoint_config.save_checkpoint_name = None
     ddp_trainer._config.model_config.model.model_name = "model"
-    ddp_trainer._config.training_process_config.train_loader.dataset.__class__.__name__ = "dataset"
+    ddp_trainer._config.training_process_config.train_loader.dataset.__class__.__name__ = (
+        "dataset"
+    )
     assert ddp_trainer._get_save_checkpoint_prefix() == "model_dataset_checkpoint"
 
 
@@ -177,8 +172,12 @@ def test_should_save_final_model(ddp_trainer):
 @patch("tqdm.auto.tqdm", wraps=tqdm)
 @patch("advsecurenet.trainer.trainer_logic.run_batch")
 def test_run_epoch(mock_run_batch, mock_tqdm, ddp_trainer, processor):
-    ddp_trainer._config.training_process_config.train_loader = MagicMock(spec=DataLoader)
-    ddp_trainer._config.training_process_config.train_loader.sampler = MagicMock(spec=DistributedSampler)
+    ddp_trainer._config.training_process_config.train_loader = MagicMock(
+        spec=DataLoader
+    )
+    ddp_trainer._config.training_process_config.train_loader.sampler = MagicMock(
+        spec=DistributedSampler
+    )
     mock_run_batch.return_value = 1.0
     ddp_trainer._log_loss = MagicMock()
     ddp_trainer._config.training_process_config.train_loader.__len__.return_value = 1
@@ -187,4 +186,6 @@ def test_run_epoch(mock_run_batch, mock_tqdm, ddp_trainer, processor):
     epoch = 1
     ddp_trainer._run_epoch(epoch)
 
-    ddp_trainer._config.training_process_config.train_loader.sampler.set_epoch.assert_called_once_with(epoch)
+    ddp_trainer._config.training_process_config.train_loader.sampler.set_epoch.assert_called_once_with(
+        epoch
+    )

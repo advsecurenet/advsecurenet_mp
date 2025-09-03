@@ -37,9 +37,9 @@ class ModelCliConfigType:
     path_configs: Optional[ModelPathConfig] = None
     norm_config: Optional[ModelNormConfig] = None
     architecture: Optional[Dict[str, Any]] = None
-    
+
     model_identifier: Optional[str] = None
-    
+
     # HuggingFace specific attributes
     revision: Optional[str] = None
     cache_dir: Optional[str] = None

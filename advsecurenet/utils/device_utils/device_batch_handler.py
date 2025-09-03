@@ -1,5 +1,6 @@
 import torch
 
+
 @staticmethod
 def move_batch_to_device(images, targets_dict, device):
     def move_to_device(x):

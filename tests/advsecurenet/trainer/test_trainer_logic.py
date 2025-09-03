@@ -45,7 +45,7 @@ class ModelWithLogits(nn.Module):
     def __init__(self):
         super().__init__()
         self.linear = nn.Linear(10, 2)
-        
+
     def forward(self, x):
         output = MagicMock()
         output.logits = self.linear(x)
@@ -58,16 +58,16 @@ def test_run_batch(simple_model, optimizer, loss_fn, device):
     """Test the run_batch function."""
     source = torch.randn(5, 10)
     targets = torch.randint(0, 2, (5,))
-    
+
     loss = trainer_logic.run_batch(
         source=source,
         targets=targets,
         model=simple_model,
         optimizer=optimizer,
         loss_fn=loss_fn,
-        scheduler=None
+        scheduler=None,
     )
-    
+
     assert isinstance(loss, float)
     assert loss > 0
 
@@ -79,19 +79,19 @@ def test_run_batch_with_logits():
     model = ModelWithLogits()
     optimizer = optim.Adam(model.parameters())
     loss_fn = nn.CrossEntropyLoss()
-    
+
     source = torch.randn(5, 10)
     targets = torch.randint(0, 2, (5,))
-    
+
     loss = trainer_logic.run_batch(
         source=source,
         targets=targets,
         model=model,
         optimizer=optimizer,
         loss_fn=loss_fn,
-        scheduler=None
+        scheduler=None,
     )
-    
+
     assert isinstance(loss, float)
     assert loss > 0
 
@@ -103,16 +103,16 @@ def test_run_batch_with_scheduler(simple_model, optimizer, loss_fn, device):
     source = torch.randn(5, 10)
     targets = torch.randint(0, 2, (5,))
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1)
-    
+
     loss = trainer_logic.run_batch(
         source=source,
         targets=targets,
         model=simple_model,
         optimizer=optimizer,
         loss_fn=loss_fn,
-        scheduler=scheduler  # type: ignore
+        scheduler=scheduler,  # type: ignore
     )
-    
+
     assert isinstance(loss, float)
     assert loss > 0
 
@@ -121,10 +121,18 @@ def test_run_batch_with_scheduler(simple_model, optimizer, loss_fn, device):
 @pytest.mark.essential
 @patch("advsecurenet.trainer.trainer_logic.run_batch")
 @patch("click.echo")
-def test_run_epoch(mock_echo, mock_run_batch, simple_data_loader, simple_model, optimizer, loss_fn, device):
+def test_run_epoch(
+    mock_echo,
+    mock_run_batch,
+    simple_data_loader,
+    simple_model,
+    optimizer,
+    loss_fn,
+    device,
+):
     """Test the run_epoch function."""
     mock_run_batch.return_value = 0.5
-    
+
     trainer_logic.run_epoch(
         epoch=1,
         train_loader=simple_data_loader,
@@ -132,9 +140,9 @@ def test_run_epoch(mock_echo, mock_run_batch, simple_data_loader, simple_model, 
         model=simple_model,
         optimizer=optimizer,
         loss_fn=loss_fn,
-        scheduler=None
+        scheduler=None,
     )
-    
+
     # Check that run_batch was called for each batch in the loader
     assert mock_run_batch.call_count == len(simple_data_loader)
     mock_echo.assert_called()
@@ -145,24 +153,36 @@ def test_run_epoch(mock_echo, mock_run_batch, simple_data_loader, simple_model, 
 def test_should_save_checkpoint():
     """Test the should_save_checkpoint function."""
     # Should save when conditions are met
-    assert trainer_logic.should_save_checkpoint(
-        epoch=5, save_checkpoint=True, checkpoint_interval=5
-    ) is True
-    
+    assert (
+        trainer_logic.should_save_checkpoint(
+            epoch=5, save_checkpoint=True, checkpoint_interval=5
+        )
+        is True
+    )
+
     # Should not save when save_checkpoint is False
-    assert trainer_logic.should_save_checkpoint(
-        epoch=5, save_checkpoint=False, checkpoint_interval=5
-    ) is False
-    
+    assert (
+        trainer_logic.should_save_checkpoint(
+            epoch=5, save_checkpoint=False, checkpoint_interval=5
+        )
+        is False
+    )
+
     # Should not save when interval is 0
-    assert trainer_logic.should_save_checkpoint(
-        epoch=5, save_checkpoint=True, checkpoint_interval=0
-    ) is False
-    
+    assert (
+        trainer_logic.should_save_checkpoint(
+            epoch=5, save_checkpoint=True, checkpoint_interval=0
+        )
+        is False
+    )
+
     # Should not save when epoch is not divisible by interval
-    assert trainer_logic.should_save_checkpoint(
-        epoch=3, save_checkpoint=True, checkpoint_interval=5
-    ) is False
+    assert (
+        trainer_logic.should_save_checkpoint(
+            epoch=3, save_checkpoint=True, checkpoint_interval=5
+        )
+        is False
+    )
 
 
 @pytest.mark.advsecurenet
@@ -172,25 +192,25 @@ def test_should_save_checkpoint():
 def test_save_checkpoint(mock_echo, mock_save, simple_model, optimizer):
     """Test the save_checkpoint function."""
     checkpoint_path = "/path/to/checkpoint.pth"
-    
+
     trainer_logic.save_checkpoint(
         epoch=5,
         optimizer=optimizer,
         model=simple_model,
-        checkpoint_path=checkpoint_path
+        checkpoint_path=checkpoint_path,
     )
-    
+
     # Check that torch.save was called with correct arguments
     mock_save.assert_called_once()
     save_args = mock_save.call_args[0]
     checkpoint_data = save_args[0]
     saved_path = save_args[1]
-    
+
     assert checkpoint_data["epoch"] == 5
     assert "model_state_dict" in checkpoint_data
     assert "optimizer_state_dict" in checkpoint_data
     assert saved_path == checkpoint_path
-    
+
     # Check that success message was printed
     mock_echo.assert_called()
 
@@ -199,7 +219,9 @@ def test_save_checkpoint(mock_echo, mock_save, simple_model, optimizer):
 @pytest.mark.essential
 @patch("advsecurenet.trainer.trainer_logic.save_final_model")
 @patch("click.echo")
-def test_post_training_with_save_final_model(mock_echo, mock_save_final_model, simple_model):
+def test_post_training_with_save_final_model(
+    mock_echo, mock_save_final_model, simple_model
+):
     """Test post_training function with save_final_model flag set to True."""
     trainer_logic.post_training(
         save_final_model_flag=True,
@@ -210,17 +232,12 @@ def test_post_training_with_save_final_model(mock_echo, mock_save_final_model, s
         dataset_name="test_dataset",
         use_ddp=False,
         privacy_engine=None,
-        delta=None
+        delta=None,
     )
-    
+
     # Check that save_final_model was called
     mock_save_final_model.assert_called_once_with(
-        simple_model,
-        "/path/to/save",
-        "model.pth",
-        "test_model",
-        "test_dataset",
-        False
+        simple_model, "/path/to/save", "model.pth", "test_model", "test_dataset", False
     )
 
 
@@ -238,9 +255,9 @@ def test_post_training_without_privacy(mock_echo, simple_model):
         dataset_name="",
         use_ddp=False,
         privacy_engine=None,
-        delta=None
+        delta=None,
     )
-    
+
     # Should not print anything for privacy when privacy_engine is None
     mock_echo.assert_not_called()
 
@@ -253,7 +270,7 @@ def test_post_training_with_privacy(mock_echo, simple_model):
     mock_privacy_engine = MagicMock()
     mock_privacy_engine.get_epsilon.return_value = 1.0
     delta = 1e-5
-    
+
     trainer_logic.post_training(
         save_final_model_flag=False,
         model=simple_model,
@@ -263,21 +280,22 @@ def test_post_training_with_privacy(mock_echo, simple_model):
         dataset_name="",
         use_ddp=False,
         privacy_engine=mock_privacy_engine,
-        delta=delta
+        delta=delta,
     )
-    
+
     # Check that privacy budget was calculated and printed
     mock_privacy_engine.get_epsilon.assert_called_once_with(delta)
     mock_echo.assert_called()
-    
+
     # Check that the printed message contains privacy information
     call_args = mock_echo.call_args[0][0]
-    message = call_args.value if hasattr(call_args, 'value') else str(call_args)
+    message = call_args.value if hasattr(call_args, "value") else str(call_args)
     assert "privacy budget" in message.lower()
     assert "ε = 1.00" in message
 
 
 # SCHEDULER TESTS
+
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
@@ -295,11 +313,9 @@ def test_create_scheduler_from_string_invalid():
     """Test creating scheduler from invalid string name."""
     model = nn.Linear(10, 2)
     optimizer = optim.Adam(model.parameters())
-    
+
     with pytest.raises(ValueError, match="Unsupported scheduler"):
-        trainer_logic.create_scheduler_from_string(
-            "invalid_scheduler", optimizer
-        )
+        trainer_logic.create_scheduler_from_string("invalid_scheduler", optimizer)
 
 
 @pytest.mark.advsecurenet
@@ -314,9 +330,7 @@ def test_get_scheduler_none(optimizer):
 @pytest.mark.essential
 def test_get_scheduler_string(optimizer):
     """Test get_scheduler with string input."""
-    scheduler = trainer_logic.get_scheduler(
-        "STEP_LR", optimizer, {"step_size": 10}
-    )
+    scheduler = trainer_logic.get_scheduler("STEP_LR", optimizer, {"step_size": 10})
     assert isinstance(scheduler, optim.lr_scheduler.StepLR)
 
 
@@ -339,6 +353,7 @@ def test_get_scheduler_invalid_type(optimizer):
 
 # OPTIMIZER TESTS
 
+
 @pytest.mark.advsecurenet
 @pytest.mark.essential
 def test_get_optimizer_instance():
@@ -353,7 +368,9 @@ def test_get_optimizer_instance():
 @pytest.mark.essential
 def test_get_optimizer_string_no_model():
     """Test get_optimizer with string but no model."""
-    with pytest.raises(ValueError, match="Model must be provided if optimizer is a string"):
+    with pytest.raises(
+        ValueError, match="Model must be provided if optimizer is a string"
+    ):
         trainer_logic.get_optimizer("adam", None)  # type: ignore
 
 
@@ -401,17 +418,17 @@ def test_assign_device_to_optimizer_state():
     """Test assign_device_to_optimizer_state function."""
     model = nn.Linear(10, 2)
     optimizer = optim.Adam(model.parameters())
-    
+
     # Initialize optimizer state by running one step
     data = torch.randn(5, 10)
     target = torch.randn(5, 2)
     loss = nn.MSELoss()(model(data), target)
     loss.backward()
     optimizer.step()
-    
+
     device = torch.device("cpu")
     trainer_logic.assign_device_to_optimizer_state(optimizer, device)
-    
+
     # Check that all tensor states are on the correct device
     for state in optimizer.state.values():
         for v in state.values():
@@ -420,6 +437,7 @@ def test_assign_device_to_optimizer_state():
 
 
 # CHECKPOINT UTILITIES TESTS
+
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
@@ -435,9 +453,7 @@ def test_get_save_checkpoint_prefix_with_custom_name():
 @pytest.mark.essential
 def test_get_save_checkpoint_prefix_without_custom_name():
     """Test get_save_checkpoint_prefix without custom name."""
-    result = trainer_logic.get_save_checkpoint_prefix(
-        None, "resnet18", "cifar10"
-    )
+    result = trainer_logic.get_save_checkpoint_prefix(None, "resnet18", "cifar10")
     assert result == "resnet18_cifar10_checkpoint"
 
 
@@ -450,7 +466,7 @@ def test_define_save_checkpoint_path_create_dir(mock_makedirs, mock_exists):
     result = trainer_logic.define_save_checkpoint_path(
         "/custom/path", "custom_checkpoint", "subdir", "model", "dataset", 5
     )
-    
+
     mock_makedirs.assert_called_once_with("/custom/path")
     assert result == "/custom/path/custom_checkpoint_epoch_5.pth"
 
@@ -463,7 +479,7 @@ def test_define_save_checkpoint_path_existing_dir(mock_exists):
     result = trainer_logic.define_save_checkpoint_path(
         "/existing/path", None, None, "model", "dataset", 10
     )
-    
+
     assert result == "/existing/path/model_dataset_checkpoint_epoch_10.pth"
 
 
@@ -472,18 +488,21 @@ def test_define_save_checkpoint_path_existing_dir(mock_exists):
 @patch("os.getcwd", return_value="/current/dir")
 @patch("os.path.exists", return_value=False)
 @patch("os.makedirs")
-def test_define_save_checkpoint_path_default_path(mock_makedirs, mock_exists, mock_getcwd):
+def test_define_save_checkpoint_path_default_path(
+    mock_makedirs, mock_exists, mock_getcwd
+):
     """Test define_save_checkpoint_path with default path."""
     result = trainer_logic.define_save_checkpoint_path(
         None, None, "subdir", "model", "dataset", 5
     )
-    
+
     expected_dir = "/current/dir/checkpoints/subdir"
     mock_makedirs.assert_called_once_with(expected_dir)
     assert result == f"{expected_dir}/model_dataset_checkpoint_epoch_5.pth"
 
 
 # SAVE FINAL MODEL TESTS
+
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
@@ -492,14 +511,14 @@ def test_define_save_checkpoint_path_default_path(mock_makedirs, mock_exists, mo
 @patch("click.echo")
 @patch("os.path.isfile", return_value=False)
 @patch("os.getcwd", return_value="/current/dir")
-def test_save_final_model_default_path(mock_getcwd, mock_isfile, mock_echo, mock_torch_save, mock_exists):
+def test_save_final_model_default_path(
+    mock_getcwd, mock_isfile, mock_echo, mock_torch_save, mock_exists
+):
     """Test save_final_model with default path."""
     model = nn.Linear(10, 2)
-    
-    trainer_logic.save_final_model(
-        model, None, None, "resnet", "cifar10", False
-    )
-    
+
+    trainer_logic.save_final_model(model, None, None, "resnet", "cifar10", False)
+
     # Verify torch.save was called once and check the file path
     mock_torch_save.assert_called_once()
     call_args = mock_torch_save.call_args
@@ -514,23 +533,25 @@ def test_save_final_model_default_path(mock_getcwd, mock_isfile, mock_echo, mock
 @patch("torch.save")
 @patch("click.echo")
 @patch("os.path.isfile", return_value=False)
-def test_save_final_model_custom_name(mock_isfile, mock_echo, mock_torch_save, mock_exists):
+def test_save_final_model_custom_name(
+    mock_isfile, mock_echo, mock_torch_save, mock_exists
+):
     """Test save_final_model with custom save name."""
     # Create separate model instances to avoid circular reference
     actual_model = nn.Linear(10, 2)
-    
+
     # Create a mock distributed model with .module attribute pointing to actual model
     class MockDistributedModel(nn.Module):
         def __init__(self, model):
             super().__init__()
             self.module = model
-    
+
     model = MockDistributedModel(actual_model)
-    
+
     trainer_logic.save_final_model(
         model, "/custom/path", "my_model.pth", None, None, True
     )
-    
+
     # Verify torch.save was called once and check the file path
     mock_torch_save.assert_called_once()
     call_args = mock_torch_save.call_args
@@ -544,15 +565,17 @@ def test_save_final_model_custom_name(mock_isfile, mock_echo, mock_torch_save, m
 @patch("os.path.exists", return_value=True)
 @patch("torch.save")
 @patch("click.echo")
-@patch("os.path.isfile", side_effect=[True, True, False])  # File exists twice, then doesn't
-def test_save_final_model_filename_collision(mock_isfile, mock_echo, mock_torch_save, mock_exists):
+@patch(
+    "os.path.isfile", side_effect=[True, True, False]
+)  # File exists twice, then doesn't
+def test_save_final_model_filename_collision(
+    mock_isfile, mock_echo, mock_torch_save, mock_exists
+):
     """Test save_final_model handles filename collisions."""
     model = nn.Linear(10, 2)
-    
-    trainer_logic.save_final_model(
-        model, "/path", None, "model", None, False
-    )
-    
+
+    trainer_logic.save_final_model(model, "/path", None, "model", None, False)
+
     # Should try "model_final.pth", then "model_final_1.pth", then "model_final_2.pth"
     mock_torch_save.assert_called_once()
     call_args = mock_torch_save.call_args
@@ -567,14 +590,14 @@ def test_save_final_model_filename_collision(mock_isfile, mock_echo, mock_torch_
 @patch("torch.save")
 @patch("click.echo")
 @patch("os.path.isfile", return_value=False)
-def test_save_final_model_no_name_parts(mock_isfile, mock_echo, mock_torch_save, mock_exists):
+def test_save_final_model_no_name_parts(
+    mock_isfile, mock_echo, mock_torch_save, mock_exists
+):
     """Test save_final_model with no name parts."""
     model = nn.Linear(10, 2)
-    
-    trainer_logic.save_final_model(
-        model, "/path", None, None, None, False
-    )
-    
+
+    trainer_logic.save_final_model(model, "/path", None, None, None, False)
+
     mock_torch_save.assert_called_once()
     call_args = mock_torch_save.call_args
     saved_path = call_args[0][1]
@@ -583,6 +606,7 @@ def test_save_final_model_no_name_parts(mock_isfile, mock_echo, mock_torch_save,
 
 
 # LOG LOSS TESTS
+
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
@@ -593,9 +617,9 @@ def test_log_loss_existing_file(mock_getcwd, mock_exists, mock_open):
     """Test log_loss with existing log file."""
     mock_file = MagicMock()
     mock_open.return_value.__enter__.return_value = mock_file
-    
+
     trainer_logic.log_loss(5, 0.123, None, "loss.log")
-    
+
     # Should open file in append mode and write loss data
     mock_open.assert_called_with("/current/dir/loss.log", "a", encoding="utf-8")
     mock_file.write.assert_called_once_with("5,0.123\n")
@@ -609,20 +633,27 @@ def test_log_loss_new_file(mock_exists, mock_open):
     """Test log_loss creating new log file."""
     mock_file = MagicMock()
     mock_open.return_value.__enter__.return_value = mock_file
-    
+
     trainer_logic.log_loss(1, 1.234, "/custom/dir", "custom.log")
-    
+
     # Should create file with header first, then append data
     assert mock_open.call_count == 2
     calls = mock_open.call_args_list
-    
+
     # First call: create file with header
-    assert calls[0][0] == ("/custom/dir/custom.log", "w", )
+    assert calls[0][0] == (
+        "/custom/dir/custom.log",
+        "w",
+    )
     # Second call: append data
-    assert calls[1][0] == ("/custom/dir/custom.log", "a", )
+    assert calls[1][0] == (
+        "/custom/dir/custom.log",
+        "a",
+    )
 
 
 # CHECKPOINT LOADING TESTS
+
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
@@ -650,14 +681,16 @@ def test_load_checkpoint_data_success(mock_torch_load, mock_isfile):
     mock_checkpoint = {
         "model_state_dict": {"weight": torch.randn(2, 2)},
         "optimizer_state_dict": {"state": {}},
-        "epoch": 10
+        "epoch": 10,
     }
     mock_torch_load.return_value = mock_checkpoint
-    
+
     result = trainer_logic.load_checkpoint_data("/valid/path.pth", torch.device("cpu"))
-    
+
     assert result == mock_checkpoint
-    mock_torch_load.assert_called_once_with("/valid/path.pth", map_location=torch.device("cpu"))
+    mock_torch_load.assert_called_once_with(
+        "/valid/path.pth", map_location=torch.device("cpu")
+    )
 
 
 @pytest.mark.advsecurenet
@@ -669,9 +702,11 @@ def test_load_checkpoint_data_malformed(mock_torch_load, mock_isfile):
     # Missing required keys
     mock_checkpoint = {"epoch": 10}  # Missing model_state_dict and optimizer_state_dict
     mock_torch_load.return_value = mock_checkpoint
-    
-    result = trainer_logic.load_checkpoint_data("/malformed/path.pth", torch.device("cpu"))
-    
+
+    result = trainer_logic.load_checkpoint_data(
+        "/malformed/path.pth", torch.device("cpu")
+    )
+
     assert result is None
 
 
@@ -682,11 +717,12 @@ def test_load_checkpoint_data_malformed(mock_torch_load, mock_isfile):
 def test_load_checkpoint_data_load_exception(mock_torch_load, mock_isfile):
     """Test load_checkpoint_data with loading exception."""
     result = trainer_logic.load_checkpoint_data("/error/path.pth", torch.device("cpu"))
-    
+
     assert result is None
 
 
 # SCHEDULER NAME NORMALIZATION TESTS
+
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
@@ -743,7 +779,7 @@ def test_create_scheduler_from_string_cosineannealingwarmrestarts(optimizer):
 def test_create_scheduler_from_string_lambdalr(optimizer):
     """Test create_scheduler_from_string with lambdalr normalization."""
     scheduler = trainer_logic.create_scheduler_from_string(
-        "lambdalr", optimizer, {"lr_lambda": lambda epoch: 0.95 ** epoch}
+        "lambdalr", optimizer, {"lr_lambda": lambda epoch: 0.95**epoch}
     )
     assert isinstance(scheduler, optim.lr_scheduler.LambdaLR)
 
