@@ -309,13 +309,17 @@ def resolve_dataset_config(config: CreateDatasetCliConfig) -> ResolvedDatasetCon
     split-specific overrides.
     """
     user_splits_to_process = _get_user_splits(config)
+    
+    if not user_splits_to_process:
+        raise ValueError(
+            f"No splits defined for dataset '{config.dataset_name}'. "
+            "Please specify splits in 'split_config' or 'load_splits'."
+        )
+
     final_splits = {}
 
     for split_name in user_splits_to_process:
         # Get the specific configuration for this split, if it exists.
-        user_split_config = (
-            config.split_config.get(split_name) if config.split_config else None
-        )
         user_split_config = (
             config.split_config.get(split_name) if config.split_config else None
         )
