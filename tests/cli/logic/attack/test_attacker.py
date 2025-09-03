@@ -280,33 +280,28 @@ def test_get_target_parameters_none(attacker_config):
 @patch("cli.logic.attack.attacker.CLIAttacker._prepare_dataset")
 @patch("cli.logic.attack.attacker.CLIAttacker._validate_dataset_availability")
 @patch("cli.logic.attack.attacker.resolve_dataset_config")
-@pytest.mark.parametrize("dataset_part", ["train", "test"])
-def test_select_data_partition(
-    mock_resolve_dataset_config,
-    mock_validate_dataset,
-    mock_prepare_dataset,
-    attacker_config,
-    dataset_part,
+@pytest.mark.parametrize("split_key", ["train", "test"])
+def test_select_data_partition_with_splits(
+    mock_resolve_dataset_config, mock_validate_dataset, mock_prepare_dataset, attacker_config, split_key
 ):
-    # Mock the dataset config to return splits with the dataset_part
-    mock_dataset_config = MagicMock()
-    mock_dataset_config.splits = {dataset_part: ""}
-    mock_resolve_dataset_config.return_value = mock_dataset_config
+    # Mock the resolved_config to have splits.keys() return [split_key]
+    mock_splits = {split_key: None}
+    mock_resolved_config = MagicMock()
+    mock_resolved_config.splits = mock_splits
+    mock_resolve_dataset_config.return_value = mock_resolved_config
 
     train_data = MagicMock()
     test_data = MagicMock()
+  
     attacker = CLIAttacker(attacker_config, AttackType.FGSM)
     mock_validate_dataset.return_value = (
         train_data if split_key == "train" else test_data
     )
-
     returned_data = attacker._select_data_partition(train_data, test_data)
-
     mock_resolve_dataset_config.assert_called_once_with(attacker_config.dataset)
     mock_validate_dataset.assert_called_once_with(
         train_data if split_key == "train" else test_data, split_key
     )
-
     assert returned_data == (train_data if split_key == "train" else test_data)
 
 
