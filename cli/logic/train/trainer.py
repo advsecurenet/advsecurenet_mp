@@ -9,11 +9,13 @@ from advsecurenet.models.base_model import BaseModel
 from advsecurenet.shared.types.configs.train_config import (
     TrainConfig,
     ModelConfig,
-    TrainingProcessConfig,
-    OptimizationConfig,
-    DifferentialPrivacyConfig,
-    CheckpointConfig,
-    FinalModelConfig,
+    TrainingProcessConfig)
+
+from shared.types.configs.base import (
+    OptimizationBase,
+    DifferentialPrivacyBase,
+    CheckpointBase,
+    FinalModelBase,
 )
 from advsecurenet.trainer.ddp_trainer import DDPTrainer
 from advsecurenet.trainer.trainer import Trainer
@@ -151,20 +153,20 @@ class CLITrainer:
             **asdict(self.config.training.training_hyperparameter),
         )
 
-        optimization_config = OptimizationConfig(
+        optimization_config = OptimizationBase(
             **asdict(self.config.training.optimization)
         )
 
-        checkpoint_config = CheckpointConfig(**asdict(self.config.training.checkpoint))
+        checkpoint_config = CheckpointBase(**asdict(self.config.training.checkpoint))
 
-        final_model_config = FinalModelConfig(
+        final_model_config = FinalModelBase(
             **asdict(self.config.training.final_model)
         )
 
         # Handle optional differential privacy config
         differential_privacy_config = None
         if self.config.training.differential_privacy:
-            differential_privacy_config = DifferentialPrivacyConfig(
+            differential_privacy_config = DifferentialPrivacyBase(
                 **asdict(self.config.training.differential_privacy)
             )
 

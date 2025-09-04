@@ -16,10 +16,13 @@ from advsecurenet.trainer.ddp_trainer import DDPTrainer
 
 from advsecurenet.shared.types.configs.train_config import (
     ModelConfig,
-    TrainingProcessConfig,
-    OptimizationConfig,
-    CheckpointConfig,
-    FinalModelConfig,
+    TrainingProcessConfig
+    )
+
+from shared.types.configs.base import (
+    OptimizationBase,
+    CheckpointBase,
+    FinalModelBase,
 )
 from advsecurenet.shared.types.configs.device_config import DeviceConfig
 
@@ -46,9 +49,9 @@ def train_config(processor):
         training_process_config=TrainingProcessConfig(
             train_loader=dataloader, epochs=2, verbose=False
         ),
-        optimization_config=OptimizationConfig(optimizer="adam"),
-        checkpoint_config=CheckpointConfig(save_checkpoint=True, checkpoint_interval=5),
-        final_model_config=FinalModelConfig(save_final_model=True),
+        optimization_config=OptimizationBase(optimizer="adam"),
+        checkpoint_config=CheckpointBase(save_checkpoint=True, checkpoint_interval=5),
+        final_model_config=FinalModelBase(save_final_model=True),
         device_config=DeviceConfig(processor=processor),
     )
     return config

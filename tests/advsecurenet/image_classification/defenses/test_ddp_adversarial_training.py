@@ -11,19 +11,21 @@ from advsecurenet.shared.types.configs.defense_configs.adversarial_training_conf
     AdversarialTrainingConfig,
 )
 
+from advsecurenet.shared.types.configs.train_config import (
+    ModelConfig,
+    TrainingProcessConfig
+    )
+from shared.types.configs.base import (
+    OptimizationBase,
+    CheckpointBase,
+    FinalModelBase,
+    )
+
+from advsecurenet.shared.types.configs.device_config import DeviceConfig
+from advsecurenet.shared.types.configs.train_config import TrainConfig
 
 def create_mock_adversarial_training_config(mock_train_loader):
     """Helper function to create a properly structured mock config."""
-    from advsecurenet.shared.types.configs.train_config import (
-        ModelConfig,
-        TrainingProcessConfig,
-        OptimizationConfig,
-        CheckpointConfig,
-        FinalModelConfig,
-    )
-    from advsecurenet.shared.types.configs.device_config import DeviceConfig
-    from advsecurenet.shared.types.configs.train_config import TrainConfig
-
     mock_model = MagicMock()
     mock_attack = MagicMock()
 
@@ -33,9 +35,9 @@ def create_mock_adversarial_training_config(mock_train_loader):
         training_process_config=TrainingProcessConfig(
             train_loader=mock_train_loader, epochs=1
         ),
-        optimization_config=OptimizationConfig(optimizer="adam"),
-        checkpoint_config=CheckpointConfig(save_checkpoint=False),
-        final_model_config=FinalModelConfig(save_final_model=False),
+        optimization_config=OptimizationBase(optimizer="adam"),
+        checkpoint_config=CheckpointBase(save_checkpoint=False),
+        final_model_config=FinalModelBase(save_final_model=False),
         device_config=DeviceConfig(processor="cpu"),
     )
 

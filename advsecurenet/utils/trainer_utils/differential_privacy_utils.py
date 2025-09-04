@@ -5,14 +5,14 @@ from torch.utils.data import DataLoader
 from opacus import PrivacyEngine
 from opacus.validators import ModuleValidator
 
-from advsecurenet.shared.types.configs.train_config import DifferentialPrivacyConfig
+from shared.types.configs.base import DifferentialPrivacyBase
 
 
 def setup_privacy_engine(
     model: nn.Module,
     optimizer: optim.Optimizer,
     data_loader: DataLoader,
-    differential_privacy_config: DifferentialPrivacyConfig,
+    differential_privacy_config: DifferentialPrivacyBase,
 ) -> Tuple[nn.Module, optim.Optimizer, DataLoader, PrivacyEngine, Optional[Any]]:
     """
     Initializes and attaches the Opacus PrivacyEngine to the training components.
@@ -22,7 +22,7 @@ def setup_privacy_engine(
         model (nn.Module): The model to be made private.
         optimizer (optim.Optimizer): The optimizer to be made private.
         data_loader (DataLoader): The data loader to be made private.
-        differential_privacy_config (DifferentialPrivacyConfig): The configuration object with DP parameters.
+        differential_privacy_config (DifferentialPrivacyBase): The configuration object with DP parameters.
 
     Returns:
         A tuple containing the wrapped (private) model, optimizer, data loader,

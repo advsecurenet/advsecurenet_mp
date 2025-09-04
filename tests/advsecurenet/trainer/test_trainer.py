@@ -15,11 +15,15 @@ from advsecurenet.trainer import trainer_logic
 
 from advsecurenet.shared.types.configs.train_config import (
     ModelConfig,
-    TrainingProcessConfig,
-    OptimizationConfig,
-    CheckpointConfig,
-    FinalModelConfig,
+    TrainingProcessConfig
+    )
+from shared.types.configs.base import ( 
+    OptimizationBase,
+    CheckpointBase,
+    FinalModelBase,
+    DifferentialPrivacyBase
 )
+
 from advsecurenet.shared.types.configs.device_config import DeviceConfig
 
 logger = logging.getLogger("advsecurenet.trainer.trainer")
@@ -48,13 +52,13 @@ def train_config(device):
         training_process_config=TrainingProcessConfig(
             train_loader=train_loader, learning_rate=0.001, epochs=1
         ),
-        optimization_config=OptimizationConfig(optimizer="adam"),
-        checkpoint_config=CheckpointConfig(
+        optimization_config=OptimizationBase(optimizer="adam"),
+        checkpoint_config=CheckpointBase(
             save_checkpoint=True,
             checkpoint_interval=1,
             save_checkpoint_path="./checkpoints",
         ),
-        final_model_config=FinalModelConfig(
+        final_model_config=FinalModelBase(
             save_final_model=True, save_model_path="./models"
         ),
         device_config=DeviceConfig(processor=device),
@@ -115,11 +119,11 @@ def test_setup_optimizer_with_kwargs(device):
         training_process_config=TrainingProcessConfig(
             train_loader=train_loader, learning_rate=0.1, epochs=1
         ),
-        optimization_config=OptimizationConfig(
+        optimization_config=OptimizationBase(
             optimizer="adam", optimizer_kwargs={"betas": (0.9, 0.999)}
         ),
-        checkpoint_config=CheckpointConfig(save_checkpoint=False),
-        final_model_config=FinalModelConfig(save_final_model=False),
+        checkpoint_config=CheckpointBase(save_checkpoint=False),
+        final_model_config=FinalModelBase(save_final_model=False),
         device_config=DeviceConfig(processor=device),
     )
 
@@ -147,9 +151,9 @@ def test_setup_scheduler(device):
         training_process_config=TrainingProcessConfig(
             train_loader=train_loader, epochs=1
         ),
-        optimization_config=OptimizationConfig(optimizer="adam", scheduler="LINEAR_LR"),
-        checkpoint_config=CheckpointConfig(save_checkpoint=False),
-        final_model_config=FinalModelConfig(save_final_model=False),
+        optimization_config=OptimizationBase(optimizer="adam", scheduler="LINEAR_LR"),
+        checkpoint_config=CheckpointBase(save_checkpoint=False),
+        final_model_config=FinalModelBase(save_final_model=False),
         device_config=DeviceConfig(processor=device),
     )
 
@@ -304,9 +308,9 @@ def test_train_method_runs():
             learning_rate=0.001,
             epochs=1,  # Just one epoch for testing
         ),
-        optimization_config=OptimizationConfig(optimizer="adam"),
-        checkpoint_config=CheckpointConfig(save_checkpoint=False),
-        final_model_config=FinalModelConfig(save_final_model=False),
+        optimization_config=OptimizationBase(optimizer="adam"),
+        checkpoint_config=CheckpointBase(save_checkpoint=False),
+        final_model_config=FinalModelBase(save_final_model=False),
         device_config=DeviceConfig(processor="cpu"),
     )
 
@@ -440,10 +444,9 @@ def test_trainer_with_differential_privacy_invalid_model(
     mock_setup_privacy, mock_fix, mock_is_valid, train_config
 ):
     """Test trainer with differential privacy and invalid model."""
-    from advsecurenet.shared.types.configs.train_config import DifferentialPrivacyConfig
 
     # Set up differential privacy config
-    dp_config = DifferentialPrivacyConfig(
+    dp_config = DifferentialPrivacyBase(
         enable=True, noise_multiplier=1.0, delta=1e-5, max_grad_norm=1.0
     )
     train_config.differential_privacy_config = dp_config
@@ -486,10 +489,8 @@ def test_trainer_with_differential_privacy_valid_model_with_inplace_false(
     mock_setup_privacy, mock_is_valid, train_config
 ):
     """Test trainer with differential privacy and valid model with inplace_false method."""
-    from advsecurenet.shared.types.configs.train_config import DifferentialPrivacyConfig
-
     # Set up differential privacy config
-    dp_config = DifferentialPrivacyConfig(
+    dp_config = DifferentialPrivacyBase(
         enable=True, noise_multiplier=1.0, delta=1e-5, max_grad_norm=1.0
     )
     train_config.differential_privacy_config = dp_config
@@ -526,10 +527,9 @@ def test_trainer_with_differential_privacy_valid_model_without_inplace_false(
     mock_setup_privacy, mock_is_valid, train_config
 ):
     """Test trainer with differential privacy and valid model without inplace_false method."""
-    from advsecurenet.shared.types.configs.train_config import DifferentialPrivacyConfig
 
     # Set up differential privacy config
-    dp_config = DifferentialPrivacyConfig(
+    dp_config = DifferentialPrivacyBase(
         enable=True, noise_multiplier=1.0, delta=1e-5, max_grad_norm=1.0
     )
     train_config.differential_privacy_config = dp_config
@@ -578,10 +578,9 @@ def test_trainer_without_differential_privacy(train_config):
 @pytest.mark.essential
 def test_trainer_differential_privacy_disabled(train_config):
     """Test trainer with differential privacy config but disabled."""
-    from advsecurenet.shared.types.configs.train_config import DifferentialPrivacyConfig
 
     # Set up disabled differential privacy config
-    dp_config = DifferentialPrivacyConfig(
+    dp_config = DifferentialPrivacyBase(
         enable=False, noise_multiplier=1.0, delta=1e-5, max_grad_norm=1.0
     )
     train_config.differential_privacy_config = dp_config
