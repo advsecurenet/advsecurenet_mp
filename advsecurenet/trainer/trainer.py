@@ -112,7 +112,7 @@ class Trainer:
         """
         Contains the actual training loop logic. This is called by the train method.
         """
-        self.model.train()  # pre_training logic
+        self._pre_training()
 
         # Use trange as a context manager to ensure proper cleanup
         with trange(
@@ -216,3 +216,7 @@ class Trainer:
 
     def _setup_device(self):
         return setup_device(self._processor)
+    
+    def _pre_training(self) -> None:
+        # Method to run before training starts.
+        self.model.train()
