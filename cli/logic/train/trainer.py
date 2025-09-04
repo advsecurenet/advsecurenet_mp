@@ -153,30 +153,13 @@ class CLITrainer:
             **asdict(self.config.training.training_hyperparameter),
         )
 
-        optimization_config = OptimizationBase(
-            **asdict(self.config.training.optimization)
-        )
-
-        checkpoint_config = CheckpointBase(**asdict(self.config.training.checkpoint))
-
-        final_model_config = FinalModelBase(
-            **asdict(self.config.training.final_model)
-        )
-
-        # Handle optional differential privacy config
-        differential_privacy_config = None
-        if self.config.training.differential_privacy:
-            differential_privacy_config = DifferentialPrivacyBase(
-                **asdict(self.config.training.differential_privacy)
-            )
-
         config = TrainConfig(
             model_config=ModelConfig(model),
             training_process_config=training_process_config,
             device_config=self.config.device,
-            optimization_config=optimization_config,
-            checkpoint_config=checkpoint_config,
-            final_model_config=final_model_config,
-            differential_privacy_config=differential_privacy_config,
+            optimization_config=self.config.training.optimization,
+            checkpoint_config=self.config.training.checkpoint,
+            final_model_config=self.config.training.final_model,
+            differential_privacy_config=self.config.training.differential_privacy,
         )
         return config
