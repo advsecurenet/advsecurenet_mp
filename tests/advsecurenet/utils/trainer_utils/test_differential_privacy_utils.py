@@ -98,7 +98,13 @@ def test_setup_privacy_engine_standard_clipping(
 
     # Verify the results
     assert len(result) == 5
-    private_model, private_optimizer, private_data_loader, privacy_engine, private_loss_fn = result
+    (
+        private_model,
+        private_optimizer,
+        private_data_loader,
+        privacy_engine,
+        private_loss_fn,
+    ) = result
 
     assert private_model == mock_private_model
     assert private_optimizer == mock_private_optimizer
@@ -150,13 +156,21 @@ def test_setup_privacy_engine_fast_clipping(
 
     # Verify the results
     assert len(result) == 5
-    private_model, private_optimizer, private_data_loader, privacy_engine, private_loss_fn = result
+    (
+        private_model,
+        private_optimizer,
+        private_data_loader,
+        privacy_engine,
+        private_loss_fn,
+    ) = result
 
     assert private_model == mock_private_model
     assert private_optimizer == mock_private_optimizer
     assert private_data_loader == mock_private_data_loader
     assert privacy_engine == mock_privacy_engine
-    assert private_loss_fn == mock_private_loss_fn  # Should not be None for fast clipping
+    assert (
+        private_loss_fn == mock_private_loss_fn
+    )  # Should not be None for fast clipping
 
     # Verify make_private was called with correct parameters including kwargs
     mock_privacy_engine.make_private.assert_called_once_with(
@@ -235,7 +249,8 @@ def test_setup_privacy_engine_fast_clipping_wrong_return_count(
 
     # Call the function and expect ValueError
     with pytest.raises(
-        ValueError, match="Opacus with 'fast' clipping did not return the expected 4 values."
+        ValueError,
+        match="Opacus with 'fast' clipping did not return the expected 4 values.",
     ):
         setup_privacy_engine(
             simple_model, optimizer, data_loader, dp_config_with_fast_clipping
@@ -260,7 +275,9 @@ def test_setup_privacy_engine_standard_clipping_wrong_return_count(
     )
 
     # Call the function and expect ValueError
-    with pytest.raises(ValueError, match="Opacus did not return the expected 3 values."):
+    with pytest.raises(
+        ValueError, match="Opacus did not return the expected 3 values."
+    ):
         setup_privacy_engine(simple_model, optimizer, data_loader, dp_config)
 
 
@@ -332,7 +349,13 @@ def test_setup_privacy_engine_integration_test(
     result = setup_privacy_engine(simple_model, optimizer, data_loader, dp_config)
 
     # Comprehensive verification
-    private_model, private_optimizer, private_data_loader, privacy_engine, private_loss_fn = result
+    (
+        private_model,
+        private_optimizer,
+        private_data_loader,
+        privacy_engine,
+        private_loss_fn,
+    ) = result
 
     # Verify types and structure
     assert private_model == mock_private_model

@@ -700,6 +700,7 @@ def test_prepare_attack_config(
 
 # Additional tests to achieve 100% coverage
 
+
 @pytest.mark.cli
 @pytest.mark.essential
 @patch("cli.logic.attack.attacker.CLIAttacker._prepare_dataset")
@@ -709,15 +710,17 @@ def test_save_images_if_needed_gather_results(mock_prepare_dataset, attacker_con
     attacker_config.attack_procedure.save_result_images = True
     attacker_config.device.use_ddp = True
     attacker_config.device.gpu_ids = [0, 1]
-    
+
     attacker = CLIAttacker(attacker_config, AttackType.FGSM)
-    
+
     # Mock DDPAttacker.gather_results and _save_adversarial_images
-    with patch("cli.logic.attack.attacker.DDPAttacker.gather_results", return_value=["img1", "img2"]) as mock_gather, \
-         patch.object(attacker, "_save_adversarial_images") as mock_save:
+    with patch(
+        "cli.logic.attack.attacker.DDPAttacker.gather_results",
+        return_value=["img1", "img2"],
+    ) as mock_gather, patch.object(attacker, "_save_adversarial_images") as mock_save:
         # Call with no adv_imgs provided (None), should gather results
         attacker._save_images_if_needed(adv_imgs=None, world_size=2)
-        
+
         # Verify gather_results was called and images were saved
         mock_gather.assert_called_once_with(2)
         mock_save.assert_called_once_with(["img1", "img2"])
@@ -726,14 +729,16 @@ def test_save_images_if_needed_gather_results(mock_prepare_dataset, attacker_con
 @pytest.mark.cli
 @pytest.mark.essential
 @patch("cli.logic.attack.attacker.CLIAttacker._prepare_dataset")
-def test_save_images_if_needed_no_images_to_save(mock_prepare_dataset, attacker_config, caplog):
+def test_save_images_if_needed_no_images_to_save(
+    mock_prepare_dataset, attacker_config, caplog
+):
     """Test _save_images_if_needed when no images are provided."""
     attacker = CLIAttacker(attacker_config, AttackType.FGSM)
-    
+
     # Call with no adv_imgs and no DDP scenario
     with caplog.at_level(logging.INFO):
         attacker._save_images_if_needed(adv_imgs=None)
-    
+
     # Verify the "No adversarial images to save" log message
     assert "No adversarial images to save" in caplog.text
 
@@ -749,16 +754,16 @@ def test_create_dataloader_config(mock_prepare_dataset, attacker_config):
     attacker_config.dataloader.default.shuffle = True
     attacker_config.dataloader.default.drop_last = False
     attacker_config.dataloader.default.pin_memory = True
-    
+
     attacker = CLIAttacker(attacker_config, AttackType.FGSM)
-    
+
     # Mock dataset
     mock_dataset = MagicMock()
     attacker._dataset = mock_dataset
-    
+
     # Call the method
     dataloader_config = attacker._create_dataloader_config()
-    
+
     # Verify the configuration
     assert dataloader_config.dataset == mock_dataset
     assert dataloader_config.batch_size == 32
@@ -782,18 +787,20 @@ def test_select_data_partition_no_available_splits_test_data(
     mock_resolved_config = MagicMock()
     mock_resolved_config.splits.keys.return_value = []  # No available splits
     mock_resolve_config.return_value = mock_resolved_config
-    
+
     # Mock datasets
     mock_train_data = MagicMock()
     mock_test_data = MagicMock()
     mock_get_datasets.return_value = (mock_train_data, mock_test_data)
-    
+
     attacker = CLIAttacker(attacker_config, AttackType.FGSM)
-    
+
     # Mock _validate_dataset_availability
-    with patch.object(attacker, '_validate_dataset_availability', return_value=mock_test_data) as mock_validate:
+    with patch.object(
+        attacker, "_validate_dataset_availability", return_value=mock_test_data
+    ) as mock_validate:
         result = attacker._select_data_partition(mock_train_data, mock_test_data)
-        
+
         # Should prefer test data when no splits specified
         mock_validate.assert_called_once_with(mock_test_data, "test")
         assert result == mock_test_data
@@ -812,15 +819,15 @@ def test_select_data_partition_no_available_splits_no_test_data(
     mock_resolved_config = MagicMock()
     mock_resolved_config.splits.keys.return_value = []  # No available splits
     mock_resolve_config.return_value = mock_resolved_config
-    
+
     # Mock datasets - no test data
     mock_train_data = MagicMock()
     mock_test_data = None
     mock_get_datasets.return_value = (mock_train_data, mock_test_data)
-    
+
     attacker = CLIAttacker(attacker_config, AttackType.FGSM)
-    
+
     result = attacker._select_data_partition(mock_train_data, mock_test_data)
-    
+
     # Should fallback to train data when no test data available
     assert result == mock_train_data
