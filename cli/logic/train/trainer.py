@@ -9,7 +9,8 @@ from advsecurenet.models.base_model import BaseModel
 from advsecurenet.shared.types.configs.train_config import (
     TrainConfig,
     ModelConfig,
-    TrainingProcessConfig)
+    TrainingProcessConfig,
+)
 
 from shared.types.configs.base import (
     OptimizationBase,
@@ -159,9 +160,7 @@ class CLITrainer:
 
         checkpoint_config = CheckpointBase(**asdict(self.config.training.checkpoint))
 
-        final_model_config = FinalModelBase(
-            **asdict(self.config.training.final_model)
-        )
+        final_model_config = FinalModelBase(**asdict(self.config.training.final_model))
 
         # Handle optional differential privacy config
         differential_privacy_config = None

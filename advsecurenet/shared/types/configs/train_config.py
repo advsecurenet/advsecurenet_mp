@@ -30,6 +30,7 @@ class TrainingProcessConfig(TrainingHyperparametersBase):
     Configuration class for the training process.
     Inherits from shared base and adds train_loader.
     """
+
     train_loader: Optional[DataLoader] = None
 
 

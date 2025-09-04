@@ -216,7 +216,7 @@ class Trainer:
 
     def _setup_device(self):
         return setup_device(self._processor)
-    
+
     def _pre_training(self) -> None:
         # Method to run before training starts.
         self.model.train()

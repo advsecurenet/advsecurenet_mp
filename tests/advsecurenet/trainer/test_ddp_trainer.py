@@ -16,8 +16,8 @@ from advsecurenet.trainer.ddp_trainer import DDPTrainer
 
 from advsecurenet.shared.types.configs.train_config import (
     ModelConfig,
-    TrainingProcessConfig
-    )
+    TrainingProcessConfig,
+)
 
 from shared.types.configs.base import (
     OptimizationBase,
