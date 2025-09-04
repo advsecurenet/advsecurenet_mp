@@ -9,7 +9,8 @@ from advsecurenet.models.base_model import BaseModel
 from advsecurenet.shared.types.configs.train_config import (
     TrainConfig,
     ModelConfig,
-    TrainingProcessConfig)
+    TrainingProcessConfig,
+)
 
 from shared.types.configs.base import (
     OptimizationBase,

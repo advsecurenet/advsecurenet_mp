@@ -15,13 +15,13 @@ from advsecurenet.trainer import trainer_logic
 
 from advsecurenet.shared.types.configs.train_config import (
     ModelConfig,
-    TrainingProcessConfig
-    )
-from shared.types.configs.base import ( 
+    TrainingProcessConfig,
+)
+from shared.types.configs.base import (
     OptimizationBase,
     CheckpointBase,
     FinalModelBase,
-    DifferentialPrivacyBase
+    DifferentialPrivacyBase,
 )
 
 from advsecurenet.shared.types.configs.device_config import DeviceConfig

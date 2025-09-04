@@ -18,7 +18,7 @@ from advsecurenet.shared.types.configs.train_config import TrainConfig
 
 from advsecurenet.shared.types.configs.train_config import (
     ModelConfig,
-    TrainingProcessConfig
+    TrainingProcessConfig,
 )
 from shared.types.configs.base import (
     OptimizationBase,
@@ -27,6 +27,7 @@ from shared.types.configs.base import (
 )
 
 from advsecurenet.shared.types.configs.device_config import DeviceConfig
+
 
 def create_adversarial_training_config(
     models, attacks, train_loader, target_model=None

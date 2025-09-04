@@ -13,16 +13,17 @@ from advsecurenet.shared.types.configs.defense_configs.adversarial_training_conf
 
 from advsecurenet.shared.types.configs.train_config import (
     ModelConfig,
-    TrainingProcessConfig
-    )
+    TrainingProcessConfig,
+)
 from shared.types.configs.base import (
     OptimizationBase,
     CheckpointBase,
     FinalModelBase,
-    )
+)
 
 from advsecurenet.shared.types.configs.device_config import DeviceConfig
 from advsecurenet.shared.types.configs.train_config import TrainConfig
+
 
 def create_mock_adversarial_training_config(mock_train_loader):
     """Helper function to create a properly structured mock config."""
