@@ -200,9 +200,6 @@ def _create_resolved_split(
         constructor_args = (
             user_split_config.constructor_args or global_config.constructor_args or {}
         )
-        constructor_args = (
-            user_split_config.constructor_args or global_config.constructor_args or {}
-        )
         path = user_split_config.path
     else:
         # Use global settings only.
