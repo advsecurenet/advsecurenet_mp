@@ -68,7 +68,6 @@ def run_epoch(
         source, targets = source.to(device), targets.to(device)
         loss = run_batch(source, targets, model, optimizer, loss_fn, scheduler)
         total_loss += loss
-        # break #TO DELETE
     del data_iter  # Explicitly delete iterator to trigger worker shutdown
     total_loss /= loader_length
     click.echo(
