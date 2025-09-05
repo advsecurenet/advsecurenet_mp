@@ -46,9 +46,11 @@ dataloader:
     pin_memory: true
     batch_size: 32
 device:
-  use_ddp: false
-  processor: cpu
+  use_ddp: true
+  processor: cuda
   gpu_ids:
+    - 0
+    - 1
 training:
   training_hyperparameter:
     epochs: 10
