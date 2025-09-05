@@ -31,38 +31,63 @@ class Trainer:
         Args:
             config (TrainConfig): The train config.
         """
-
         self._config = config
         self._processor = config.device_config.processor
         self._device = self._setup_device()
         self._loss_fn = get_loss_function(config.training_process_config.criterion)
         self._needs_global_patch = False
 
-        model = config.model_config.model.to(self._device)
-        train_loader = self._config.training_process_config.train_loader
+        # Move model to device and prepare for DP if needed
+        model = self._config.model_config.model.to(self._device)
+        if self._is_differential_privacy_enabled():
+            model = self._prepare_model_for_dp(model)
+        
+        # Setup optimizer
+        optimizer = self._setup_optimizer(model)
+        
+        # Handle checkpoint loading if needed
+        self.start_epoch = self._handle_checkpoint_loading(model, optimizer)
+        
+        # Setup differential privacy if enabled
+        self._setup_differential_privacy(model, optimizer)
+        
+        # Setup scheduler
+        self._setup_scheduler()
 
-        if (
-            config.differential_privacy_config
-            and config.differential_privacy_config.enable
-        ):
-            if not ModuleValidator.is_valid(model):
-                model = ModuleValidator.fix(model)
-
-            if hasattr(model, "inplace_false") and callable(model.inplace_false):
-                model.inplace_false()
-            else:
-                self._needs_global_patch = True
-
-        optimizer_kwargs = config.optimization_config.optimizer_kwargs or {}
-        optimizer = trainer_logic.get_optimizer(
-            config.optimization_config.optimizer,
+    def _setup_optimizer(self, model: torch.nn.Module) -> torch.optim.Optimizer:
+        """
+        Setup the optimizer for training.
+        
+        Args:
+            model: The model to create optimizer for.
+            
+        Returns:
+            The configured optimizer.
+        """
+        optimizer_kwargs = self._config.optimization_config.optimizer_kwargs or {}
+        return trainer_logic.get_optimizer(
+            self._config.optimization_config.optimizer,
             model,
-            config.training_process_config.learning_rate,
+            self._config.training_process_config.learning_rate,
             **optimizer_kwargs
         )
 
-        start_epoch = 1
+    def _prepare_model_for_dp(self, model):
+        """Prepare model for differential privacy training."""
+        if not ModuleValidator.is_valid(model):
+            model = ModuleValidator.fix(model)
 
+        if hasattr(model, "inplace_false") and callable(model.inplace_false):
+            model.inplace_false()
+        else:
+            self._needs_global_patch = True
+            
+        return model
+
+    def _handle_checkpoint_loading(self, model, optimizer):
+        """Handle checkpoint loading and return starting epoch."""
+        start_epoch = 1
+        
         if self._config.checkpoint_config.load_checkpoint:
             checkpoint = trainer_logic.load_checkpoint_data(
                 checkpoint_path=self._config.checkpoint_config.load_checkpoint_path,
@@ -74,13 +99,16 @@ class Trainer:
                 optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
                 trainer_logic.assign_device_to_optimizer_state(optimizer, self._device)
                 start_epoch = checkpoint["epoch"] + 1
+                
+        return start_epoch
 
-        self.start_epoch = start_epoch
-
-        if (
-            config.differential_privacy_config
-            and config.differential_privacy_config.enable
-        ):
+    def _setup_differential_privacy(self, model, optimizer):
+        """Setup differential privacy components."""
+        train_loader = self._config.training_process_config.train_loader
+        
+        if (self._is_differential_privacy_enabled() and 
+            train_loader and 
+            self._config.differential_privacy_config is not None):
             (
                 self.model,
                 self.optimizer,
@@ -88,7 +116,7 @@ class Trainer:
                 self._privacy_engine,
                 private_loss_fn,
             ) = setup_privacy_engine(
-                model, optimizer, train_loader, config.differential_privacy_config
+                model, optimizer, train_loader, self._config.differential_privacy_config
             )
 
             if private_loss_fn:
@@ -102,10 +130,19 @@ class Trainer:
         # Setup model (handles DDP wrapping if needed)
         self.model = self._setup_model(self.model)
 
+    def _setup_scheduler(self):
+        """Setup the learning rate scheduler."""
         self._scheduler = trainer_logic.get_scheduler(
-            scheduler=config.optimization_config.scheduler,
+            scheduler=self._config.optimization_config.scheduler,
             optimizer=self.optimizer,
-            scheduler_kwargs=config.optimization_config.scheduler_kwargs,
+            scheduler_kwargs=self._config.optimization_config.scheduler_kwargs,
+        )
+
+    def _is_differential_privacy_enabled(self):
+        """Check if differential privacy is enabled."""
+        return (
+            self._config.differential_privacy_config is not None
+            and self._config.differential_privacy_config.enable
         )
 
     def _execute_training_loop(self) -> None:
