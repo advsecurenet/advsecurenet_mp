@@ -1,10 +1,9 @@
 model:
-  model_name: resnet18
-  architecture:
-    num_input_channels: 3
-    num_classes: 10
+  model_name: microsoft/resnet-18
   pretrained: true
-  weights: IMAGENET1K_V1
+  trust_remote_code: false
+  architecture:
+    num_classes: 10
   is_external: false
   random_seed:
   path_configs:
@@ -74,3 +73,9 @@ training:
     checkpoint_interval: 1
     load_checkpoint: false
     load_checkpoint_path:
+  differential_privacy:
+    enable: true
+    noise_multiplier: 1.2
+    max_grad_norm: 1.0
+    delta: 1e-05
+    kwargs:

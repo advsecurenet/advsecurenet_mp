@@ -56,24 +56,28 @@ training:
       - 2
       - 3
   training:
-    epochs: 1
-    learning_rate: 0.001
-    optimizer: adam
-    optimizer_kwargs:
-      weight_decay: 0.0001
-    scheduler: LINEAR_LR
-    scheduler_kwargs: null
-    criterion: cross_entropy
-    save_final_model: true
-    save_model_path: null
-    save_model_name: null
-    save_checkpoint: false
-    save_checkpoint_path: null
-    save_checkpoint_name: null
-    checkpoint_interval: 1
-    load_checkpoint: false
-    load_checkpoint_path: null
-    verbose: true
+    training_hyperparameter:
+      epochs: 1
+      learning_rate: 0.001
+      criterion: cross_entropy
+      verbose: true
+    optimization:
+      optimizer: adam
+      optimizer_kwargs:
+        weight_decay: 0.0001
+      scheduler: LINEAR_LR
+      scheduler_kwargs: null
+    final_model:
+      save_final_model: true
+      save_model_path: null
+      save_model_name: null
+    checkpoint:
+      save_checkpoint: false
+      save_checkpoint_path: null
+      save_checkpoint_name: null
+      checkpoint_interval: 1
+      load_checkpoint: false
+      load_checkpoint_path: null
 adversarial_training:
   models: null
   attacks:
