@@ -6,14 +6,30 @@ from advsecurenet.models.CustomODWrappers.CustomYolov5ODWrapper import (
 
 from advsecurenet.models.CustomODWrappers.CustomFasterRCNNODWrapper import CustomFasterRCNNODWrapper
 
-def get_object_detector(name: str, config: dict = None):
+_YOLO_SINGLETON_CACHE = {}
+
+
+def get_object_detector(name: str, config: dict = None, existing_model=None):
     name = name.lower()
     config = config or {}
     if name == "yolov5":
-        model_weights_path = config.get(
-            "model_weights_path", "model_weights/yolov5s.pt"
-        )
-        model = CustomYolov5Model(model_weights_path=model_weights_path)
+        model_weights_path = config.get("model_weights_path", "model_weights/yolov5s.pt")
+        device = config.get("device_type", "cuda:0")
+        # Reuse if provided explicitly
+        if existing_model is not None:
+            model = existing_model
+            try:
+                model.to(device)
+            except Exception:
+                pass
+        else:
+            cache_key = (model_weights_path, device)
+            if config.get("reuse", True) and cache_key in _YOLO_SINGLETON_CACHE:
+                model = _YOLO_SINGLETON_CACHE[cache_key]
+            else:
+                model = CustomYolov5Model(model_weights_path=model_weights_path, device=device)
+                if config.get("reuse", True):
+                    _YOLO_SINGLETON_CACHE[cache_key] = model
         detector = CustomYolov5ODWrapper(
             model=model,
             conf_thresh=config.get("conf_thresh", 0.25),
@@ -24,7 +40,7 @@ def get_object_detector(name: str, config: dict = None):
                     "attack_losses", ("loss_total", "loss_cls", "loss_box", "loss_obj")
                 )
             ),
-            device_type=config.get("device_type", "cuda:0"),
+            device_type=device,
         )
         return detector
     elif name == "fasterrcnn_resnet50_fpn":

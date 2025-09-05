@@ -137,7 +137,15 @@ class CLIODAttacker:
         detector_config = {}
         if hasattr(self._config.model, "object_detector_config"):
             detector_config = self._config.model.object_detector_config
-        detector = get_object_detector(attack_config.object_detector, detector_config)
+        # Forward device info into detector config
+        if getattr(self._config, "device", None):
+            detector_config = dict(detector_config)  # shallow copy
+            detector_config["device_type"] = getattr(self._config.device, "processor", "cuda:0")
+        detector = get_object_detector(
+            attack_config.object_detector,
+            detector_config,
+            existing_model=model if isinstance(model, CustomYolov5Model) else None,
+        )
         attack_config.object_detector = detector
         attack_config.device = self._config.device
 

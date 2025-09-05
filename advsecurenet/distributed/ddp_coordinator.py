@@ -67,9 +67,7 @@ class DDPCoordinator:
         The default backend is nccl.
         """
         if torch.cuda.is_available():
-            device_count = torch.cuda.device_count()
-            target_device_index = rank % device_count
-            torch.cuda.set_device(target_device_index)
+            torch.cuda.set_device(rank)
             os.environ["LOCAL_RANK"] = str(rank)
             os.environ["RANK"] = str(rank)
             os.environ["WORLD_SIZE"] = str(self.world_size)

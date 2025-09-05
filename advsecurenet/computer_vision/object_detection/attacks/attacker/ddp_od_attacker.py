@@ -40,14 +40,19 @@ class DDPODAttacker(DDPBaseTask):
                 dl.dataset,
                 batch_size=dl.batch_size,
                 sampler=sampler,
-                num_workers=dl.num_workers,
-                pin_memory=getattr(dl, "pin_memory", False),
+                num_workers=0,  # Disable multiprocessing in DDP to avoid worker conflicts
+                pin_memory=False,  # Disable pin_memory in DDP to avoid thread issues
                 collate_fn=getattr(dl, "collate_fn", None),
                 drop_last=getattr(dl, "drop_last", False),
             )
             self._sampler = sampler
 
     def run_task(self):
+        if dist.is_initialized():
+            visible_devices = os.environ.get("CUDA_VISIBLE_DEVICES", "all")
+            current_device = torch.cuda.current_device() if torch.cuda.is_available() else "cpu"
+            print(f"[Rank {dist.get_rank()}] CUDA_VISIBLE_DEVICES={visible_devices}, current_device={current_device}")
+        
         shard_indices = None
         if self._sampler is not None:
             # epoch fixed (0) for reproducibility; if shuffle True sampler uses this epoch seed

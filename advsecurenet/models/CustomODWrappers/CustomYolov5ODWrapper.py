@@ -43,19 +43,17 @@ class CustomYolov5ODWrapper(ODWrapper):
             clip_values=clip_values,
             input_shape=input_shape,
         )
-        original_torch_load = torch.load
+        try:
+            if hasattr(model, "_autoshape"):
+                self.inference_model = model._autoshape
+            else:
+                from yolov5.models.common import AutoShape as _AutoShape
 
-        def load_with_weights_only_false(*args, **kwargs):
-            kwargs["weights_only"] = False
-            return original_torch_load(*args, **kwargs)
-
-        with patch("torch.load", side_effect=load_with_weights_only_false):
-            self.inference_model = yolov5.load(
-                str(Path("model_weights") / "yolov5s.pt"),
-                device=device_type,
-                autoshape=True,
-            )
-        self.inference_model.conf = conf_thresh
+                self.inference_model = _AutoShape(model)
+            if hasattr(self.inference_model, "conf"):
+                self.inference_model.conf = conf_thresh
+        except Exception as e:  # pragma: no cover
+            self.inference_model = model
         self.input_shape = input_shape
         self.channels_first = True
         self.attack_losses = attack_losses
