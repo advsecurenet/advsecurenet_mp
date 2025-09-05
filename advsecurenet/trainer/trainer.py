@@ -41,26 +41,26 @@ class Trainer:
         model = self._config.model_config.model.to(self._device)
         if self._is_differential_privacy_enabled():
             model = self._prepare_model_for_dp(model)
-        
+
         # Setup optimizer
         optimizer = self._setup_optimizer(model)
-        
+
         # Handle checkpoint loading if needed
         self.start_epoch = self._handle_checkpoint_loading(model, optimizer)
-        
+
         # Setup differential privacy if enabled
         self._setup_differential_privacy(model, optimizer)
-        
+
         # Setup scheduler
         self._setup_scheduler()
 
     def _setup_optimizer(self, model: torch.nn.Module) -> torch.optim.Optimizer:
         """
         Setup the optimizer for training.
-        
+
         Args:
             model: The model to create optimizer for.
-            
+
         Returns:
             The configured optimizer.
         """
@@ -81,13 +81,13 @@ class Trainer:
             model.inplace_false()
         else:
             self._needs_global_patch = True
-            
+
         return model
 
     def _handle_checkpoint_loading(self, model, optimizer):
         """Handle checkpoint loading and return starting epoch."""
         start_epoch = 1
-        
+
         if self._config.checkpoint_config.load_checkpoint:
             checkpoint = trainer_logic.load_checkpoint_data(
                 checkpoint_path=self._config.checkpoint_config.load_checkpoint_path,
@@ -99,16 +99,18 @@ class Trainer:
                 optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
                 trainer_logic.assign_device_to_optimizer_state(optimizer, self._device)
                 start_epoch = checkpoint["epoch"] + 1
-                
+
         return start_epoch
 
     def _setup_differential_privacy(self, model, optimizer):
         """Setup differential privacy components."""
         train_loader = self._config.training_process_config.train_loader
-        
-        if (self._is_differential_privacy_enabled() and 
-            train_loader and 
-            self._config.differential_privacy_config is not None):
+
+        if (
+            self._is_differential_privacy_enabled()
+            and train_loader
+            and self._config.differential_privacy_config is not None
+        ):
             (
                 self.model,
                 self.optimizer,
