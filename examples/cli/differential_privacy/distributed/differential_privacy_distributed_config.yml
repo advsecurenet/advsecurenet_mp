@@ -79,5 +79,5 @@ training:
     enable: true
     noise_multiplier: 1.2
     max_grad_norm: 1.0
-    delta: 1e-05
+    delta: 0.0001
     kwargs:
