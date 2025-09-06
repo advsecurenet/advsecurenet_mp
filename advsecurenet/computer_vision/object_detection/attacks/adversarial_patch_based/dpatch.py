@@ -12,6 +12,8 @@ import secrets
 import numpy as np
 import torch
 import logging
+import torch.distributed as dist
+from torch.utils.data.distributed import DistributedSampler
 from tqdm.auto import trange, tqdm
 from typing import Union, Optional, List, Dict, Tuple
 from torch.utils.data import DataLoader
@@ -100,8 +102,13 @@ class DPatch(AdversarialAttack):
         for i_step in trange(self._max_iterations, desc="DPatch iteration"):
             if i_step == 0 or (i_step + 1) % 100 == 0:
                 logger.info("Training Step: %d/%d", i_step + 1, self._max_iterations)
-
+            if hasattr(dataloader, "sampler") and isinstance(dataloader.sampler, DistributedSampler):
+                try:
+                    dataloader.sampler.set_epoch(i_step)
+                except Exception as e:
+                    logger.debug("Failed to set sampler epoch %d: %s", i_step, e)
             patch_gradients_sum = torch.zeros_like(self._patch, device=device)
+            suppress_flag_any = False
             self._patch = self.device_manager.to_device(self._patch)
             for data_batch in tqdm(
                 dataloader,
@@ -136,13 +143,21 @@ class DPatch(AdversarialAttack):
                 )
                 patch_gradients = self.device_manager.to_device(patch_gradients)
                 patch_gradients_sum += patch_gradients
+                if untargeted_should_suppress:
+                    suppress_flag_any = True
+            # Distributed aggregation: sum gradients, OR suppression flag across ranks
+            if dist.is_available() and dist.is_initialized():
+                dist.all_reduce(patch_gradients_sum, op=dist.ReduceOp.SUM)
+                suppress_tensor = torch.tensor(1 if suppress_flag_any else 0, device=patch_gradients_sum.device)
+                dist.all_reduce(suppress_tensor, op=dist.ReduceOp.MAX)
+                suppress_flag_any = bool(suppress_tensor.item())
 
             if self._target_label is not None:
                 self._patch = self._patch - self._learning_rate * torch.sign(
                     patch_gradients_sum
                 )
             else:
-                if untargeted_should_suppress:
+                if suppress_flag_any:
                     self._patch = self._patch - self._learning_rate * torch.sign(
                         patch_gradients_sum
                     )
@@ -151,6 +166,18 @@ class DPatch(AdversarialAttack):
                         patch_gradients_sum
                     )
             self._patch = self._patch.clamp(0.0, 255.0)
+            if dist.is_available() and dist.is_initialized():
+                with torch.no_grad():
+                    checksum = torch.sum(self._patch.float()).unsqueeze(0)
+                    gathered = [torch.zeros_like(checksum) for _ in range(dist.get_world_size())]
+                    try:
+                        dist.all_gather(gathered, checksum)
+                        diffs = [abs(checksum.item() - g.item()) for g in gathered]
+                        max_diff = max(diffs) if diffs else 0.0
+                        if max_diff > 1e-4:
+                            logger.error("[DPATCH]Patch checksum divergence detected across ranks: diffs=%s", diffs)
+                    except Exception as e:
+                        logger.debug("Patch consistency check failed: %s", e)
         return self._patch
 
     def _attack_step_prepare_x(

@@ -7,6 +7,9 @@ import warnings
 import numpy as np
 from typing import List, Dict, Any
 
+_PANDAS_CONCAT_MSG = r"^The behavior of DataFrame concatenation with empty or all-NA entries is deprecated"
+warnings.filterwarnings("ignore", category=FutureWarning, message=_PANDAS_CONCAT_MSG)
+
 
 class MeanAveragePrecisionEvaluator(BaseEvaluator):
     """
@@ -136,7 +139,8 @@ class MeanAveragePrecisionEvaluator(BaseEvaluator):
         """
         model.eval()
         device = next(model.parameters()).device
-        is_custom_yolov5 = bool(getattr(model.model, "IS_CUSTOM_YOLOV5", False)) # yolov5 expects numpy
+        #is_custom_yolov5 = bool(getattr(model.model, "IS_CUSTOM_YOLOV5", False)) # yolov5 expects numpy
+        is_custom_yolov5 = True
         if is_custom_yolov5:
             with torch.no_grad():
                 # 1. Run predictions on original and adversarial images
