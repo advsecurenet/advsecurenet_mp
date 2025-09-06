@@ -53,3 +53,5 @@ examples/*/**.csv
 venv/
 
 __pycache__/
+
+**/yolo**.pt
