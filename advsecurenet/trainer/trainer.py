@@ -42,7 +42,6 @@ class Trainer:
         if self._is_differential_privacy_enabled():
             model = self._prepare_model_for_dp(model)
 
-        # Setup optimizer
         optimizer = self._setup_optimizer(model)
 
         # Handle checkpoint loading if needed
@@ -51,7 +50,6 @@ class Trainer:
         # Setup differential privacy if enabled
         self._setup_differential_privacy(model, optimizer)
 
-        # Setup scheduler
         self._setup_scheduler()
 
     def _setup_optimizer(self, model: torch.nn.Module) -> torch.optim.Optimizer:
