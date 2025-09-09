@@ -45,7 +45,7 @@ dataloader:
     batch_size: 32
 device:
   use_ddp: false
-  processor: mps
+  processor: null
   gpu_ids: null
 attack_procedure:
   verbose: true

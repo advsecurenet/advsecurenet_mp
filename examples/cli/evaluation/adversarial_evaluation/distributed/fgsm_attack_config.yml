@@ -44,7 +44,7 @@ dataloader:
     pin_memory: true
     batch_size: 32
 device:
-  use_ddp: false
+  use_ddp: true
   processor: cuda
   gpu_ids: null
 attack_procedure:
