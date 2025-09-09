@@ -149,7 +149,7 @@ def create_scheduler_from_string(
     # Mapping for common scheduler name variations to standardized enum names
     scheduler_name_mapping = {
         "STEPLR": "STEP_LR",
-        "MULTISTEPLR": "MULTI_STEP_LR", 
+        "MULTISTEPLR": "MULTI_STEP_LR",
         "COSINEANNEALINGLR": "COSINE_ANNEALING_LR",
         "CYCLICLR": "CYCLIC_LR",
         "ONECYCLELR": "ONE_CYCLE_LR",
@@ -159,7 +159,7 @@ def create_scheduler_from_string(
         "LINEARLR": "LINEAR_LR",
         "REDUCELRONPLATEAU": "REDUCE_LR_ON_PLATEAU",
     }
-    
+
     # Normalize scheduler name and map to standard form
     normalized_name = scheduler_name.upper()
     normalized_name = scheduler_name_mapping.get(normalized_name, normalized_name)
@@ -169,7 +169,7 @@ def create_scheduler_from_string(
             "Unsupported scheduler! Choose from: "
             + ", ".join([e.name for e in Scheduler])
         )
-    
+
     scheduler_function_class = Scheduler[normalized_name].value
     kwargs = scheduler_kwargs or {}
     return cast(lr_scheduler.LRScheduler, scheduler_function_class(optimizer, **kwargs))
