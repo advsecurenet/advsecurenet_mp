@@ -33,7 +33,20 @@ def run_batch(
     loss_fn: nn.Module,
     scheduler: Optional[lr_scheduler.LRScheduler],
 ) -> float:
-    """Runs a single batch."""
+    """
+    Runs a single batch of training.
+
+    Args:
+        source (torch.Tensor): Input data batch.
+        targets (torch.Tensor): Target labels batch.
+        model (nn.Module): The neural network model.
+        optimizer (optim.Optimizer): The optimizer for updating model parameters.
+        loss_fn (nn.Module): The loss function to compute the training loss.
+        scheduler (Optional[lr_scheduler.LRScheduler]): Optional learning rate scheduler.
+
+    Returns:
+        float: The loss value for this batch.
+    """
     model.train()
     optimizer.zero_grad()
     output = model(source)
@@ -58,7 +71,21 @@ def run_epoch(
     loss_fn: nn.Module,
     scheduler: Optional[lr_scheduler.LRScheduler],
 ) -> None:
-    """Runs a single training epoch using an explicit iterator to ensure DataLoader worker cleanup."""
+    """
+    Runs a single training epoch using an explicit iterator to ensure DataLoader worker cleanup.
+
+    Args:
+        epoch (int): The current epoch number.
+        train_loader (DataLoader): The training data loader.
+        device (torch.device): The device to run training on.
+        model (nn.Module): The neural network model.
+        optimizer (optim.Optimizer): The optimizer for updating model parameters.
+        loss_fn (nn.Module): The loss function to compute the training loss.
+        scheduler (Optional[lr_scheduler.LRScheduler]): Optional learning rate scheduler.
+
+    Returns:
+        None
+    """
     total_loss = 0.0
     loader_length = len(train_loader)  # Save length before cleanup
 
@@ -78,7 +105,17 @@ def run_epoch(
 def should_save_checkpoint(
     epoch: int, save_checkpoint: bool, checkpoint_interval: int
 ) -> bool:
-    """Determines if a checkpoint should be saved."""
+    """
+    Determines if a checkpoint should be saved.
+
+    Args:
+        epoch (int): The current epoch number.
+        save_checkpoint (bool): Whether checkpoint saving is enabled.
+        checkpoint_interval (int): The interval at which checkpoints should be saved.
+
+    Returns:
+        bool: True if a checkpoint should be saved, False otherwise.
+    """
     return (
         save_checkpoint and checkpoint_interval > 0 and epoch % checkpoint_interval == 0
     )
@@ -87,7 +124,18 @@ def should_save_checkpoint(
 def save_checkpoint(
     epoch: int, optimizer: optim.Optimizer, model: nn.Module, checkpoint_path: str
 ) -> None:
-    """Saves the checkpoint."""
+    """
+    Saves the checkpoint.
+
+    Args:
+        epoch (int): The current epoch number.
+        optimizer (optim.Optimizer): The optimizer state to save.
+        model (nn.Module): The model state to save.
+        checkpoint_path (str): The path where the checkpoint should be saved.
+
+    Returns:
+        None
+    """
     torch.save(
         {
             "epoch": epoch,
@@ -110,7 +158,23 @@ def post_training(
     privacy_engine,
     delta,
 ) -> None:
-    """Logic to run after training ends."""
+    """
+    Logic to run after training ends.
+
+    Args:
+        save_final_model_flag (bool): Whether to save the final model.
+        model (nn.Module): The trained model.
+        save_path (Optional[str]): Path where to save the final model.
+        save_name (Optional[str]): Custom name for the saved model.
+        model_name (Optional[str]): Name of the model architecture.
+        dataset_name (Optional[str]): Name of the dataset used for training.
+        use_ddp (bool): Whether distributed data parallel was used.
+        privacy_engine: The privacy engine used for differential privacy.
+        delta: The delta parameter for differential privacy.
+
+    Returns:
+        None
+    """
     if save_final_model_flag:
         save_final_model(model, save_path, save_name, model_name, dataset_name, use_ddp)
 
@@ -259,6 +323,9 @@ def assign_device_to_optimizer_state(
     Args:
         optimizer (optim.Optimizer): The optimizer whose state should be moved to the device.
         device (torch.device): The target device.
+
+    Returns:
+        None
     """
     for state in optimizer.state.values():
         for k, v in state.items():
@@ -348,6 +415,9 @@ def save_final_model(
         model_name (Optional[str]): Name of the model.
         dataset_name (Optional[str]): Name of the dataset.
         use_ddp (bool): Whether DDP is being used.
+
+    Returns:
+        None
     """
     final_save_path = save_path or os.getcwd()
 
@@ -389,6 +459,9 @@ def log_loss(
         loss (float): The loss value.
         dir (Optional[str]): Directory to save the log file.
         filename (str): Name of the log file.
+
+    Returns:
+        None
     """
     path = os.path.join(dir, filename) if dir else os.path.join(os.getcwd(), filename)
     # Save the loss to the log file. If the log file does not exist, create it in the current directory.
