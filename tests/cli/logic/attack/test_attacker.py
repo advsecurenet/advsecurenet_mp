@@ -698,9 +698,6 @@ def test_prepare_attack_config(
     mock_create_dataloader_config.assert_called_once()
 
 
-# Additional tests to achieve 100% coverage
-
-
 @pytest.mark.cli
 @pytest.mark.essential
 @patch("cli.logic.attack.attacker.CLIAttacker._prepare_dataset")
