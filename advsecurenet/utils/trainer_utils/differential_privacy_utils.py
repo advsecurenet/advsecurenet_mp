@@ -44,18 +44,15 @@ def setup_privacy_engine(
         **kwargs,
     )
 
-    # Check if fast clipping was used by checking the number of returned items
     if kwargs.get("clipping") == "fast":
         if len(results) != 4:
             raise ValueError(
                 "Opacus with 'fast' clipping did not return the expected 4 values."
             )
-        # Unpack the 4 values: model, optimizer, loss_fn, data_loader
         private_model, private_optimizer, private_loss_fn, private_data_loader = results
     else:
         if len(results) != 3:
             raise ValueError("Opacus did not return the expected 3 values.")
-        # Unpack the 3 values and set loss_fn to None
         private_model, private_optimizer, private_data_loader = results
         private_loss_fn = None
 
