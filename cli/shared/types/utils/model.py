@@ -16,7 +16,7 @@ class ModelNormConfig:
 @dataclass
 class ModelPathConfig:
     """
-    This dataclass is used to store the co<nfiguration of the paths of a model.
+    This dataclass is used to store the configuration of the paths of a model.
     """
 
     model_arch_path: Optional[str]
