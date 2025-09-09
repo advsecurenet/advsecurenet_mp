@@ -146,34 +146,30 @@ def create_scheduler_from_string(
     Raises:
         ValueError: If the scheduler name is not supported.
     """
-    # Normalize scheduler name to handle common variations
+    # Mapping for common scheduler name variations to standardized enum names
+    scheduler_name_mapping = {
+        "STEPLR": "STEP_LR",
+        "MULTISTEPLR": "MULTI_STEP_LR", 
+        "COSINEANNEALINGLR": "COSINE_ANNEALING_LR",
+        "CYCLICLR": "CYCLIC_LR",
+        "ONECYCLELR": "ONE_CYCLE_LR",
+        "COSINEANNEALINGWARMRESTARTS": "COSINE_ANNEALING_WARM_RESTARTS",
+        "LAMBDALR": "LAMBDA_LR",
+        "POLYLR": "POLY_LR",
+        "LINEARLR": "LINEAR_LR",
+        "REDUCELRONPLATEAU": "REDUCE_LR_ON_PLATEAU",
+    }
+    
+    # Normalize scheduler name and map to standard form
     normalized_name = scheduler_name.upper()
-    if normalized_name == "STEPLR":
-        normalized_name = "STEP_LR"
-    elif normalized_name == "MULTISTEPLR":
-        normalized_name = "MULTI_STEP_LR"
-    elif normalized_name == "COSINEANNEALINGLR":
-        normalized_name = "COSINE_ANNEALING_LR"
-    elif normalized_name == "CYCLICLR":
-        normalized_name = "CYCLIC_LR"
-    elif normalized_name == "ONECYCLELR":
-        normalized_name = "ONE_CYCLE_LR"
-    elif normalized_name == "COSINEANNEALINGWARMRESTARTS":
-        normalized_name = "COSINE_ANNEALING_WARM_RESTARTS"
-    elif normalized_name == "LAMBDALR":
-        normalized_name = "LAMBDA_LR"
-    elif normalized_name == "POLYLR":
-        normalized_name = "POLY_LR"
-    elif normalized_name == "LINEARLR":
-        normalized_name = "LINEAR_LR"
-    elif normalized_name == "REDUCELRONPLATEAU":
-        normalized_name = "REDUCE_LR_ON_PLATEAU"
+    normalized_name = scheduler_name_mapping.get(normalized_name, normalized_name)
 
     if normalized_name not in Scheduler.__members__:
         raise ValueError(
             "Unsupported scheduler! Choose from: "
             + ", ".join([e.name for e in Scheduler])
         )
+    
     scheduler_function_class = Scheduler[normalized_name].value
     kwargs = scheduler_kwargs or {}
     return cast(lr_scheduler.LRScheduler, scheduler_function_class(optimizer, **kwargs))
