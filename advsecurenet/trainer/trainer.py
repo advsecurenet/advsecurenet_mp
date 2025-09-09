@@ -71,7 +71,15 @@ class Trainer:
         )
 
     def _prepare_model_for_dp(self, model):
-        """Prepare model for differential privacy training."""
+        """
+        Prepare model for differential privacy training.
+
+        Args:
+            model: The model to prepare for differential privacy.
+
+        Returns:
+            The modified model ready for differential privacy training.
+        """
         if not ModuleValidator.is_valid(model):
             model = ModuleValidator.fix(model)
 
@@ -83,7 +91,16 @@ class Trainer:
         return model
 
     def _handle_checkpoint_loading(self, model, optimizer):
-        """Handle checkpoint loading and return starting epoch."""
+        """
+        Handle checkpoint loading and return starting epoch.
+
+        Args:
+            model: The model to load state into.
+            optimizer: The optimizer to load state into.
+
+        Returns:
+            int: The starting epoch number (1 if no checkpoint loaded, or checkpoint epoch + 1).
+        """
         start_epoch = 1
 
         if self._config.checkpoint_config.load_checkpoint:
@@ -101,7 +118,16 @@ class Trainer:
         return start_epoch
 
     def _setup_differential_privacy(self, model, optimizer):
-        """Setup differential privacy components."""
+        """
+        Setup differential privacy components.
+
+        Args:
+            model: The model to make private.
+            optimizer: The optimizer to make private.
+
+        Returns:
+            None
+        """
         train_loader = self._config.training_process_config.train_loader
 
         if (
@@ -131,7 +157,15 @@ class Trainer:
         self.model = self._setup_model(self.model)
 
     def _setup_scheduler(self):
-        """Setup the learning rate scheduler."""
+        """
+        Setup the learning rate scheduler.
+
+        Args:
+            None
+
+        Returns:
+            None
+        """
         self._scheduler = trainer_logic.get_scheduler(
             scheduler=self._config.optimization_config.scheduler,
             optimizer=self.optimizer,
@@ -139,7 +173,15 @@ class Trainer:
         )
 
     def _is_differential_privacy_enabled(self):
-        """Check if differential privacy is enabled."""
+        """
+        Check if differential privacy is enabled.
+
+        Args:
+            None
+
+        Returns:
+            bool: True if differential privacy is enabled, False otherwise.
+        """
         return (
             self._config.differential_privacy_config is not None
             and self._config.differential_privacy_config.enable
@@ -148,6 +190,12 @@ class Trainer:
     def _execute_training_loop(self) -> None:
         """
         Contains the actual training loop logic. This is called by the train method.
+
+        Args:
+            None
+
+        Returns:
+            None
         """
         self._pre_training()
 
@@ -170,6 +218,12 @@ class Trainer:
     def _run_epoch(self, epoch: int) -> None:
         """
         Runs a single training epoch. Can be overridden for DDP.
+
+        Args:
+            epoch (int): The current epoch number.
+
+        Returns:
+            None
         """
         trainer_logic.run_epoch(
             epoch,
@@ -184,6 +238,12 @@ class Trainer:
     def _should_save_checkpoint(self, epoch: int) -> bool:
         """
         Determines if a checkpoint should be saved. Can be overridden for DDP.
+
+        Args:
+            epoch (int): The current epoch number.
+
+        Returns:
+            bool: True if a checkpoint should be saved, False otherwise.
         """
         return trainer_logic.should_save_checkpoint(
             epoch,
@@ -194,6 +254,12 @@ class Trainer:
     def _get_checkpoint_path(self, epoch: int) -> str:
         """
         Gets the checkpoint path. Can be overridden for DDP.
+
+        Args:
+            epoch (int): The current epoch number.
+
+        Returns:
+            str: The path where the checkpoint should be saved.
         """
         return trainer_logic.define_save_checkpoint_path(
             save_checkpoint_path=self._config.checkpoint_config.save_checkpoint_path,
@@ -207,6 +273,13 @@ class Trainer:
     def _save_checkpoint(self, epoch: int, checkpoint_path: str) -> None:
         """
         Saves a checkpoint. Can be overridden for DDP.
+
+        Args:
+            epoch (int): The current epoch number.
+            checkpoint_path (str): The path where the checkpoint should be saved.
+
+        Returns:
+            None
         """
         trainer_logic.save_checkpoint(
             epoch, self.optimizer, self.model, checkpoint_path
@@ -215,6 +288,12 @@ class Trainer:
     def _post_training(self) -> None:
         """
         Post-training logic. Can be overridden for DDP.
+
+        Args:
+            None
+
+        Returns:
+            None
         """
         trainer_logic.post_training(
             save_final_model_flag=self._config.final_model_config.save_final_model,
@@ -236,6 +315,12 @@ class Trainer:
         """
         Public method for training the model. It applies a global patch for DP
         compatibility if needed.
+
+        Args:
+            None
+
+        Returns:
+            None
         """
         if self._needs_global_patch:
             # If the global patch is needed, run the loop inside the context manager.
@@ -247,13 +332,37 @@ class Trainer:
 
     def _setup_model(self, model) -> torch.nn.Module:
         """
-        Initializes the model and moves it to the device.
+        Initializes the model and moves it to the device. Can be overridden for DDP.
+
+        Args:
+            model: The model to setup.
+
+        Returns:
+            torch.nn.Module: The model moved to the appropriate device.
         """
         return model.to(self._device)
 
     def _setup_device(self):
+        """
+        Setup the device for training.
+
+        Args:
+            None
+
+        Returns:
+            The configured device for training.
+        """
         return setup_device(self._processor)
 
     def _pre_training(self) -> None:
+        """
+        Method to run before training starts. Can be overridden by other trainers that inherit from this trainer.
+
+        Args:
+            None
+
+        Returns:
+            None
+        """
         # Method to run before training starts.
         self.model.train()
