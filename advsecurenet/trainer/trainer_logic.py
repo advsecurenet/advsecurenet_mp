@@ -296,20 +296,21 @@ def get_optimizer(
     if model is None and isinstance(optimizer, str):
         raise ValueError("Model must be provided if optimizer is a string.")
 
-    # if the model is provided but the optimizer not, initialize the default optimizer
-    if model is not None and optimizer is None:
-        optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+    # Handle optimizer creation when model is provided
+    if model is not None:
+        if optimizer is None:
+            # Initialize default optimizer
+            optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+        elif isinstance(optimizer, str):
+            # Initialize optimizer from string
+            if optimizer.upper() not in Optimizer.__members__:
+                raise ValueError(
+                    "Unsupported optimizer! Choose from: "
+                    + ", ".join([e.name for e in Optimizer])
+                )
 
-    #  if the model is provided and the optimizer is a string, initialize the optimizer based on the string
-    if model is not None and isinstance(optimizer, str):
-        if optimizer.upper() not in Optimizer.__members__:
-            raise ValueError(
-                "Unsupported optimizer! Choose from: "
-                + ", ".join([e.name for e in Optimizer])
-            )
-
-        optimizer_class = Optimizer[optimizer.upper()].value
-        optimizer = optimizer_class(model.parameters(), lr=learning_rate, **kwargs)
+            optimizer_class = Optimizer[optimizer.upper()].value
+            optimizer = optimizer_class(model.parameters(), lr=learning_rate, **kwargs)
 
     return cast(optim.Optimizer, optimizer)
 
