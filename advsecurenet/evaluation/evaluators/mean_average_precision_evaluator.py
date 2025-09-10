@@ -57,34 +57,6 @@ class MeanAveragePrecisionEvaluator(BaseEvaluator):
                 })
         return results
 
-    def _process_and_update(self, metric_builder, predictions, ground_truths):
-        distributed = dist.is_available() and dist.is_initialized()
-        for pred_idx, (pred, gt) in enumerate(zip(predictions, ground_truths)):
-            try:
-                # Process ground truth data
-                gt_boxes = gt["boxes"]
-                gt_labels = gt["labels"]
-                pred_boxes = pred["boxes"]
-                pred_labels = pred["labels"]
-                pred_scores = pred["scores"]
-                # Format for the library: [xmin, ymin, xmax, ymax, class_id, confidence]
-                preds_formatted = [
-                    list(b) + [int(l), float(s)]
-                    for b, l, s in zip(pred_boxes, pred_labels, pred_scores)
-                ]
-                gts_formatted = [
-                    list(b) + [int(l), 0, 0] for b, l in zip(gt_boxes, gt_labels)
-                ]
-                entry = (np.array(preds_formatted), np.array(gts_formatted))
-                if metric_builder is self.clean_metric:
-                    self._clean_entries.append(entry)
-                else:
-                    self._adv_entries.append(entry)
-                if not distributed:
-                    metric_builder.add(entry[0], entry[1])
-            except Exception as e:
-                warnings.warn(f"Error processing prediction {pred_idx}: {e}")
-
     def tensor_to_numpy_images(self, images: torch.Tensor):
         # images: [B, C, H, W], values in [0, 1] or [0, 255]
         imgs = []
@@ -121,6 +93,34 @@ class MeanAveragePrecisionEvaluator(BaseEvaluator):
             imgs.append(t.to(device, non_blocking=True))
         return imgs
 
+    def _process_and_update(self, metric_builder, predictions, ground_truths):
+        distributed = dist.is_available() and dist.is_initialized()
+        for pred_idx, (pred, gt) in enumerate(zip(predictions, ground_truths)):
+            try:
+                # Process ground truth data
+                gt_boxes = gt["boxes"]
+                gt_labels = gt["labels"]
+                pred_boxes = pred["boxes"]
+                pred_labels = pred["labels"]
+                pred_scores = pred["scores"]
+                # Format for the library: [xmin, ymin, xmax, ymax, class_id, confidence]
+                preds_formatted = [
+                    list(b) + [int(l), float(s)]
+                    for b, l, s in zip(pred_boxes, pred_labels, pred_scores)
+                ]
+                gts_formatted = [
+                    list(b) + [int(l), 0, 0] for b, l in zip(gt_boxes, gt_labels)
+                ]
+                entry = (np.array(preds_formatted), np.array(gts_formatted))
+                if metric_builder is self.clean_metric:
+                    self._clean_entries.append(entry)
+                else:
+                    self._adv_entries.append(entry)
+                if not distributed:
+                    metric_builder.add(entry[0], entry[1])
+            except Exception as e:
+                warnings.warn(f"Error processing prediction {pred_idx}: {e}")
+
     def update(
         self,
         model: BaseModel,
@@ -139,8 +139,7 @@ class MeanAveragePrecisionEvaluator(BaseEvaluator):
         """
         model.eval()
         device = next(model.parameters()).device
-        #is_custom_yolov5 = bool(getattr(model.model, "IS_CUSTOM_YOLOV5", False)) # yolov5 expects numpy
-        is_custom_yolov5 = True
+        is_custom_yolov5 = bool(getattr(model.model, "IS_CUSTOM_YOLOV5", False)) # yolov5 expects numpy
         if is_custom_yolov5:
             with torch.no_grad():
                 # 1. Run predictions on original and adversarial images

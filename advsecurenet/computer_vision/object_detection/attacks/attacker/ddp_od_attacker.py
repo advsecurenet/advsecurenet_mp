@@ -52,27 +52,24 @@ class DDPODAttacker(DDPBaseTask):
             visible_devices = os.environ.get("CUDA_VISIBLE_DEVICES", "all")
             current_device = torch.cuda.current_device() if torch.cuda.is_available() else "cpu"
             print(f"[Rank {dist.get_rank()}] CUDA_VISIBLE_DEVICES={visible_devices}, current_device={current_device}")
-        
         shard_indices = None
         if self._sampler is not None:
             # epoch fixed (0) for reproducibility; if shuffle True sampler uses this epoch seed
             self._sampler.set_epoch(0)
             try:
-                # Capture the exact order this rank will iterate (works for shuffle True/False)
                 shard_indices = list(iter(self._sampler))
             except Exception:
                 shard_indices = None
-        # Suppress verbose logging on non-rank0 ranks (keep warnings+errors)
+        # Suppress verbose logging on non-rank0 ranks
         if dist.is_initialized() and dist.get_rank() != 0:
             logging.getLogger().setLevel(logging.WARNING)
         result = self.attacker.execute()
-        # Persist adversarial images locally per rank if requested (torch.save for tensors)
         if self.config.return_adversarial_images and result:
             try:
                 temp_dir = os.environ.get("ADV_OD_TMP", self.TEMP_DIR)
                 if dist.get_rank() == 0 and not os.path.exists(temp_dir):
                     os.makedirs(temp_dir, exist_ok=True)
-                dist.barrier()  # ensure directory exists for all
+                dist.barrier()
                 out_path = os.path.join(temp_dir, f"adv_images_rank{dist.get_rank()}.pt")
                 # Flatten result to count images
                 flat_count = 0
@@ -95,11 +92,6 @@ class DDPODAttacker(DDPBaseTask):
 
     @staticmethod
     def gather_results(world_size: int) -> list:
-        """Gather per-rank stored adversarial images into a single list (rank0 only).
-
-        Looks in ADV_OD_TMP env dir or default TEMP_DIR.
-        Cleans up files and removes directory if empty at the end.
-        """
         temp_dir = os.environ.get("ADV_OD_TMP", DDPODAttacker.TEMP_DIR)
         gathered = []
         shards = []  # collect (indices, images)
@@ -127,14 +119,12 @@ class DDPODAttacker(DDPBaseTask):
                     pass
         # If all shards have per-sample indices and counts match, restore ordering.
         if shards and all(s[0] is not None for s in shards):
-            # Compute total number of images (flatten batches)
             total_images = 0
             flat_shards = []  # list of (indices, flat_images)
             for idxs, imgs in shards:
-                # Flatten list of batch tensors into list of image tensors
                 flat = []
                 for batch in imgs:
-                    if hasattr(batch, "shape") and len(batch.shape) == 4:  # batch tensor
+                    if hasattr(batch, "shape") and len(batch.shape) == 4:
                         for img in batch:
                             flat.append(img)
                     else:
@@ -149,7 +139,6 @@ class DDPODAttacker(DDPBaseTask):
                     for index, img in zip(idxs, flat):
                         if 0 <= index < total_indices:
                             ordered[index] = img
-                # Append in order, skipping any None holes
                 for img in ordered:
                     if img is not None:
                         gathered.append(img)
@@ -158,7 +147,6 @@ class DDPODAttacker(DDPBaseTask):
                 for _, flat in flat_shards:
                     gathered.extend(flat)
         else:
-            # simple concatenation if indices unavailable
             for idxs, imgs in shards:
                 for batch in imgs:
                     if hasattr(batch, "shape") and len(batch.shape) == 4:
@@ -166,7 +154,6 @@ class DDPODAttacker(DDPBaseTask):
                             gathered.append(img)
                     else:
                         gathered.append(batch)
-        # attempt to remove temp dir
         try:
             if os.path.isdir(temp_dir) and not os.listdir(temp_dir):
                 os.rmdir(temp_dir)

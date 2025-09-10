@@ -212,9 +212,6 @@ class CLIODAttacker:
         return data
 
     def _sample_data_if_required(self, all_data):
-        """
-        Sample data from the dataset if random_sample_size is specified in the config.
-        """
         sample_size = self._config.dataset.random_sample_size
         if sample_size is not None and sample_size > 0:
             logger.info("Sampling %d data points from the dataset.", sample_size)
@@ -222,16 +219,6 @@ class CLIODAttacker:
         return all_data
 
     def _sample_data(self, data, sample_size):
-        """
-        Sample data from the dataset.
-
-        Args:
-            data (torch.utils.data.Dataset): The dataset.
-            sample_size (int): The sample size.
-
-        Returns:
-            torch.utils.data.Subset: The sampled data.
-        """
         if len(data) < sample_size:
             logger.warning(
                 "The dataset size (%d) is smaller than the requested sample size (%d). Using the entire dataset.",
@@ -239,7 +226,6 @@ class CLIODAttacker:
                 sample_size,
             )
             sample_size = len(data)
-
         random_samples = min(sample_size, len(data))
         lengths = [random_samples, len(data) - random_samples]
         subset, _ = random_split(data, lengths)
@@ -253,5 +239,4 @@ class CLIODAttacker:
         Returns:
             list[str]: List of evaluator names.
         """
-        # Get evaluators from CLI kwargs (same as image classification attacks)
         return self._kwargs.get("evaluators", ["mean_average_precision"])
