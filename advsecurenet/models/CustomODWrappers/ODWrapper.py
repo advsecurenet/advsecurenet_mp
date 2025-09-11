@@ -1,6 +1,5 @@
 import numpy as np
 import torch
-from torch.nn import functional as F
 from abc import ABC, abstractmethod
 
 
@@ -35,6 +34,14 @@ class ODWrapper(ABC):
             if label_names_list is not None:
                 dictionary["label_names"] = np.hstack(label_names_list)
         return dictionary
+    
+    @abstractmethod
+    def prepare_training_inputs(self, images: torch.Tensor, targets: list[dict]):
+        pass
+
+    @abstractmethod
+    def extract_total_loss(self, model_output) -> torch.Tensor:
+        pass
 
     @abstractmethod
     def compute_object_vanishing_gradient(

@@ -51,7 +51,6 @@ class ATCLITrainer(CLITrainer):
         Public method to run adversarial training.
         """
         click.secho("Starting Adversarial Training", fg="green")
-
         if self.config.device.use_ddp:
             self._execute_ddp_training()
         else:
@@ -78,14 +77,10 @@ class ATCLITrainer(CLITrainer):
         # Default: classification (backward compatible)
         return "classification"
 
-    def _select_trainer_cls(self, task: str, ddp: bool):
+    def _select_trainer_cls(self, task: str):
         if task == "detection":
-            ddp = False  # DDP not supported for detection yet
             return AdversarialODTraining
-        else:
-            if ddp:
-                return DDPAdversarialTraining
-            return AdversarialTraining
+        return AdversarialTraining
 
     def _prepare_attacks(self) -> list[AdversarialAttack]:
         """
@@ -142,12 +137,12 @@ class ATCLITrainer(CLITrainer):
         return models
 
     def _prepare_training_environment(self) -> AdversarialTrainingConfig:
-
         # configure the model that will be adversarially trained
         model = self._initialize_model()
         task = self._infer_task(model)
         is_od = task == "detection"
         train_loader = self._prepare_dataloader(is_object_detection=is_od)
+        # --------------- TODO - remove this hack before merging ------------------------
         try:
             rs = getattr(self.config.dataset, "random_sample_size", None)
             if rs and rs > 0 and len(train_loader.dataset) > rs:
@@ -165,6 +160,7 @@ class ATCLITrainer(CLITrainer):
                 )
         except Exception:
             pass
+        # --------------- TODO - remove this hack before merging ------------------------
         train_config = self._prepare_train_config(model, train_loader)
 
         attacks = self._prepare_attacks()
@@ -218,7 +214,7 @@ class ATCLITrainer(CLITrainer):
         """
         config = self._prepare_training_environment()
         task = self._infer_task(config.model, config.train_loader)
-        TrainerCls = self._select_trainer_cls(task, ddp=False)
+        TrainerCls = self._select_trainer_cls(task)
         click.secho(f"Task detected: {task}. Using {TrainerCls.__name__}.", fg="blue")
         adversarial_training = TrainerCls(config)
         adversarial_training.train()

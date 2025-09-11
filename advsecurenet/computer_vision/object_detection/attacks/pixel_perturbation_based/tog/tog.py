@@ -266,6 +266,29 @@ class TOG(AdversarialAttack):
         x_adv = np.clip(x_query + eta, 0.0, 1.0)
         return x_adv
 
+
+    def _resolve_num_classes(self, initial_detections):
+        inf = getattr(self._object_detector, "inference_model", None)
+        for obj in [inf, getattr(inf, "model", None)]:
+            if obj is None:
+                continue
+            names = getattr(obj, "names", None)
+            if isinstance(names, (list, tuple)) and len(names) > 0:
+                return len(names)
+        for attr_owner in [self._object_detector, inf]:
+            if attr_owner is None:
+                continue
+            nc = getattr(attr_owner, "num_classes", None)
+            if isinstance(nc, int) and nc > 0:
+                return nc
+        detected = [
+            int(det["labels"].max())
+            for det in initial_detections
+            if det.get("labels") is not None and len(det["labels"]) > 0
+        ]
+        return (max(detected) + 1) if detected else 1
+
+
     def _tog_vanishing(
         self,
         x_query: np.ndarray,
@@ -373,7 +396,7 @@ class TOG(AdversarialAttack):
         )
         initial_detections = self._object_detector.predict(x_tensor)
         x_adv = self._initialise_x_adv(x_query, eps)
-        num_classes = len(self._object_detector.inference_model.model.names)
+        num_classes = self._resolve_num_classes(initial_detections)
         targets = self.generate_mislabeling_targets(
             initial_detections, num_classes, mode
         )

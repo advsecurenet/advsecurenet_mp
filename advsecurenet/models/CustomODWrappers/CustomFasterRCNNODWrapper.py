@@ -1,5 +1,6 @@
 import torch
-import torch.nn.functional as F
+import torch.distributed as dist
+import torch.nn as nn
 import numpy as np
 from advsecurenet.models.CustomODWrappers.ODWrapper import ODWrapper
 from torchvision.models.detection import FasterRCNN_ResNet50_FPN_V2_Weights
@@ -35,6 +36,21 @@ class CustomFasterRCNNODWrapper(ODWrapper):
             self.num_classes = 91  # COCO has 90 classes + background
         self.categories = FasterRCNN_ResNet50_FPN_V2_Weights.DEFAULT.meta["categories"]
         self.expects_numpy_images = False
+        if self._should_freeze_bn():
+            self._freeze_bn()
+
+
+    def _freeze_bn(self):
+        for m in self.model.modules():
+            if isinstance(m, nn.modules.batchnorm._BatchNorm):
+                m.eval()
+                m.track_running_stats = False
+                for p in m.parameters():
+                    p.requires_grad = False
+
+
+    def _should_freeze_bn(self):
+        return dist.is_available() and dist.is_initialized() and dist.get_world_size() > 1
 
 
     def _empty_target_np(self):
@@ -123,6 +139,8 @@ class CustomFasterRCNNODWrapper(ODWrapper):
     def _get_losses(self, x, y):
         """Run model in train mode to get the loss dict."""
         self.model.train()
+        if self._should_freeze_bn():
+            self._freeze_bn()
         # build list[Tensor(C,H,W)] float32 in [0,1]
         imgs = []
         if isinstance(x, np.ndarray):
@@ -149,6 +167,8 @@ class CustomFasterRCNNODWrapper(ODWrapper):
         x_tensor.requires_grad_(True)
         imgs = [x_tensor[i] for i in range(x_tensor.shape[0])]
         loss_dict = self.model(imgs, targets)
+        if "loss_total" not in loss_dict:
+            loss_dict["loss_total"] = sum(v for k, v in loss_dict.items() if k.startswith("loss_"))
         return loss_dict, x_tensor
 
 
@@ -217,6 +237,8 @@ class CustomFasterRCNNODWrapper(ODWrapper):
         x_torch.requires_grad_(True)
         if training:
             self.model.train()
+            if self._should_freeze_bn():
+                self._freeze_bn()
         else:
             self.model.eval()        
         predictions = self.model(x_torch)
@@ -256,6 +278,8 @@ class CustomFasterRCNNODWrapper(ODWrapper):
         x_torch.requires_grad_(True)
         if training:
             self.model.train()
+            if self._should_freeze_bn():
+                self._freeze_bn()
         y_list = []
         for det in detections:
             y_list.append(
@@ -286,6 +310,8 @@ class CustomFasterRCNNODWrapper(ODWrapper):
         x_torch.requires_grad_(True)
         if training:
             self.model.train()
+            if self._should_freeze_bn():
+                self._freeze_bn()
         else:
             self.model.eval()
         predictions = self.model(x_torch)
@@ -324,6 +350,8 @@ class CustomFasterRCNNODWrapper(ODWrapper):
         x_torch.requires_grad_(True)
         if training:
             self.model.train()
+            if self._should_freeze_bn():
+                self._freeze_bn()
         if not target_labels_list:
             return np.zeros_like(x)
         loss_components, _ = self._get_losses(x=x_torch, y=target_labels_list)
@@ -342,3 +370,20 @@ class CustomFasterRCNNODWrapper(ODWrapper):
         if self.clip_values is not None:
             grads = grads / self.clip_values[1]
         return grads 
+
+
+    # Adversarial training methods
+
+    def prepare_training_inputs(self, images: torch.Tensor, targets: list[dict]):
+        img_list = [images[i] for i in range(images.size(0))]
+        for t in img_list:
+            t.requires_grad_(True)
+        return img_list, targets
+
+
+    def extract_total_loss(self, model_output):
+        if not isinstance(model_output, dict):
+            raise RuntimeError("FasterRCNN expected dict output")
+        if "loss_total" in model_output:
+            return model_output["loss_total"]
+        return sum(v for k, v in model_output.items() if k.startswith("loss_"))

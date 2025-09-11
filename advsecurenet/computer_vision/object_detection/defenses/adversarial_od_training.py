@@ -1,50 +1,19 @@
 import logging
 import random
 from typing import Optional, Union
+import torch
+import numpy as np
 
 from advsecurenet.computer_vision.object_detection.attacks.pixel_perturbation_based.tog.tog_attack_type import TOGAttackType
-import torch
-from torch.utils.data import DataLoader
-from tqdm.auto import tqdm
-
-from advsecurenet.computer_vision.image_classification.attacks import AdversarialAttack
+from advsecurenet.computer_vision.base.adversarial_attack import AdversarialAttack
+from advsecurenet.models.detector_factory import get_object_detector, infer_wrapper_name
 from advsecurenet.models.base_model import BaseModel
 from advsecurenet.shared.types.configs.defense_configs.adversarial_training_config import (
     AdversarialTrainingConfig,
 )
 from advsecurenet.computer_vision.base.base_adversarial_training import BaseAdversarialTraining
+
 logger = logging.getLogger(__name__)
-
-
-def coco_targets_to_yolov5(targets_dict, input_shape, device):
-    # input_shape: (B, C, H, W)
-    height = input_shape[2]
-    width  = input_shape[3]
-    boxes_list  = targets_dict["boxes"]
-    labels_list = targets_dict["labels"]
-    labels_xcycwh_list = []
-    for i, (boxes, labels) in enumerate(zip(boxes_list, labels_list)):
-        boxes  = boxes.to(device).float()
-        labels = labels.to(device).long()
-        N = boxes.shape[0]
-        if N == 0:
-            # no targets in this image → append an empty (0,6) tensor so cat() works
-            labels_xcycwh_list.append(torch.zeros((0, 6), device=device))
-            continue
-        lab = torch.zeros((N, 6), device=device)
-        lab[:, 0] = i                       # image index
-        lab[:, 1] = labels                  # class id
-        # x1y1x2y2 → normalized x_center,y_center,w,h in [0,1]
-        x1, y1, x2, y2 = boxes.T
-        lab[:, 2] = (x1 + x2) / 2 / width
-        lab[:, 3] = (y1 + y2) / 2 / height
-        lab[:, 4] = (x2 - x1)     / width
-        lab[:, 5] = (y2 - y1)     / height
-        labels_xcycwh_list.append(lab)
-    if len(labels_xcycwh_list) == 0:
-        return torch.zeros((0, 6), device=device)
-    return torch.cat(labels_xcycwh_list, dim=0)
-
 
 
 class AdversarialODTraining(BaseAdversarialTraining):
@@ -62,6 +31,16 @@ class AdversarialODTraining(BaseAdversarialTraining):
         self._trainable = getattr(self._model, "model", self._model)
         for p in self._trainable.parameters():
             p.requires_grad_(True)
+        wrapper_name = (
+            getattr(self._config, "detector_wrapper", None)
+            or infer_wrapper_name(self._trainable)
+        )
+        self._wrapper_name = wrapper_name
+        try:
+            self._od_wrapper = get_object_detector(wrapper_name)
+            self._od_wrapper.model = self._trainable
+        except Exception as e:
+            raise RuntimeError(f"Failed to load detector wrapper '{wrapper_name}': {e}") from e
         if not any(g["params"] for g in self._optimizer.param_groups):
             kwargs = self._config.optimizer_kwargs or {}
             self._optimizer = self._get_optimizer(
@@ -132,7 +111,6 @@ class AdversarialODTraining(BaseAdversarialTraining):
         target_images: Optional[torch.Tensor] = None,
         target_targets: Optional[list[dict]] = None,
     ) -> tuple[torch.Tensor, list[dict]]:
-        model = random.choice(self.config.models).to(self._device).eval()
         attack = random.choice(self.config.attacks)
         was_training = self._trainable.training
         self._trainable.eval()
@@ -178,8 +156,7 @@ class AdversarialODTraining(BaseAdversarialTraining):
              or not hasattr(attack._object_detector, "predict")
          ):
             try:
-                from advsecurenet.models.detector_factory import get_object_detector
-                det_name = attack._object_detector if isinstance(attack._object_detector, str) else "yolov5"
+                det_name = attack._object_detector if isinstance(attack._object_detector, str) else self._wrapper_name
                 detector_wrapper = get_object_detector(det_name.lower())
                 underlying = getattr(self._trainable, "model", self._trainable)
                 detector_wrapper.model = underlying
@@ -199,21 +176,24 @@ class AdversarialODTraining(BaseAdversarialTraining):
                 )
             # Applying the cached patch doesn't need grads
             images_np = images.detach().cpu().numpy()
-            patched_np = attack.apply_patch(
+            patched = attack.apply_patch(
                 x=images_np,
                 patch_external=attack._optimized_patch.detach().cpu().numpy(),
                 random_location=True,
             )
-            return torch.from_numpy(patched_np).to(self._device)
-
-        if attack_name == "TOG":
+            if isinstance(patched, torch.Tensor):
+                return patched.to(self._device)
+            elif isinstance(patched, np.ndarray):
+                return torch.from_numpy(patched).to(self._device)
+            else:
+                raise TypeError(f"Unexpected patched output type: {type(patched)}")
+        elif attack_name == "TOG":
             images_np = images.detach().cpu().numpy()
             tog_variant = getattr(attack, "attack_type", TOGAttackType.UNTARGETED)
             if isinstance(tog_variant, str):
                 tog_variant = TOGAttackType(tog_variant.lower())
             adv_np = attack.attack(x=images_np, tog_variant=tog_variant, tog_mislabeling_mode=getattr(attack, "tog_mislabeling_mode", "ml"))
             return torch.from_numpy(adv_np).to(self._device)
-
         # Default: leave grads enabled so gradient-based attacks work
         adv_images = attack.attack(model, images, targets)
         return adv_images.detach().to(self._device)
@@ -228,7 +208,6 @@ class AdversarialODTraining(BaseAdversarialTraining):
             )
             loss = self._run_batch(combined_images, combined_targets)
             total_loss += loss
-
         total_loss /= self._get_loss_divisor()
         self._log_loss(epoch, total_loss)
 
@@ -239,15 +218,11 @@ class AdversarialODTraining(BaseAdversarialTraining):
         """
         self._trainable.train()
         self._optimizer.zero_grad()
-        yolo_targets = coco_targets_to_yolov5(targets, input_shape=source.shape, device=source.device)
-        source.requires_grad = True
-        output = self._trainable(source, yolo_targets)
-        # Use the model's loss dict
-        if isinstance(output, dict) and "loss_total" in output:
-            loss = output["loss_total"]
-            loss = loss.squeeze()
-        else:
-            raise RuntimeError("OD model did not return a loss dict with 'loss_total'.")
+        if self._od_wrapper is None:
+            raise RuntimeError("No OD wrapper resolved for training.")
+        model_inputs, model_targets = self._od_wrapper.prepare_training_inputs(source, targets)
+        output = self._trainable(model_inputs, model_targets)
+        loss = self._od_wrapper.extract_total_loss(output)
         loss.backward()
         self._optimizer.step()
         if self._scheduler:

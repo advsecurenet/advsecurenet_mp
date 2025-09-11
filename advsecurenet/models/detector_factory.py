@@ -59,3 +59,20 @@ def get_object_detector(name: str, config: dict = None, existing_model=None):
     # Add more mappings as needed
     else:
         raise ValueError(f"Unknown object detector: {name}")
+    
+DETECTOR_CLASS_TO_WRAPPER = {
+    "customyolov5model": "yolov5",
+    "customfasterrcnnmodel": "fasterrcnn_resnet50_fpn",
+}
+
+def infer_wrapper_name(model) -> str:
+    if hasattr(model, "_detector_wrapper"):
+        return getattr(model, "_detector_wrapper")
+    cls_name = model.__class__.__name__.lower()
+    for key, wrapper in DETECTOR_CLASS_TO_WRAPPER.items():
+        if key in cls_name:
+            return wrapper
+    raise ValueError(
+        f"Cannot infer detector wrapper for model class '{model.__class__.__name__}'. "
+        "Add 'detector_wrapper' to adversarial_training config."
+    )

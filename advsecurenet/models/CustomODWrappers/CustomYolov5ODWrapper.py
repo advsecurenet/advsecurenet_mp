@@ -1,14 +1,10 @@
 import torch
-import torchvision
 import torch.nn.functional as F
-import yolov5
-from yolov5.models.common import AutoShape
-from unittest.mock import patch
-from yolov5.utils.general import xywh2xyxy
+import torch.distributed as dist
+import torch.nn as nn
 import numpy as np
 from torch.utils.data import TensorDataset, DataLoader
 from advsecurenet.models.CustomODWrappers.ODWrapper import ODWrapper
-from pathlib import Path
 import warnings
 from contextlib import contextmanager
 
@@ -59,6 +55,19 @@ class CustomYolov5ODWrapper(ODWrapper):
         self.attack_losses = attack_losses
         self.weight_dict = weight_dict
         self.expects_numpy_images = True
+        if self._should_freeze_bn():
+            self._freeze_bn()
+
+    def _should_freeze_bn(self):
+        return dist.is_available() and dist.is_initialized() and dist.get_world_size() > 1
+
+    def _freeze_bn(self):
+        for m in self.model.modules():
+            if isinstance(m, nn.modules.batchnorm._BatchNorm):
+                m.eval()
+                m.track_running_stats = False
+                for p in m.parameters():
+                    p.requires_grad = False
 
     def _translate_labels(
         self, labels: list[dict[str, "torch.Tensor"]]
@@ -164,7 +173,8 @@ class CustomYolov5ODWrapper(ODWrapper):
 
     def _get_losses(self, x, y):
         self.model.train()
-        # 1) Ensure x is a torch.Tensor on the right device
+        if self._should_freeze_bn():
+            self._freeze_bn() 
         if isinstance(x, np.ndarray):
             # x shape is (B, C, H, W), values already in [0..255] or [0..1]
             x_preprocessed = torch.from_numpy(x).float().to(self.device)
@@ -279,6 +289,8 @@ class CustomYolov5ODWrapper(ODWrapper):
         x_pre.requires_grad_(True)
         if training:
             self.model.train()  # ensure we get raw preds, not autoshaped outputs
+            if self._should_freeze_bn():
+                self._freeze_bn()
         preds = (
             self.model(x_pre)[0] if training else self.model.predict_raw(x_pre)[0]
         )  # list of 3 tensors: (bs, na, gh, gw, 5+nc)
@@ -317,6 +329,8 @@ class CustomYolov5ODWrapper(ODWrapper):
         x_torch.requires_grad_(True)
         if training:
             self.model.train()  # Set model to training mode for loss calculation
+            if self._should_freeze_bn():
+                self._freeze_bn()
         y_list = []
         for det in detections:
             y_list.append(
@@ -348,6 +362,8 @@ class CustomYolov5ODWrapper(ODWrapper):
         x_pre.requires_grad_(True)
         if training:
             self.model.train()
+            if self._should_freeze_bn():
+                self._freeze_bn()
         preds = self.model(x_pre)[0] if training else self.model.predict_raw(x_pre)[0]
         loss = torch.tensor(0.0, device=self.device, dtype=torch.float32)
         for p in preds:  # Iterate over batch items
@@ -382,6 +398,8 @@ class CustomYolov5ODWrapper(ODWrapper):
         x_torch.requires_grad_(True)
         if training:
             self.model.train()
+            if self._should_freeze_bn():
+                self._freeze_bn()
         if not target_labels_list:
             return np.zeros_like(x)
         # Temporarily modify loss weights to isolate classification loss
@@ -402,3 +420,44 @@ class CustomYolov5ODWrapper(ODWrapper):
         if self.clip_values is not None:
             grads = grads / self.clip_values[1]
         return grads
+    
+   # Adversarial training methods
+    def _convert_targets(self, targets, batch_shape) -> torch.Tensor:
+        if isinstance(targets, dict):
+            # dict-of-lists -> list[dict]
+            targets = [
+                {"boxes": targets["boxes"][i], "labels": targets["labels"][i]}
+                for i in range(len(targets["boxes"]))
+            ]
+        assert isinstance(targets, list), "targets must be list[dict] or dict-of-lists"
+        if len(targets) == 0:
+            return torch.zeros((0, 6), device=self.device)
+        _, _, H, W = batch_shape
+        pieces = []
+        for img_idx, td in enumerate(targets):
+            boxes = td["boxes"].to(self.device).float()
+            labels = td["labels"].to(self.device).long()
+            if boxes.numel() == 0:
+                pieces.append(torch.zeros((0, 6), device=self.device))
+                continue
+            x1, y1, x2, y2 = boxes.unbind(1)  # (N,)
+            tgt = torch.zeros((boxes.size(0), 6), device=self.device)
+            tgt[:, 0] = img_idx
+            tgt[:, 1] = labels
+            tgt[:, 2] = (x1 + x2) * 0.5 / W
+            tgt[:, 3] = (y1 + y2) * 0.5 / H
+            tgt[:, 4] = (x2 - x1) / W
+            tgt[:, 5] = (y2 - y1) / H
+            pieces.append(tgt)
+        return torch.cat(pieces, dim=0) if pieces else torch.zeros((0, 6), device=self.device)
+   
+    def prepare_training_inputs(self, images: torch.Tensor, targets: list[dict]):
+        images = images.to(self.device)
+        images.requires_grad_(True)
+        yolo_targets = self._convert_targets(targets, images.shape)
+        return images, yolo_targets
+
+    def extract_total_loss(self, model_output):
+        if isinstance(model_output, dict) and "loss_total" in model_output:
+            return model_output["loss_total"].squeeze()
+        raise RuntimeError("YOLOv5 output missing loss_total")
