@@ -16,6 +16,7 @@ setup(
     author_email="melihcatal@gmail.com",
     url="https://github.com/melihcatal/advsecurenet",
     packages=find_packages(),
+    package_dir={"": "."},  
     include_package_data=True,
     package_data={"": ["*.yml"]},
     python_requires=">=3.10",
