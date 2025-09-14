@@ -96,8 +96,10 @@ class HuggingFaceModel(BaseModel):
         try:
             ManualModelClass = getattr(transformers, model_class_name_override, None)
             if ManualModelClass is not None and (
-                issubclass(ManualModelClass, torch.nn.Module) or 
-                hasattr(ManualModelClass, 'from_pretrained')  # Check for Hugging Face Auto classes
+                issubclass(ManualModelClass, torch.nn.Module)
+                or hasattr(
+                    ManualModelClass, "from_pretrained"
+                )  # Check for Hugging Face Auto classes
             ):
                 return ManualModelClass, f"{model_class_name_override} (Manual)"
             else:
@@ -140,8 +142,10 @@ class HuggingFaceModel(BaseModel):
             try:
                 InferredModelClass = getattr(transformers, arch_name, None)
                 if InferredModelClass is not None and (
-                    issubclass(InferredModelClass, torch.nn.Module) or 
-                    hasattr(InferredModelClass, 'from_pretrained')  # Check for Hugging Face Auto classes
+                    issubclass(InferredModelClass, torch.nn.Module)
+                    or hasattr(
+                        InferredModelClass, "from_pretrained"
+                    )  # Check for Hugging Face Auto classes
                 ):
                     ModelClass = InferredModelClass
                     determined_class_name = f"{arch_name} (Inferred)"
