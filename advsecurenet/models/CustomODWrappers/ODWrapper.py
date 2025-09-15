@@ -24,7 +24,8 @@ class ODWrapper(ABC):
         boxes_list = [predictions["boxes"][i] for i in indices]
         scores_list = [predictions["scores"][i] for i in indices]
         labels_list = [predictions["labels"][i] for i in indices]
-        if predictions["label_names"] is not None:
+        label_names_list = None
+        if "label_names" in predictions and predictions["label_names"] is not None:
             label_names_list = [predictions["label_names"][i] for i in indices]
         dictionary = {}
         if boxes_list:
