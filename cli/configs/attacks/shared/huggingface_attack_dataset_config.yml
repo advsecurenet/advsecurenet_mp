@@ -1,0 +1,14 @@
+# --- HuggingFace Attack Dataset Configurations ---
+dataset_name: huggingface
+identifier: uoft-cs/cifar10
+num_classes: 10
+load_splits:
+  - test
+constructor_args:
+  input_key: img
+  target_key: label
+dataset_part: test
+train_dataset_path: null
+test_dataset_path: null
+random_sample_size: null
+preprocessing: !include ../../shared/preprocess_config.yml

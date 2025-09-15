@@ -541,3 +541,142 @@ def lots(config, **kwargs):
     from cli.logic.attack.attack import cli_attack
 
     cli_attack("LOTS", config, **kwargs)
+
+
+@attack.command()
+@common_attack_options
+@click.option(
+    "--patch-shape",
+    default=None,
+    type=click.STRING,
+    help="Shape of the adversarial patch, e.g., '3,200,200' for (channels, height, width).",
+)
+@click.option(
+    "--learning-rate",
+    default=None,
+    type=click.FLOAT,
+    help="Learning rate for patch optimization.",
+)
+@click.option(
+    "--max-iter",
+    default=None,
+    type=click.INT,
+    help="Maximum number of optimization iterations.",
+)
+@click.option(
+    "--target-label",
+    default=None,
+    type=click.INT,
+    help="Target label for targeted attack version.",
+)
+def dpatch(config, **kwargs):
+    """
+    Command to execute a DPATCH adversarial patch attack for object detection.
+
+    Args:
+        config (str, optional): Path to the attack configuration yml file.
+        model_name (str): The name of the object detection model to be attacked.
+        trained_on (str): Dataset on which the model was trained.
+        model_weights (str): Path to model weights.
+        device (str, optional): Device for executing attacks.
+        dataset_name (str, optional): Dataset for the attack.
+        custom_data_dir (str, optional): Path to custom dataset.
+        dataset_part (str, optional): Which part of dataset to use for attack.
+        random_samples (int, optional): Number of random samples for attack.
+        batch_size (int, optional): Batch size for attack execution.
+        verbose (bool, optional): Whether to print progress of the attack.
+        save_result_images (bool, optional): Whether to save the adversarial images.
+        result_images_dir (str, optional): Directory to save the adversarial images.
+        patch_shape (str, optional): Shape of the adversarial patch, e.g., '3,200,200'.
+        learning_rate (float, optional): Learning rate for patch optimization.
+        max_iter (int, optional): Maximum number of optimization iterations.
+        target_label (int, optional): Target label for targeted attack version.
+
+    Examples:
+
+        >>> advsecurenet attack dpatch --model-name=yolov5 --trained-on=coco --model-weights=yolov5_coco.pth --patch-shape=3,200,200 --learning-rate=1.99 --max-iter=1000 --batch-size=16 --verbose True
+        or
+        >>> advsecurenet attack dpatch --config=dpatch_attack_config.yml
+
+    Notes:
+
+        If a configuration file is provided, matching CLI arguments will override the configuration file. The CLI arguments have priority.
+        Configuration file attributes must match the CLI arguments. For example, if the configuration file has a "model_name" attribute, the CLI argument must be named "model_name" as well.
+    """
+    from cli.logic.attack.attack import cli_attack
+
+    cli_attack("DPATCH", config, **kwargs)
+
+
+@attack.command()
+@common_attack_options
+@click.option(
+    "--max-iter",
+    default=None,
+    type=click.INT,
+    help="Maximum number of optimization iterations.",
+)
+@click.option(
+    "--eps",
+    default=None,
+    type=click.FLOAT,
+    help="Maximum perturbation (epsilon) for the attack.",
+)
+@click.option(
+    "--eps-iter",
+    default=None,
+    type=click.FLOAT,
+    help="Step size (epsilon per iteration) for the attack.",
+)
+@click.option(
+    "--attack-type",
+    default=None,
+    type=click.Choice(
+        ["vanishing", "untargeted", "mislabeling", "fabrication"], case_sensitive=False
+    ),
+    help="TOG attack type: vanishing, untargeted, or mislabeling.",
+)
+@click.option(
+    "--mislabeling-mode",
+    default=None,
+    type=click.Choice(["ml", "ll"], case_sensitive=False),
+    help="Mislabeling mode for TOG: ml (most likely) or ll (least likely).",
+)
+def tog(config, **kwargs):
+    """
+    Command to execute a TOG adversarial attack for object detection.
+
+    Args:
+        config (str, optional): Path to the attack configuration yml file.
+        model_name (str): The name of the object detection model to be attacked.
+        trained_on (str): Dataset on which the model was trained.
+        model_weights (str): Path to model weights.
+        device (str, optional): Device for executing attacks.
+        dataset_name (str, optional): Dataset for the attack.
+        custom_data_dir (str, optional): Path to custom dataset.
+        dataset_part (str, optional): Which part of dataset to use for attack.
+        random_samples (int, optional): Number of random samples for attack.
+        batch_size (int, optional): Batch size for attack execution.
+        verbose (bool, optional): Whether to print progress of the attack.
+        save_result_images (bool, optional): Whether to save the adversarial images.
+        result_images_dir (str, optional): Directory to save the adversarial images.
+        max_iter (int, optional): Maximum number of optimization iterations.
+        eps (float, optional): Maximum perturbation (epsilon) for the attack.
+        eps_iter (float, optional): Step size (epsilon per iteration) for the attack.
+        attack_type (str, optional): TOG attack type: vanishing, untargeted, fabrication or mislabeling.
+        mislabeling_mode (str, optional): Mislabeling mode for TOG mislabeling: ml (most likely) or ll (least likely).
+
+    Examples:
+
+        >>> advsecurenet attack tog --model-name=yolov5 --trained-on=coco --model-weights=yolov5_coco.pth --max-iter=70 --eps=0.0627 --eps-iter=0.0078 --batch-size=16 --verbose True
+        or
+        >>> advsecurenet attack tog --config=tog_attack_config.yml
+
+    Notes:
+
+        If a configuration file is provided, matching CLI arguments will override the configuration file. The CLI arguments have priority.
+        Configuration file attributes must match the CLI arguments. For example, if the configuration file has a "model_name" attribute, the CLI argument must be named "model_name" as well.
+    """
+    from cli.logic.attack.attack import cli_attack
+
+    cli_attack("TOG", config, **kwargs)

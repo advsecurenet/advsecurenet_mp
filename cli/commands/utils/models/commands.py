@@ -1,4 +1,6 @@
 import click
+from cli.logic.utils.model import cli_huggingface_model
+from typing import Optional
 
 
 @click.group()
@@ -10,7 +12,7 @@ def models():
 
 @models.command()
 @click.option(
-    "-m",
+    "-y",
     "--model-type",
     default="all",
     help="The type of model to list. 'custom' for custom models, 'standard' for standard models, and 'all' for all models. Default is 'all'.",
@@ -60,9 +62,10 @@ def layers(model_name: str, normalization: bool):
 
     cli_model_layers(model_name, normalization)
 
+
 @models.command()
 @click.option(
-    "-m",
+    "-i",
     "--model-identifier",
     required=True,
     help="Hugging Face model URL (e.g., 'https://huggingface.co/bert-base-uncased') .",
@@ -90,12 +93,19 @@ def layers(model_name: str, normalization: bool):
     help="Whether to trust remote code when loading the model. Default is False.",
 )
 @click.option(
+    "-c",
     "--model-class-name",
     default=None,
     type=str,
     help="Manually specify the Hugging Face model class name (e.g., 'ViTForImageClassification'). Overrides automatic inference.",
 )
-def huggingface(model_identifier: str, pretrained: bool, revision: str, trust_remote_code: bool, model_class_name: str):
+def huggingface(
+    model_identifier: str,
+    pretrained: bool,
+    revision: Optional[str],
+    trust_remote_code: bool,
+    model_class_name: Optional[str],
+):
     """Command to load and inspect a Hugging Face model.
 
     Args:
@@ -107,6 +117,10 @@ def huggingface(model_identifier: str, pretrained: bool, revision: str, trust_re
     Raises:
         ValueError: If the model ID is not provided or is invalid.
     """
-    from cli.logic.utils.model import cli_huggingface_model
-
-    cli_huggingface_model(model_identifier=model_identifier, pretrained=pretrained, revision=revision, trust_remote_code=trust_remote_code, model_class_name=model_class_name)
+    cli_huggingface_model(
+        model_identifier=model_identifier,
+        pretrained=pretrained,
+        revision=revision,
+        trust_remote_code=trust_remote_code,
+        model_class_name=model_class_name,
+    )

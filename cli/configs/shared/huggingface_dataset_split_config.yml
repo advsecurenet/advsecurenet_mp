@@ -1,0 +1,20 @@
+# --- HuggingFace Dataset Configurations (Split config approach) ---
+dataset_name: huggingface
+identifier: uoft-cs/cifar10
+num_classes: 10
+split_config:
+  train:
+    identifier: uoft-cs/cifar10
+    split_name: train
+    constructor_args:
+      input_key: img
+      target_key: label
+  test:
+    identifier: uoft-cs/cifar10
+    split_name: test
+    constructor_args:
+      input_key: img
+      target_key: label
+train_dataset_path: null
+test_dataset_path: null
+preprocessing: !include ./preprocess_config.yml

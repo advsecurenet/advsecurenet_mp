@@ -4,6 +4,7 @@ from .perturbation_effectiveness_evaluator import PerturbationEffectivenessEvalu
 from .robustness_gap_evaluator import RobustnessGapEvaluator
 from .similarity_evaluator import SimilarityEvaluator
 from .transferability_evaluator import TransferabilityEvaluator
+from .mean_average_precision_evaluator import MeanAveragePrecisionEvaluator
 
 __all__ = [
     "AttackSuccessRateEvaluator",
@@ -12,4 +13,5 @@ __all__ = [
     "RobustnessGapEvaluator",
     "SimilarityEvaluator",
     "TransferabilityEvaluator",
+    "MeanAveragePrecisionEvaluator",
 ]

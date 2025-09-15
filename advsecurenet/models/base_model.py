@@ -51,8 +51,6 @@ class BaseModel(ABC, nn.Module):
 
         Args:
             x (torch.Tensor): The primary input tensor to the model.
-            *args: Additional positional arguments to pass to the underlying model's forward method.
-            **kwargs: Additional keyword arguments to pass to the underlying model's forward method.
 
         Returns:
             torch.Tensor: The output logits tensor from the model.
@@ -188,12 +186,12 @@ class BaseModel(ABC, nn.Module):
             parent = self.model
             child_name = layer_name
         return parent, child_name
-    
+
     @check_model_loaded
     def infer_num_classes(self) -> Optional[int]:
         """
         Infers the number of output classes based on the model's architecture.
-    
+
         Returns:
             Optional[int]: The inferred number of classes, or None if it cannot be inferred.
         """

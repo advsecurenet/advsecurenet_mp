@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from advsecurenet.shared.types.configs.device_config import DeviceConfig
 from cli.shared.types.utils.dataloader import DataLoaderCliConfigType
-from cli.shared.types.utils.dataset import CreateDatasetCliConfig
+from advsecurenet.shared.types.configs.dataset_config import CreateDatasetCliConfig
 from cli.shared.types.utils.model import ModelCliConfigType
 
 

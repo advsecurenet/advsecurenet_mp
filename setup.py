@@ -34,8 +34,9 @@ setup(
         "einops",
         "filetype",
         "requests",
-        "transformers",
+        "transformers==4.48.3",  # Ensure compatibility with YOLOv5
         "datasets",
+<<<<<<< HEAD
         "pandas",
         "numpy",
         "pydantic>=2,<3",
@@ -43,6 +44,12 @@ setup(
         "safetensors>=0.4",     # commonly needed with HF models
         "accelerate>=0.33",
         "peft>=0.12",
+=======
+        "mean_average_precision",
+        "yolov5",
+        "huggingface-hub==0.24.1",  # Ensure compatibility with YOLOv5
+        "pycocotools",
+>>>>>>> origin/dev
     ],
     entry_points={
         "console_scripts": [

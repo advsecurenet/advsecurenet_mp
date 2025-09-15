@@ -22,6 +22,14 @@ def create_model(config: ModelCliConfigType) -> BaseModel:
     # Flatten the dataclass and filter for the CreateModelConfig dataclass
     flat_config = flatten_dataclass(config)
     filtered_config = filter_for_dataclass(flat_config, CreateModelConfig)
+    # Pull model_arch_path and model_weights_path from path_configs if present
+    if hasattr(config, "path_configs"):
+        if getattr(config.path_configs, "model_arch_path", None) is not None:
+            filtered_config["model_arch_path"] = config.path_configs.model_arch_path
+        if getattr(config.path_configs, "model_weights_path", None) is not None:
+            filtered_config["model_weights_path"] = (
+                config.path_configs.model_weights_path
+            )
     create_model_config = CreateModelConfig(**filtered_config)
     # create the model
     model = ModelFactory.create_model(create_model_config)
@@ -76,14 +84,16 @@ def _validate_norm_layer(config: ModelCliConfigType) -> None:
         )
     if (
         config.norm_config.add_norm_layer
-        and len(config.norm_config.norm_mean) != config.architecture["num_input_channels"]
+        and len(config.norm_config.norm_mean)
+        != config.architecture["num_input_channels"]
     ):
         raise ValueError(
             CLIErrorMessages.TRAINER.value.NORM_LAYER_LENGTH_MISMATCH_MEAN_AND_NUM_INPUT_CHANNELS.value
         )
     if (
         config.norm_config.add_norm_layer
-        and len(config.norm_config.norm_std) != config.architecture["num_input_channels"]
+        and len(config.norm_config.norm_std)
+        != config.architecture["num_input_channels"]
     ):
         raise ValueError(
             CLIErrorMessages.TRAINER.value.NORM_LAYER_LENGTH_MISMATCH_STD_AND_NUM_INPUT_CHANNELS.value
