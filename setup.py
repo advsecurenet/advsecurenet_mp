@@ -34,15 +34,16 @@ setup(
         "einops",
         "filetype",
         "requests",
-        "transformers==4.48.3",  # Ensure compatibility with YOLOv5
+        "pydantic>=2,<3",
+        "transformers==4.48.3",
+        "fschat==0.2.36",
         "datasets",
         "mean_average_precision",
         "yolov5",
         "huggingface-hub==0.24.1",  # Ensure compatibility with YOLOv5
         "pycocotools",
         "pandas",
-        "numpy",
-        "pydantic>=2,<3",
+        "numpy",    
         "soundfile>=0.12,<0.14",  
         "safetensors>=0.4",     # commonly needed with HF models
         "accelerate>=0.33",
