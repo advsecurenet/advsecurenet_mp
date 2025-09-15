@@ -50,3 +50,4 @@ attack/
 
 .venv
 .venv-mp20
+examples/advsecurenet/adversarial_attacks/*.pt
