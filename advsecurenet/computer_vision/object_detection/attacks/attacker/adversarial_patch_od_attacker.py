@@ -48,7 +48,7 @@ class AdversarialPatchODAttacker(ODAttacker):
         with ObjectDetectorAdversarialEvaluator(
             evaluators=self._config.evaluators,
             target_models=[
-                self._config.attack.object_detector.inference_model
+                self._config.attack._object_detector.inference_model
             ],  # we evaluate on the eval_model
         ) as evaluator:
             logger.info("Starting adversarial patch training and evaluation")
