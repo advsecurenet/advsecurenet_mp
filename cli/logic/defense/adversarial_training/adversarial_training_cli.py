@@ -71,7 +71,9 @@ class ATCLITrainer(CLITrainer):
         # 1) explicit override from config
         if self._task_override in ("classification", "detection"):
             return self._task_override
-        click.secho("Task not explicitly set. Inferring task automatically...", fg="yellow")
+        click.secho(
+            "Task not explicitly set. Inferring task automatically...", fg="yellow"
+        )
         # 2) dataset-driven inference (most reliable)
         try:
             sample = train_loader.dataset[0]
