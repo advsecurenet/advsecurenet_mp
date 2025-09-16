@@ -22,6 +22,7 @@ class ODWrapper():
         self.clip_values = clip_values
         self.input_shape = input_shape
         self.inference_model = self.model.initialize_inference_model(model, device_type, conf_thresh)
+        setattr(self.inference_model, "expects_numpy_images", bool(getattr(self.model, "expects_numpy_images", False)))
         self.attack_losses = attack_losses
         self.weight_dict = weight_dict
         self.channels_first = True
