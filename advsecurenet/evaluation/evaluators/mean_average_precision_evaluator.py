@@ -171,7 +171,7 @@ class MeanAveragePrecisionEvaluator(BaseEvaluator):
         Returns the mAP results for clean and adversarial data, and the gap.
         Using the COCO metric configuration.
         """
-        coco_format = {
+        map_eval_format = {
             "iou_thresholds": np.arange(0.5, 1.0, 0.05),
             "recall_thresholds": np.arange(0.0, 1.01, 0.01),
             "mpolicy": "soft",
@@ -199,8 +199,8 @@ class MeanAveragePrecisionEvaluator(BaseEvaluator):
                         if entries:
                             for preds_arr, gts_arr in entries:
                                 self.adv_metric.add(preds_arr, gts_arr)
-                    clean_map = self.clean_metric.value(**coco_format)["mAP"]
-                    adv_map = self.adv_metric.value(**coco_format)["mAP"]
+                    clean_map = self.clean_metric.value(**map_eval_format)["mAP"]
+                    adv_map = self.adv_metric.value(**map_eval_format)["mAP"]
                     t = torch.tensor(
                         [clean_map, adv_map],
                         dtype=torch.float32,
@@ -217,11 +217,11 @@ class MeanAveragePrecisionEvaluator(BaseEvaluator):
                 clean_map, adv_map = float(t[0].item()), float(t[1].item())
             except Exception:
                 # Fallback: compute local only
-                clean_map = self.clean_metric.value(**coco_format)["mAP"]
-                adv_map = self.adv_metric.value(**coco_format)["mAP"]
+                clean_map = self.clean_metric.value(**map_eval_format)["mAP"]
+                adv_map = self.adv_metric.value(**map_eval_format)["mAP"]
         else:
-            clean_map = self.clean_metric.value(**coco_format)["mAP"]
-            adv_map = self.adv_metric.value(**coco_format)["mAP"]
+            clean_map = self.clean_metric.value(**map_eval_format)["mAP"]
+            adv_map = self.adv_metric.value(**map_eval_format)["mAP"]
         return {
             "clean_mAP": clean_map,
             "adversarial_mAP": adv_map,

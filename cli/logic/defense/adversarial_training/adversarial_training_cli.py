@@ -52,14 +52,26 @@ class ATCLITrainer(CLITrainer):
         """
         click.secho("Starting Adversarial Training", fg="green")
         if self.config.device.use_ddp:
-            self._execute_ddp_training()
+            if self._ddp_blocked_for(self._task_override):
+                click.secho(
+                    "DDP requested but not supported for adversarial training for object detection yet."
+                    "Falling back to single-process OD training.",
+                    fg="yellow",
+                )
+                self._execute_training()
+            else:
+                self._execute_ddp_training()
         else:
             self._execute_training()
+
+    def _ddp_blocked_for(self, task: str) -> bool:
+        return task == "detection"
 
     def _infer_task(self, model, train_loader=None):
         # 1) explicit override from config
         if self._task_override in ("classification", "detection"):
             return self._task_override
+        click.secho("Task not explicitly set. Inferring task automatically...", fg="yellow")
         # 2) dataset-driven inference (most reliable)
         try:
             sample = train_loader.dataset[0]
