@@ -1,4 +1,4 @@
-as far as i understand correctly now, this setup only allows for llama and vicunia tokenizers. Is this correct?import os
+import os
 
 from setuptools import find_packages, setup
 

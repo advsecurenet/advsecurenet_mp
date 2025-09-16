@@ -38,3 +38,10 @@ with open('requirements.txt', 'r') as requirements:
           ],
           long_description=long_description,
           long_description_content_type='text/markdown')
+    
+
+'''
+transformers==4.28.1
+ml_collections
+fschat==0.2.20
+'''
