@@ -34,7 +34,9 @@ class DDPCoordinator:
         if torch.cuda.is_available():
             available = torch.cuda.device_count()
             if available == 0:
-                print("[DDPCoordinator][WARN] torch.cuda.is_available() but device_count=0. Falling back to world_size=1 (CPU).")
+                print(
+                    "[DDPCoordinator][WARN] torch.cuda.is_available() but device_count=0. Falling back to world_size=1 (CPU)."
+                )
                 self.world_size = 1
             elif world_size > available:
                 print(

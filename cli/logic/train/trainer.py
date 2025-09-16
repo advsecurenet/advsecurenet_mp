@@ -116,7 +116,8 @@ class CLITrainer:
         train_data, _ = get_datasets(config=self.config.dataset)
         return train_data
 
-    def _prepare_dataloader(self, is_object_detection: bool = False
+    def _prepare_dataloader(
+        self, is_object_detection: bool = False
     ) -> torch.utils.data.DataLoader:
         """
         Initialize the dataloader for single process training.

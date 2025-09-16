@@ -17,7 +17,9 @@ from advsecurenet.computer_vision.object_detection.attacks.attacker.od_attacker 
 from cli.shared.types.attack import BaseAttackCLIConfigType
 from advsecurenet.distributed.ddp_coordinator import DDPCoordinator
 from advsecurenet.utils.ddp import set_visible_gpus
-from advsecurenet.computer_vision.object_detection.attacks.attacker.ddp_od_attacker import DDPODAttacker
+from advsecurenet.computer_vision.object_detection.attacks.attacker.ddp_od_attacker import (
+    DDPODAttacker,
+)
 from advsecurenet.dataloader.data_loader_factory import od_collate_fn, DataLoaderFactory
 from advsecurenet.shared.types.configs.dataloader_config import DataLoaderConfig
 from cli.shared.utils.dataset import get_datasets
@@ -51,9 +53,11 @@ class CLIODAttacker:
     def execute(self):
         logger.info(
             "Starting %s attack (object detection).", self.od_main_attack_type.name
-            )
+        )
         if getattr(self._config.device, "use_ddp", False):
-            logger.info("Using DDP for attack with GPUs: %s", self._config.device.gpu_ids)
+            logger.info(
+                "Using DDP for attack with GPUs: %s", self._config.device.gpu_ids
+            )
             self._execute_ddp_attack()
         else:
             self._execute_attack()
@@ -85,11 +89,24 @@ class CLIODAttacker:
                 # Fallback: ensure processor string reflects local rank even if gpu_ids absent
                 torch.cuda.set_device(rank)
                 self._config.device.processor = f"cuda:{rank}"
-            logger.info("[DDP OD] Rank %d using device %s (physical GPU %s)", rank, self._config.device.processor, getattr(self._config.device, 'gpu_ids', [None])[rank] if getattr(self._config.device, 'gpu_ids', None) else rank)
+            logger.info(
+                "[DDP OD] Rank %d using device %s (physical GPU %s)",
+                rank,
+                self._config.device.processor,
+                (
+                    getattr(self._config.device, "gpu_ids", [None])[rank]
+                    if getattr(self._config.device, "gpu_ids", None)
+                    else rank
+                ),
+            )
         except Exception as e:
             logger.error("[DDP OD] Failed to set device for rank %d: %s", rank, e)
         config, extra_kwargs = self._prepare_attack_config()
-        ddp_wrapper = DDPODAttacker(attacker_class=self._build_concrete_attacker_class(), config=config, **extra_kwargs)
+        ddp_wrapper = DDPODAttacker(
+            attacker_class=self._build_concrete_attacker_class(),
+            config=config,
+            **extra_kwargs,
+        )
         ddp_wrapper.setup()
         ddp_wrapper.run_task()
 
@@ -139,11 +156,10 @@ class CLIODAttacker:
         # Forward device info into detector config
         if getattr(self._config, "device", None):
             detector_config = dict(detector_config)  # shallow copy
-            detector_config["device_type"] = getattr(self._config.device, "processor", "cuda:0")
-        detector = get_object_detector(
-            detector_config,
-            existing_model=model
-        )
+            detector_config["device_type"] = getattr(
+                self._config.device, "processor", "cuda:0"
+            )
+        detector = get_object_detector(detector_config, existing_model=model)
         attack_config.object_detector = detector
         attack_config.device = self._config.device
 

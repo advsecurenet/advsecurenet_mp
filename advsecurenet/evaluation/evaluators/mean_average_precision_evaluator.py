@@ -50,11 +50,13 @@ class MeanAveragePrecisionEvaluator(BaseEvaluator):
                 results.append({"boxes": boxes, "labels": labels, "scores": scores})
         else:
             for d in detections:
-                results.append({
-                    "boxes":  d["boxes"].detach().cpu().numpy(),
-                    "scores": d["scores"].detach().cpu().numpy(),
-                    "labels": d["labels"].detach().cpu().numpy().astype(int),
-                })
+                results.append(
+                    {
+                        "boxes": d["boxes"].detach().cpu().numpy(),
+                        "scores": d["scores"].detach().cpu().numpy(),
+                        "labels": d["labels"].detach().cpu().numpy().astype(int),
+                    }
+                )
         return results
 
     def tensor_to_numpy_images(self, images: torch.Tensor):
@@ -69,7 +71,7 @@ class MeanAveragePrecisionEvaluator(BaseEvaluator):
                 img_np = img_np.astype(np.uint8)
             imgs.append(img_np)
         return imgs
-    
+
     def to_tensor_list(self, x, device):
         imgs = []
         if isinstance(x, np.ndarray):
@@ -85,8 +87,8 @@ class MeanAveragePrecisionEvaluator(BaseEvaluator):
         for t in it:
             if t.ndim != 3:
                 raise ValueError(f"Each image must be 3D; got {tuple(t.shape)}")
-            if t.shape[0] not in (1,3) and t.shape[-1] in (1,3):  # HWC->CHW
-                t = t.permute(2,0,1)
+            if t.shape[0] not in (1, 3) and t.shape[-1] in (1, 3):  # HWC->CHW
+                t = t.permute(2, 0, 1)
             t = t.float()
             if t.max().item() > 1.5:
                 t = t / 255.0
@@ -144,19 +146,21 @@ class MeanAveragePrecisionEvaluator(BaseEvaluator):
             with torch.no_grad():
                 clean_predictions = self.detections_to_dicts(
                     model(self.tensor_to_numpy_images(original_images)),
-                    expects_numpy=is_custom_yolov5
+                    expects_numpy=is_custom_yolov5,
                 )
                 adv_predictions = self.detections_to_dicts(
                     model(self.tensor_to_numpy_images(adversarial_images)),
-                    expects_numpy=is_custom_yolov5
+                    expects_numpy=is_custom_yolov5,
                 )
         else:
             with torch.no_grad():
                 clean_predictions = self.detections_to_dicts(
-                    model(self.to_tensor_list(original_images, device)), expects_numpy=is_custom_yolov5
+                    model(self.to_tensor_list(original_images, device)),
+                    expects_numpy=is_custom_yolov5,
                 )
                 adv_predictions = self.detections_to_dicts(
-                    model(self.to_tensor_list(adversarial_images, device)), expects_numpy=is_custom_yolov5
+                    model(self.to_tensor_list(adversarial_images, device)),
+                    expects_numpy=is_custom_yolov5,
                 )
         # Update both clean and adversarial metrics
         self._process_and_update(self.clean_metric, clean_predictions, targets)
@@ -197,9 +201,17 @@ class MeanAveragePrecisionEvaluator(BaseEvaluator):
                                 self.adv_metric.add(preds_arr, gts_arr)
                     clean_map = self.clean_metric.value(**coco_format)["mAP"]
                     adv_map = self.adv_metric.value(**coco_format)["mAP"]
-                    t = torch.tensor([clean_map, adv_map], dtype=torch.float32, device="cuda" if torch.cuda.is_available() else "cpu")
+                    t = torch.tensor(
+                        [clean_map, adv_map],
+                        dtype=torch.float32,
+                        device="cuda" if torch.cuda.is_available() else "cpu",
+                    )
                 else:
-                    t = torch.zeros(2, dtype=torch.float32, device="cuda" if torch.cuda.is_available() else "cpu")
+                    t = torch.zeros(
+                        2,
+                        dtype=torch.float32,
+                        device="cuda" if torch.cuda.is_available() else "cpu",
+                    )
                 # Broadcast final maps to all ranks
                 dist.broadcast(t, src=0)
                 clean_map, adv_map = float(t[0].item()), float(t[1].item())

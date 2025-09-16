@@ -11,7 +11,9 @@ from advsecurenet.models.base_model import BaseModel
 from advsecurenet.shared.types.configs.defense_configs.adversarial_training_config import (
     AdversarialTrainingConfig,
 )
-from advsecurenet.computer_vision.base.base_adversarial_training import BaseAdversarialTraining
+from advsecurenet.computer_vision.base.base_adversarial_training import (
+    BaseAdversarialTraining,
+)
 from advsecurenet.utils.adversarial_target_generator import AdversarialTargetGenerator
 
 

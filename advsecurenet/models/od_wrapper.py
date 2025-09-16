@@ -4,7 +4,7 @@ import torch.distributed as dist
 import torch.nn as nn
 
 
-class ODWrapper():
+class ODWrapper:
     def __init__(
         self,
         model,
@@ -21,12 +21,14 @@ class ODWrapper():
         self.model.device = device_type
         self.clip_values = clip_values
         self.input_shape = input_shape
-        self.inference_model = self.model.initialize_inference_model(model, device_type, conf_thresh)
+        self.inference_model = self.model.initialize_inference_model(
+            model, device_type, conf_thresh
+        )
         setattr(self.inference_model, "expects_numpy_images", bool(getattr(self.model, "expects_numpy_images", False)))
         self.attack_losses = attack_losses
         self.weight_dict = weight_dict
         self.channels_first = True
-        if hasattr(model, 'num_classes'):
+        if hasattr(model, "num_classes"):
             self.num_classes = self.model.num_classes
         else:
             # Default to COCO classes if not specified
@@ -38,10 +40,10 @@ class ODWrapper():
 
     def filter_boxes(self, predictions, conf_thresh):
         # tolerate missing keys, create consistent empty arrays
-        boxes  = predictions.get("boxes")
+        boxes = predictions.get("boxes")
         scores = predictions.get("scores")
         labels = predictions.get("labels")
-        names  = predictions.get("label_names", None)
+        names = predictions.get("label_names", None)
         if boxes is None:
             boxes = np.empty((0, 4), dtype=np.float32)
         if scores is None:
@@ -50,14 +52,16 @@ class ODWrapper():
             labels = np.empty((0,), dtype=np.int64)
         mask = scores >= conf_thresh
         out = {
-            "boxes":  boxes[mask] if boxes.size else boxes,    # -> (0,4) when empty
-            "scores": scores[mask] if scores.size else scores, # -> (0,)
-            "labels": labels[mask] if labels.size else labels, # -> (0,)
+            "boxes": boxes[mask] if boxes.size else boxes,  # -> (0,4) when empty
+            "scores": scores[mask] if scores.size else scores,  # -> (0,)
+            "labels": labels[mask] if labels.size else labels,  # -> (0,)
         }
         if names is not None:
-            out["label_names"] = names[mask] if len(names) else np.empty((0,), dtype=names.dtype)
+            out["label_names"] = (
+                names[mask] if len(names) else np.empty((0,), dtype=names.dtype)
+            )
         return out
-    
+
     def prepare_training_inputs(self, images: torch.Tensor, targets: list[dict]):
         return self.model.prepare_training_inputs(images, targets)
 
@@ -192,7 +196,9 @@ class ODWrapper():
         return sum(v for k, v in model_output.items() if k.startswith("loss_"))
 
     def _should_freeze_bn(self):
-        return dist.is_available() and dist.is_initialized() and dist.get_world_size() > 1
+        return (
+            dist.is_available() and dist.is_initialized() and dist.get_world_size() > 1
+        )
 
     def _freeze_bn(self):
         for m in self.model.modules():
@@ -225,9 +231,13 @@ class ODWrapper():
     def _get_losses(self, x, y):
         self.model.train()
         if self._should_freeze_bn():
-            self._freeze_bn() 
-        x_preprocessed = self.model.preprocess_x_for_loss_calculation(x, requires_grad=True)
-        y_preprocessed = self.model.translate_labels(y, batch_size=x_preprocessed.shape[0])
+            self._freeze_bn()
+        x_preprocessed = self.model.preprocess_x_for_loss_calculation(
+            x, requires_grad=True
+        )
+        y_preprocessed = self.model.translate_labels(
+            y, batch_size=x_preprocessed.shape[0]
+        )
         loss_components = self.model(x_preprocessed, y_preprocessed)
         return loss_components, x_preprocessed
 
@@ -261,13 +271,20 @@ class ODWrapper():
     ) -> list[dict[str, np.ndarray]]:
         self.inference_model.eval()
         # Standardize: must return one Tensor (N,C,H,W) on the correct device
-        x_tensor = self.model.preprocess_x_for_loss_calculation(x_preprocessed, requires_grad=False)
-        assert isinstance(x_tensor, torch.Tensor) and x_tensor.dim() == 4, \
-        "preprocess_x_for_loss_calculation must return (N,C,H,W) tensor"
+        x_tensor = self.model.preprocess_x_for_loss_calculation(
+            x_preprocessed, requires_grad=False
+        )
+        assert (
+            isinstance(x_tensor, torch.Tensor) and x_tensor.dim() == 4
+        ), "preprocess_x_for_loss_calculation must return (N,C,H,W) tensor"
         predictions: list[dict[str, np.ndarray]] = []
         N = x_tensor.shape[0]
         for start in range(0, N, batch_size):
-            x_batch = x_tensor[start:start + batch_size].to(self.device)
-            batch_preds = self.model.predict_per_batch(x_batch, self.inference_model, self.clip_values)
-            predictions.extend(self.filter_boxes(p, self.conf_thresh) for p in batch_preds)
+            x_batch = x_tensor[start : start + batch_size].to(self.device)
+            batch_preds = self.model.predict_per_batch(
+                x_batch, self.inference_model, self.clip_values
+            )
+            predictions.extend(
+                self.filter_boxes(p, self.conf_thresh) for p in batch_preds
+            )
         return predictions

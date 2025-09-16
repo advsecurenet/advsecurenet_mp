@@ -2,10 +2,26 @@ from typing import Dict, List
 
 # Pascal VOC (20 classes)
 PASCAL_VOC_CATEGORY_NAMES = [
-    "aeroplane","bicycle","bird","boat","bottle",
-    "bus","car","cat","chair","cow",
-    "diningtable","dog","horse","motorbike","person",
-    "pottedplant","sheep","sofa","train","tvmonitor",
+    "aeroplane",
+    "bicycle",
+    "bird",
+    "boat",
+    "bottle",
+    "bus",
+    "car",
+    "cat",
+    "chair",
+    "cow",
+    "diningtable",
+    "dog",
+    "horse",
+    "motorbike",
+    "person",
+    "pottedplant",
+    "sheep",
+    "sofa",
+    "train",
+    "tvmonitor",
 ]
 
 # raw ids 1..20 (like many VOC codebases); background would be 0 if you ever need it
@@ -40,8 +56,10 @@ def voc_to_coco_anns(target: Dict) -> List[Dict]:
             continue
         bb = obj.get("bndbox", {})
         try:
-            xmin = float(bb["xmin"]); ymin = float(bb["ymin"])
-            xmax = float(bb["xmax"]); ymax = float(bb["ymax"])
+            xmin = float(bb["xmin"])
+            ymin = float(bb["ymin"])
+            xmax = float(bb["xmax"])
+            ymax = float(bb["ymax"])
         except Exception:
             continue
         # clip to image bounds if size is known

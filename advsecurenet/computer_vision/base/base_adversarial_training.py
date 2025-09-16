@@ -13,6 +13,7 @@ from advsecurenet.shared.types.configs.defense_configs.adversarial_training_conf
 )
 from advsecurenet.trainer.trainer import Trainer
 
+
 class BaseAdversarialTraining(Trainer):
     """
     Base class for adversarial training methods.
@@ -21,7 +22,7 @@ class BaseAdversarialTraining(Trainer):
     def __init__(self, config: AdversarialTrainingConfig) -> None:
         self.config: AdversarialTrainingConfig = config
         super().__init__(config)
-    
+
     def _check_config_base(self, config: AdversarialTrainingConfig) -> None:
         # Check configuration validity
         if not isinstance(config.model, BaseModel):
@@ -32,7 +33,7 @@ class BaseAdversarialTraining(Trainer):
             raise ValueError("All attacks must be a subclass of AdversarialAttack!")
         if not isinstance(config.train_loader, DataLoader):
             raise ValueError("train_dataloader must be a DataLoader!")
-        
+
     def _pre_training(self):
         # add target model to list of models if not already present
         if self.config.model not in self.config.models:
@@ -53,6 +54,6 @@ class BaseAdversarialTraining(Trainer):
             unit="batch",
             colour="blue",
         )
-    
+
     def _get_loss_divisor(self):
         return len(self.config.train_loader)

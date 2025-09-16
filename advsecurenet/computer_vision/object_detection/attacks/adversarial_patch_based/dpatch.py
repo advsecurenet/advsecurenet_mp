@@ -102,7 +102,9 @@ class DPatch(AdversarialAttack):
         for i_step in trange(self._max_iterations, desc="DPatch iteration"):
             if i_step == 0 or (i_step + 1) % 100 == 0:
                 logger.info("Training Step: %d/%d", i_step + 1, self._max_iterations)
-            if hasattr(dataloader, "sampler") and isinstance(dataloader.sampler, DistributedSampler):
+            if hasattr(dataloader, "sampler") and isinstance(
+                dataloader.sampler, DistributedSampler
+            ):
                 try:
                     dataloader.sampler.set_epoch(i_step)
                 except Exception as e:
@@ -148,7 +150,9 @@ class DPatch(AdversarialAttack):
             # Distributed aggregation: sum gradients, OR suppression flag across ranks
             if dist.is_available() and dist.is_initialized():
                 dist.all_reduce(patch_gradients_sum, op=dist.ReduceOp.SUM)
-                suppress_tensor = torch.tensor(1 if suppress_flag_any else 0, device=patch_gradients_sum.device)
+                suppress_tensor = torch.tensor(
+                    1 if suppress_flag_any else 0, device=patch_gradients_sum.device
+                )
                 dist.all_reduce(suppress_tensor, op=dist.ReduceOp.MAX)
                 suppress_flag_any = bool(suppress_tensor.item())
 
@@ -169,13 +173,18 @@ class DPatch(AdversarialAttack):
             if dist.is_available() and dist.is_initialized():
                 with torch.no_grad():
                     checksum = torch.sum(self._patch.float()).unsqueeze(0)
-                    gathered = [torch.zeros_like(checksum) for _ in range(dist.get_world_size())]
+                    gathered = [
+                        torch.zeros_like(checksum) for _ in range(dist.get_world_size())
+                    ]
                     try:
                         dist.all_gather(gathered, checksum)
                         diffs = [abs(checksum.item() - g.item()) for g in gathered]
                         max_diff = max(diffs) if diffs else 0.0
                         if max_diff > 1e-4:
-                            logger.error("[DPATCH]Patch checksum divergence detected across ranks: diffs=%s", diffs)
+                            logger.error(
+                                "[DPATCH]Patch checksum divergence detected across ranks: diffs=%s",
+                                diffs,
+                            )
                     except Exception as e:
                         logger.debug("Patch consistency check failed: %s", e)
         return self._patch
