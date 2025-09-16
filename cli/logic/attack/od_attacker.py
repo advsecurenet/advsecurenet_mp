@@ -33,7 +33,6 @@ from advsecurenet.computer_vision.object_detection.attacks.pixel_perturbation_ba
     TOGAttackType,
 )
 from advsecurenet.models.detector_factory import get_object_detector
-from advsecurenet.models.CustomModels.CustomYolov5Model import CustomYolov5Model
 
 logger = logging.getLogger(__name__)
 
@@ -130,21 +129,20 @@ class CLIODAttacker:
             logger.info("No adversarial images to save.")
 
     def _prepare_attack_config(self):
-        model = create_model(self._config.model)
+        model = create_model(self._config.model).model
         dataloader_config = self._create_dataloader_config()
         attack_config = self._config.attack_config.attack_parameters
         # Extract object_detector_config from model config if present
         detector_config = {}
-        if hasattr(self._config.model, "object_detector_config"):
-            detector_config = self._config.model.object_detector_config
+        if hasattr(model, "object_detector_config"):
+            detector_config = model.object_detector_config
         # Forward device info into detector config
         if getattr(self._config, "device", None):
             detector_config = dict(detector_config)  # shallow copy
             detector_config["device_type"] = getattr(self._config.device, "processor", "cuda:0")
         detector = get_object_detector(
-            attack_config.object_detector,
             detector_config,
-            existing_model=model if isinstance(model, CustomYolov5Model) else None,
+            existing_model=model
         )
         attack_config.object_detector = detector
         attack_config.device = self._config.device
@@ -168,7 +166,6 @@ class CLIODAttacker:
             raise ValueError(f"Unknown attack type: {self.od_main_attack_type}")
 
         config = ODAttackerConfig(
-            model=model,
             dataloader=dataloader_config,
             device=self._config.device,
             attack=attack,

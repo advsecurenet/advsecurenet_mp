@@ -139,10 +139,9 @@ class MeanAveragePrecisionEvaluator(BaseEvaluator):
         """
         model.eval()
         device = next(model.parameters()).device
-        is_custom_yolov5 = bool(getattr(model.model, "IS_CUSTOM_YOLOV5", False)) # yolov5 expects numpy
+        is_custom_yolov5 = bool(getattr(model, "expects_numpy_images", False))
         if is_custom_yolov5:
             with torch.no_grad():
-                # 1. Run predictions on original and adversarial images
                 clean_predictions = self.detections_to_dicts(
                     model(self.tensor_to_numpy_images(original_images)),
                     expects_numpy=is_custom_yolov5

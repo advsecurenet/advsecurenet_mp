@@ -69,7 +69,7 @@ class PixelPerturbationODAttacker(ODAttacker):
         adversarial_images = []
         with ObjectDetectorAdversarialEvaluator(
             evaluators=self._config.evaluators,
-            target_models=[self._eval_model],  # we evaluate on the eval_model
+            target_models=[self._config.attack._object_detector.inference_model],  # we evaluate on the eval_model
         ) as evaluator:
             for data_batch in tqdm(
                 self._dataloader,
@@ -79,7 +79,7 @@ class PixelPerturbationODAttacker(ODAttacker):
                 images_np_for_tog, targets, images = self.process_batch(data_batch)
                 modified_imgs = self._perturb_images(images_np_for_tog)
                 evaluator.update(
-                    model=self._eval_model,
+                    model=self._config.attack._object_detector.inference_model,
                     original_images=images,
                     adversarial_images=modified_imgs,
                     targets=targets,
