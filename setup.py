@@ -48,6 +48,7 @@ setup(
         "safetensors>=0.4",     # commonly needed with HF models
         "accelerate>=0.33",
         "peft>=0.12",
+        "ml-collections",
     ],
     entry_points={
         "console_scripts": [
