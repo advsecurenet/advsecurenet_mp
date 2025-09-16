@@ -10,7 +10,7 @@ from advsecurenet.computer_vision.image_classification.defenses.adversarial_trai
     AdversarialTraining,
 )
 from advsecurenet.computer_vision.image_classification.defenses.ddp_adversarial_training import (
-                    DDPAdversarialTraining,
+    DDPAdversarialTraining,
 )
 from advsecurenet.computer_vision.object_detection.defenses.adversarial_od_training import (
     AdversarialODTraining,
@@ -56,7 +56,7 @@ class ATCLITrainer(CLITrainer):
         else:
             self._execute_training()
 
-    def _infer_task(self, model, train_loader = None):
+    def _infer_task(self, model, train_loader=None):
         # 1) explicit override from config
         if self._task_override in ("classification", "detection"):
             return self._task_override
@@ -72,7 +72,9 @@ class ATCLITrainer(CLITrainer):
         except Exception:
             pass
         # 3) model hint as a fallback
-        if getattr(model, "task", None) == "detection" or getattr(model, "is_detection", False):
+        if getattr(model, "task", None) == "detection" or getattr(
+            model, "is_detection", False
+        ):
             return "detection"
         # Default: classification (backward compatible)
         return "classification"
@@ -152,7 +154,11 @@ class ATCLITrainer(CLITrainer):
                 train_loader = type(train_loader)(
                     train_subset,
                     batch_size=train_loader.batch_size,
-                    shuffle=train_loader.shuffle if hasattr(train_loader, "shuffle") else False,
+                    shuffle=(
+                        train_loader.shuffle
+                        if hasattr(train_loader, "shuffle")
+                        else False
+                    ),
                     num_workers=train_loader.num_workers,
                     pin_memory=train_loader.pin_memory,
                     drop_last=train_loader.drop_last,
@@ -185,7 +191,7 @@ class ATCLITrainer(CLITrainer):
         # the model must be initialized in each process
 
         config = self._prepare_training_environment()
-        
+
         task = self._infer_task(config.model, config.train_loader)
         if task == "detection":
             if rank == 0:

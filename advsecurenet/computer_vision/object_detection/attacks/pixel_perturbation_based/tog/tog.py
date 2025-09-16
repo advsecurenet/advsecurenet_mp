@@ -266,7 +266,6 @@ class TOG(AdversarialAttack):
         x_adv = np.clip(x_query + eta, 0.0, 1.0)
         return x_adv
 
-
     def _resolve_num_classes(self, initial_detections):
         inf = getattr(self._object_detector, "inference_model", None)
         for obj in [inf, getattr(inf, "model", None)]:
@@ -287,7 +286,6 @@ class TOG(AdversarialAttack):
             if det.get("labels") is not None and len(det["labels"]) > 0
         ]
         return (max(detected) + 1) if detected else 1
-
 
     def _tog_vanishing(
         self,

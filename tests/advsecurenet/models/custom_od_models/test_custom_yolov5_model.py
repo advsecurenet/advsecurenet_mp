@@ -43,7 +43,9 @@ def test_model_initialization():
     with patch("yolov5.load") as mock_load, patch(
         "yolov5.models.common.AutoShape"
     ) as mock_autoshape:
-        from advsecurenet.models.CustomODModels.CustomYolov5Model import CustomYolov5Model
+        from advsecurenet.models.CustomODModels.CustomYolov5Model import (
+            CustomYolov5Model,
+        )
 
         dummy_model = MinimalYoloModel()
         mock_load.return_value.model = dummy_model
@@ -60,7 +62,9 @@ def test_model_initialization():
 @pytest.mark.essential
 def test_forward_eval_mode():
     with patch("yolov5.models.common.AutoShape") as mock_autoshape:
-        from advsecurenet.models.CustomODModels.CustomYolov5Model import CustomYolov5Model
+        from advsecurenet.models.CustomODModels.CustomYolov5Model import (
+            CustomYolov5Model,
+        )
 
         dummy_model = MinimalYoloModel()
         with patch("yolov5.load") as mock_load:
@@ -78,7 +82,9 @@ def test_forward_train_mode():
     with patch("yolov5.load") as mock_load, patch(
         "yolov5.models.common.AutoShape"
     ) as mock_autoshape:
-        from advsecurenet.models.CustomODModels.CustomYolov5Model import CustomYolov5Model
+        from advsecurenet.models.CustomODModels.CustomYolov5Model import (
+            CustomYolov5Model,
+        )
 
         dummy_model = MinimalYoloModel()
         mock_load.return_value.model = dummy_model
@@ -104,7 +110,9 @@ def test_custom_weights_path():
     with patch("yolov5.load") as mock_load, patch(
         "yolov5.models.common.AutoShape"
     ) as mock_autoshape:
-        from advsecurenet.models.CustomODModels.CustomYolov5Model import CustomYolov5Model
+        from advsecurenet.models.CustomODModels.CustomYolov5Model import (
+            CustomYolov5Model,
+        )
 
         dummy_model = MinimalYoloModel()
         mock_load.return_value.model = dummy_model
@@ -119,7 +127,9 @@ def test_predict_raw():
     with patch("yolov5.load") as mock_load, patch(
         "yolov5.models.common.AutoShape"
     ) as mock_autoshape:
-        from advsecurenet.models.CustomODModels.CustomYolov5Model import CustomYolov5Model
+        from advsecurenet.models.CustomODModels.CustomYolov5Model import (
+            CustomYolov5Model,
+        )
 
         dummy_model = MinimalYoloModel()
         mock_load.return_value.model = dummy_model

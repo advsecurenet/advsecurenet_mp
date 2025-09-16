@@ -23,7 +23,7 @@ def _suppress_yolov5_autocast_warning():
         )
         yield
 
-    
+
 class CustomYolov5Model(CustomODBaseModel):
     def __init__(
         self,
@@ -33,16 +33,22 @@ class CustomYolov5Model(CustomODBaseModel):
         super().__init__()
         self.expects_numpy_images = True
         original_torch_load = torch.load
+
         def load_with_weights_only_false(*args, **kwargs):
             kwargs["weights_only"] = False
             return original_torch_load(*args, **kwargs)
+
         # Decide loading strategy
         is_plain_state_dict = model_weights_path.endswith(".pth")
         base_arch_weights = "yolov5s.pt"
-        arch_source = model_weights_path if not is_plain_state_dict else base_arch_weights
+        arch_source = (
+            model_weights_path if not is_plain_state_dict else base_arch_weights
+        )
         if device is not None:
             if isinstance(device, (int,)):
-                resolved_device = f"cuda:{device}" if torch.cuda.is_available() else "cpu"
+                resolved_device = (
+                    f"cuda:{device}" if torch.cuda.is_available() else "cpu"
+                )
             else:
                 resolved_device = str(device)
         else:
@@ -55,7 +61,9 @@ class CustomYolov5Model(CustomODBaseModel):
                 resolved_device = "cpu"
         self.device = resolved_device
         with patch("torch.load", side_effect=load_with_weights_only_false):
-            self._model = yolov5.load(arch_source, autoshape=False, device=resolved_device).model
+            self._model = yolov5.load(
+                arch_source, autoshape=False, device=resolved_device
+            ).model
             self._autoshape = AutoShape(self._model)
             self._model.to(resolved_device)
         # Freeze BatchNorm running stats to avoid per-rank drift during adversarial gradients
@@ -71,19 +79,25 @@ class CustomYolov5Model(CustomODBaseModel):
                         if k in sd and isinstance(sd[k], dict):
                             sd = sd[k]
                             break
+
                 def _clean(d):
                     target_keys = set(self._model.state_dict().keys())
                     cleaned = {}
                     for k, v in d.items():
                         nk = k
-                        for prefix in ("model._model.model.", "model.model.", "model._model.",):
+                        for prefix in (
+                            "model._model.model.",
+                            "model.model.",
+                            "model._model.",
+                        ):
                             if nk.startswith(prefix):
-                                nk = nk[len(prefix):]
+                                nk = nk[len(prefix) :]
                                 break
                         if nk not in target_keys and f"model.{nk}" in target_keys:
                             nk = f"model.{nk}"
                         cleaned[nk] = v
                     return cleaned
+
                 sd_clean = _clean(sd)
                 self._model.load_state_dict(sd_clean, strict=False)
             except Exception as e:
@@ -98,7 +112,6 @@ class CustomYolov5Model(CustomODBaseModel):
             "fl_gamma": 0.0,
         }
         self.compute_loss = ComputeLoss(self._model)
-
 
     def forward(self, x, targets=None):
         try:
@@ -127,11 +140,9 @@ class CustomYolov5Model(CustomODBaseModel):
         else:
             return self._autoshape(x)  # after nms
 
-
     def predict(self, x_pre, training):
         preds = self.forward(x_pre)[0] if training else self.predict_raw(x_pre)[0]
         return preds
-
 
     def predict_raw(self, x):
         """
@@ -139,13 +150,12 @@ class CustomYolov5Model(CustomODBaseModel):
         """
         return self._model(x)
 
-
     def predict_per_batch(self, imgs, inference_model, clip_values):
         imgs = imgs.detach().cpu().numpy()
         imgs = [
-                (img.transpose(1, 2, 0)).clip(0, clip_values[1]).astype(np.uint8)
-                for img in imgs
-            ]
+            (img.transpose(1, 2, 0)).clip(0, clip_values[1]).astype(np.uint8)
+            for img in imgs
+        ]
         total_outs = []
         with torch.no_grad():
             with _suppress_yolov5_autocast_warning():
@@ -154,10 +164,10 @@ class CustomYolov5Model(CustomODBaseModel):
                 arr = det.cpu().numpy() if isinstance(det, torch.Tensor) else det
                 if arr.size == 0:
                     out = {
-                            "boxes": np.empty((0, 4)),
-                            "scores": np.empty((0,)),
-                            "labels": np.empty((0,), dtype=int),
-                        }
+                        "boxes": np.empty((0, 4)),
+                        "scores": np.empty((0,)),
+                        "labels": np.empty((0,), dtype=int),
+                    }
                 else:
                     # Get raw logits from outputs.pred
                     raw_pred = (
@@ -165,14 +175,13 @@ class CustomYolov5Model(CustomODBaseModel):
                     )  # shape: [num_detections, 5 + num_classes]
                     logits = raw_pred[:, 5:]  # shape: [num_detections, num_classes]
                     out = {
-                            "boxes": arr[:, :4],  # x1, y1, x2, y2
-                            "scores": arr[:, 4],
-                            "labels": arr[:, 5].astype(int),
-                            "logits": logits,  # Add logits here
-                        }
+                        "boxes": arr[:, :4],  # x1, y1, x2, y2
+                        "scores": arr[:, 4],
+                        "labels": arr[:, 5].astype(int),
+                        "logits": logits,  # Add logits here
+                    }
                 total_outs.append(out)
         return total_outs
-
 
     def initialize_inference_model(self, model, device=None, conf_thresh=0.7):
         try:
@@ -180,13 +189,13 @@ class CustomYolov5Model(CustomODBaseModel):
                 inference_model = model._autoshape
             else:
                 from yolov5.models.common import AutoShape as _AutoShape
+
                 inference_model = _AutoShape(model)
             if hasattr(inference_model, "conf"):
                 inference_model.conf = conf_thresh
         except Exception as e:
             inference_model = model
         return inference_model
-    
 
     def prepare_training_inputs(self, images: torch.Tensor, targets: list[dict]):
         images = images.to(self.device)
@@ -194,19 +203,19 @@ class CustomYolov5Model(CustomODBaseModel):
         yolo_targets = self._convert_targets(targets, images.shape)
         return images, yolo_targets
 
-
     def calculate_loss(self, preds, target_val):
         loss = torch.tensor(0.0, device=self.device, dtype=torch.float32)
         for p in preds:
             obj_logit = p[..., 4]
-            targets = torch.full_like(obj_logit, fill_value=target_val, device=self.device)
+            targets = torch.full_like(
+                obj_logit, fill_value=target_val, device=self.device
+            )
             loss += F.binary_cross_entropy_with_logits(
                 obj_logit,
                 targets,
                 reduction="sum",
             )
         return loss
-
 
     def preprocess_x_for_loss_calculation(self, x, requires_grad=True):
         if isinstance(x, np.ndarray):
@@ -219,9 +228,10 @@ class CustomYolov5Model(CustomODBaseModel):
             x_preprocessed.requires_grad_(True)
         return x_preprocessed
 
-
     def translate_labels(
-        self, labels: list[dict[str, "torch.Tensor"]], batch_size: int,
+        self,
+        labels: list[dict[str, "torch.Tensor"]],
+        batch_size: int,
     ) -> "torch.Tensor":
         if self.channels_first:
             height = self.input_shape[1]
@@ -272,9 +282,8 @@ class CustomYolov5Model(CustomODBaseModel):
             labels_xcycwh_list.append(label_xcycwh)
         labels_xcycwh = torch.vstack(labels_xcycwh_list)
         return labels_xcycwh
-    
 
-# Model specific methods / helpers:
+    # Model specific methods / helpers:
 
     def _convert_targets(self, targets, batch_shape) -> torch.Tensor:
         if isinstance(targets, dict):
@@ -303,5 +312,8 @@ class CustomYolov5Model(CustomODBaseModel):
             tgt[:, 4] = (x2 - x1) / W
             tgt[:, 5] = (y2 - y1) / H
             pieces.append(tgt)
-        return torch.cat(pieces, dim=0) if pieces else torch.zeros((0, 6), device=self.device)
-   
+        return (
+            torch.cat(pieces, dim=0)
+            if pieces
+            else torch.zeros((0, 6), device=self.device)
+        )

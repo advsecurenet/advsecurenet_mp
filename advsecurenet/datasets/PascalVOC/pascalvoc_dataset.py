@@ -19,6 +19,7 @@ from advsecurenet.shared.types import DatasetType, DataType
 
 logger = logging.getLogger(__name__)
 
+
 @contextmanager
 def temporarily_disable_ssl_verification():
     original_context = ssl._create_default_https_context
@@ -90,7 +91,9 @@ class PascalVOCDataset(BaseDataset):
             with tarfile.open(fname, "r") as tf:
                 tf.extractall(path=root)
         if not os.path.isdir(voc_dir):
-            raise RuntimeError(f"Expected directory not found after extraction: {voc_dir}")
+            raise RuntimeError(
+                f"Expected directory not found after extraction: {voc_dir}"
+            )
 
     def get_dataset_class(self):
         return datasets.VOCDetection
@@ -131,9 +134,11 @@ class PascalVOCDataset(BaseDataset):
             image_set = "train" if train else "val"
         # 3) transforms
         transform = self.get_transforms()
+
         # 4) target_transform: VOC dict → COCO-style detection target
         def target_transform(target_dict):
             return voc_to_coco_anns(target_dict)
+
         # 5) instantiate
         with temporarily_disable_ssl_verification():
             try:

@@ -51,7 +51,6 @@ class CustomODBaseModel(torch.nn.Module, ABC):
         """
         raise NotImplementedError("Subclasses must implement forward method.")
 
-
     @abstractmethod
     def predict(self, x, training):
         """
@@ -69,7 +68,6 @@ class CustomODBaseModel(torch.nn.Module, ABC):
             (Use `predict_per_batch` when you need standardized numpy dicts.)
         """
         raise NotImplementedError("Subclasses must implement predict method.")
-    
 
     @abstractmethod
     def predict_raw(self, x):
@@ -85,7 +83,6 @@ class CustomODBaseModel(torch.nn.Module, ABC):
             as `forward(x, targets=None)` is acceptable.
         """
         raise NotImplementedError("Subclasses must implement predict_raw method.")
-
 
     @abstractmethod
     def predict_per_batch(self, imgs, inference_model, clip_values):
@@ -111,7 +108,6 @@ class CustomODBaseModel(torch.nn.Module, ABC):
             N may be 0 for images with no detections.
         """
         raise NotImplementedError("Subclasses must implement predict_per_batch method.")
-    
 
     @abstractmethod
     def initialize_inference_model(self, model, device, conf_thresh=0.7):
@@ -128,9 +124,10 @@ class CustomODBaseModel(torch.nn.Module, ABC):
             Typical steps: move to device, set .eval(), optionally wrap in an
             AutoShape/transformer, and set threshold attributes if available.
         """
-        raise NotImplementedError("Subclasses must implement initialize_inference_model method.")
-        
-    
+        raise NotImplementedError(
+            "Subclasses must implement initialize_inference_model method."
+        )
+
     @abstractmethod
     def prepare_training_inputs(self, images: torch.Tensor, targets: list[dict]):
         """
@@ -154,8 +151,9 @@ class CustomODBaseModel(torch.nn.Module, ABC):
                     yolo_targets: torch.Tensor [M, 6] with rows
                                    [img_idx, cls, xc, yc, w, h] normalized to [0,1]
         """
-        raise NotImplementedError("Subclasses must implement prepare_training_inputs method.")
-
+        raise NotImplementedError(
+            "Subclasses must implement prepare_training_inputs method."
+        )
 
     @abstractmethod
     def calculate_loss(self, predictions, target_val):
@@ -173,7 +171,6 @@ class CustomODBaseModel(torch.nn.Module, ABC):
         """
         raise NotImplementedError("Subclasses must implement calculate_loss method.")
 
-
     @abstractmethod
     def preprocess_x_for_loss_calculation(self, x, requires_grad=True):
         """
@@ -188,11 +185,14 @@ class CustomODBaseModel(torch.nn.Module, ABC):
             torch.Tensor [B, C, H, W], dtype=torch.float32, on the model's device.
             Values typically normalized to [0,1]. `requires_grad` set per the flag.
         """
-        raise NotImplementedError("Subclasses must implement preprocess_x_for_loss_calculation method.")
-    
+        raise NotImplementedError(
+            "Subclasses must implement preprocess_x_for_loss_calculation method."
+        )
 
     @abstractmethod
-    def translate_labels(self, labels: list[dict[str, torch.Tensor | np.ndarray]], batch_size: int):
+    def translate_labels(
+        self, labels: list[dict[str, torch.Tensor | np.ndarray]], batch_size: int
+    ):
         """
         Convert user-supplied labels into the backend's training format.
 
@@ -212,4 +212,3 @@ class CustomODBaseModel(torch.nn.Module, ABC):
                         [img_idx, cls, xc, yc, w, h] normalized to [0,1].
         """
         raise NotImplementedError("Subclasses must implement translate_labels method.")
-    

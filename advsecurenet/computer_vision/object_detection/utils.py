@@ -24,7 +24,9 @@ def extract_predictions(predictions_, conf_thresh, label_names=None):
     # predictions_t = [
     #     predictions_score.index(x) for x in predictions_score if x > threshold
     # ]
-    predictions_t = [idx for idx, s in enumerate(predictions_score) if float(s) > threshold]
+    predictions_t = [
+        idx for idx, s in enumerate(predictions_score) if float(s) > threshold
+    ]
     if len(predictions_t) <= 0:
         return [], [], []
     # predictions in score order

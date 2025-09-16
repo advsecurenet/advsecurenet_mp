@@ -4,14 +4,18 @@ from typing import Optional, Union
 import torch
 import numpy as np
 
-from advsecurenet.computer_vision.object_detection.attacks.pixel_perturbation_based.tog.tog_attack_type import TOGAttackType
+from advsecurenet.computer_vision.object_detection.attacks.pixel_perturbation_based.tog.tog_attack_type import (
+    TOGAttackType,
+)
 from advsecurenet.computer_vision.base.adversarial_attack import AdversarialAttack
 from advsecurenet.models.detector_factory import get_object_detector, infer_wrapper_name
 from advsecurenet.models.base_model import BaseModel
 from advsecurenet.shared.types.configs.defense_configs.adversarial_training_config import (
     AdversarialTrainingConfig,
 )
-from advsecurenet.computer_vision.base.base_adversarial_training import BaseAdversarialTraining
+from advsecurenet.computer_vision.base.base_adversarial_training import (
+    BaseAdversarialTraining,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -31,22 +35,28 @@ class AdversarialODTraining(BaseAdversarialTraining):
         self._trainable = getattr(self._model, "model", self._model)
         for p in self._trainable.parameters():
             p.requires_grad_(True)
-        wrapper_name = (
-            getattr(self._config, "detector_wrapper", None)
-            or infer_wrapper_name(self._trainable)
-        )
+        wrapper_name = getattr(
+            self._config, "detector_wrapper", None
+        ) or infer_wrapper_name(self._trainable)
         self._wrapper_name = wrapper_name
         try:
             self._od_wrapper = get_object_detector(wrapper_name)
             self._od_wrapper.model = self._trainable
         except Exception as e:
-            raise RuntimeError(f"Failed to load detector wrapper '{wrapper_name}': {e}") from e
+            raise RuntimeError(
+                f"Failed to load detector wrapper '{wrapper_name}': {e}"
+            ) from e
         if not any(g["params"] for g in self._optimizer.param_groups):
             kwargs = self._config.optimizer_kwargs or {}
             self._optimizer = self._get_optimizer(
-                self._config.optimizer, self._trainable, self._config.learning_rate, **kwargs
+                self._config.optimizer,
+                self._trainable,
+                self._config.learning_rate,
+                **kwargs,
             )
-            self._scheduler = self._get_scheduler(self._config.scheduler, self._optimizer)
+            self._scheduler = self._get_scheduler(
+                self._config.scheduler, self._optimizer
+            )
 
     def _check_config(self, config: AdversarialTrainingConfig) -> None:
         self._check_config_base(config)
@@ -67,12 +77,14 @@ class AdversarialODTraining(BaseAdversarialTraining):
                 "AdversarialODTraining expects dataset samples like "
                 "(image_tensor, targets_list_of_dicts)."
             )
-        
+
     def _shuffle_data(
         self, data: Union[torch.Tensor, list], target: Union[torch.Tensor, list, dict]
     ) -> tuple[Union[torch.Tensor, list], Union[torch.Tensor, list, dict]]:
         if isinstance(target, dict):
-            assert isinstance(data, torch.Tensor), "images must be a Tensor when targets are dict-of-lists"
+            assert isinstance(
+                data, torch.Tensor
+            ), "images must be a Tensor when targets are dict-of-lists"
             perm = torch.randperm(data.size(0), device=data.device)
             data = data[perm]
             idx = perm.tolist()
@@ -98,12 +110,16 @@ class AdversarialODTraining(BaseAdversarialTraining):
         adv_images: torch.Tensor,
         targets: list[dict],
     ) -> tuple[torch.Tensor, list[dict]]:
-        assert images.shape == adv_images.shape, "images and adv_images must match shape"
+        assert (
+            images.shape == adv_images.shape
+        ), "images and adv_images must match shape"
         combined_data = torch.cat([images, adv_images], dim=0)
         combined_targets = {k: (v + v) for k, v in targets.items()}
-        combined_data, combined_targets = self._shuffle_data(combined_data, combined_targets)
+        combined_data, combined_targets = self._shuffle_data(
+            combined_data, combined_targets
+        )
         return combined_data, combined_targets
-    
+
     def _generate_adversarial_batch(
         self,
         images: torch.Tensor,
@@ -145,18 +161,26 @@ class AdversarialODTraining(BaseAdversarialTraining):
         images: torch.Tensor,
         targets: list[dict],
         target_images: Optional[torch.Tensor] = None,  # kept for forward compat
-        target_targets: Optional[list[dict]] = None,   # kept for forward compat
+        target_targets: Optional[list[dict]] = None,  # kept for forward compat
     ) -> torch.Tensor:
         """
         Runs a detection-friendly attack and returns adversarial images (same shape as images).
         """
         attack_name = attack.__class__.__name__
-        if (not getattr(attack, "_detector_resolved", False)) and hasattr(attack, "_object_detector") and (
-             isinstance(attack._object_detector, str)
-             or not hasattr(attack._object_detector, "predict")
-         ):
+        if (
+            (not getattr(attack, "_detector_resolved", False))
+            and hasattr(attack, "_object_detector")
+            and (
+                isinstance(attack._object_detector, str)
+                or not hasattr(attack._object_detector, "predict")
+            )
+        ):
             try:
-                det_name = attack._object_detector if isinstance(attack._object_detector, str) else self._wrapper_name
+                det_name = (
+                    attack._object_detector
+                    if isinstance(attack._object_detector, str)
+                    else self._wrapper_name
+                )
                 detector_wrapper = get_object_detector(det_name.lower())
                 underlying = getattr(self._trainable, "model", self._trainable)
                 detector_wrapper.model = underlying
@@ -192,19 +216,25 @@ class AdversarialODTraining(BaseAdversarialTraining):
             tog_variant = getattr(attack, "attack_type", TOGAttackType.UNTARGETED)
             if isinstance(tog_variant, str):
                 tog_variant = TOGAttackType(tog_variant.lower())
-            adv_np = attack.attack(x=images_np, tog_variant=tog_variant, tog_mislabeling_mode=getattr(attack, "tog_mislabeling_mode", "ml"))
+            adv_np = attack.attack(
+                x=images_np,
+                tog_variant=tog_variant,
+                tog_mislabeling_mode=getattr(attack, "tog_mislabeling_mode", "ml"),
+            )
             return torch.from_numpy(adv_np).to(self._device)
         # Default: leave grads enabled so gradient-based attacks work
         adv_images = attack.attack(model, images, targets)
         return adv_images.detach().to(self._device)
-    
+
     def _run_epoch(self, epoch: int) -> None:
         total_loss = 0.0
         for images, targets in self._get_train_loader(epoch):
             images, targets = self._move_to_device(images, targets)
             adv_images, adv_targets = self._generate_adversarial_batch(images, targets)
-            combined_images, combined_targets = self._combine_clean_and_adversarial_data(
-                images, adv_images, adv_targets
+            combined_images, combined_targets = (
+                self._combine_clean_and_adversarial_data(
+                    images, adv_images, adv_targets
+                )
             )
             loss = self._run_batch(combined_images, combined_targets)
             total_loss += loss
@@ -220,7 +250,9 @@ class AdversarialODTraining(BaseAdversarialTraining):
         self._optimizer.zero_grad()
         if self._od_wrapper is None:
             raise RuntimeError("No OD wrapper resolved for training.")
-        model_inputs, model_targets = self._od_wrapper.prepare_training_inputs(source, targets)
+        model_inputs, model_targets = self._od_wrapper.prepare_training_inputs(
+            source, targets
+        )
         output = self._trainable(model_inputs, model_targets)
         loss = self._od_wrapper.extract_total_loss(output)
         loss.backward()

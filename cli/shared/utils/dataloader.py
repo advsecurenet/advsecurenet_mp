@@ -66,4 +66,3 @@ def get_dataloader(
         return DataLoaderFactory.create_od_dataloader(config=dataloader_config)
     else:
         return DataLoaderFactory.create_dataloader(config=dataloader_config)
-    

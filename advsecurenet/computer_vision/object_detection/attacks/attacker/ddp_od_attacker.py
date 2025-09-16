@@ -7,17 +7,25 @@ from advsecurenet.distributed.ddp_base_task import DDPBaseTask
 
 logger = logging.getLogger(__name__)
 
+
 class DDPODAttacker(DDPBaseTask):
     """Lightweight DDP wrapper for object detection attackers.
 
     We only shard the dataset via DistributedSampler; the underlying model is
     left as-is (no gradient sync needed for evaluation-phase attacks)."""
 
-    TEMP_DIR = ".adv_od_tmp"  # simple deterministic temp dir (can override via ADV_OD_TMP env)
+    TEMP_DIR = (
+        ".adv_od_tmp"  # simple deterministic temp dir (can override via ADV_OD_TMP env)
+    )
 
     def __init__(self, attacker_class, config, **kwargs):
         # For parity with existing DDPBaseTask signature we pass model=None; we don't wrap model.
-        DDPBaseTask.__init__(self, model=config.model, rank=dist.get_rank(), world_size=dist.get_world_size())
+        DDPBaseTask.__init__(
+            self,
+            model=config.model,
+            rank=dist.get_rank(),
+            world_size=dist.get_world_size(),
+        )
         self.attacker_class = attacker_class
         self.config = config
         self.kwargs = kwargs
@@ -29,7 +37,9 @@ class DDPODAttacker(DDPBaseTask):
         dl = getattr(self.attacker, "_dataloader", None)
         if isinstance(dl, torch.utils.data.DataLoader):
             # Respect original shuffle flag from config if available
-            shuffle_flag = getattr(getattr(self.config, "dataloader", object()), "shuffle", False)
+            shuffle_flag = getattr(
+                getattr(self.config, "dataloader", object()), "shuffle", False
+            )
             sampler = DistributedSampler(
                 dl.dataset,
                 num_replicas=dist.get_world_size(),
@@ -50,8 +60,12 @@ class DDPODAttacker(DDPBaseTask):
     def run_task(self):
         if dist.is_initialized():
             visible_devices = os.environ.get("CUDA_VISIBLE_DEVICES", "all")
-            current_device = torch.cuda.current_device() if torch.cuda.is_available() else "cpu"
-            print(f"[Rank {dist.get_rank()}] CUDA_VISIBLE_DEVICES={visible_devices}, current_device={current_device}")
+            current_device = (
+                torch.cuda.current_device() if torch.cuda.is_available() else "cpu"
+            )
+            print(
+                f"[Rank {dist.get_rank()}] CUDA_VISIBLE_DEVICES={visible_devices}, current_device={current_device}"
+            )
         shard_indices = None
         if self._sampler is not None:
             # epoch fixed (0) for reproducibility; if shuffle True sampler uses this epoch seed
@@ -70,7 +84,9 @@ class DDPODAttacker(DDPBaseTask):
                 if dist.get_rank() == 0 and not os.path.exists(temp_dir):
                     os.makedirs(temp_dir, exist_ok=True)
                 dist.barrier()
-                out_path = os.path.join(temp_dir, f"adv_images_rank{dist.get_rank()}.pt")
+                out_path = os.path.join(
+                    temp_dir, f"adv_images_rank{dist.get_rank()}.pt"
+                )
                 # Flatten result to count images
                 flat_count = 0
                 for batch in result:
@@ -78,15 +94,26 @@ class DDPODAttacker(DDPBaseTask):
                         flat_count += batch.shape[0]
                     else:
                         flat_count += 1
-                dataset_len = len(self.attacker._dataloader.dataset) if hasattr(self.attacker._dataloader, "dataset") else None
-                torch.save({
-                    "images": result,
-                    "indices": shard_indices,
-                    "local_image_count": flat_count,
-                    "dataset_len": dataset_len
-                }, out_path)
+                dataset_len = (
+                    len(self.attacker._dataloader.dataset)
+                    if hasattr(self.attacker._dataloader, "dataset")
+                    else None
+                )
+                torch.save(
+                    {
+                        "images": result,
+                        "indices": shard_indices,
+                        "local_image_count": flat_count,
+                        "dataset_len": dataset_len,
+                    },
+                    out_path,
+                )
             except Exception as e:
-                logging.error("Failed to store adversarial images on rank %d: %s", dist.get_rank(), e)
+                logging.error(
+                    "Failed to store adversarial images on rank %d: %s",
+                    dist.get_rank(),
+                    e,
+                )
         dist.barrier()
         return result
 

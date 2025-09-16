@@ -128,7 +128,10 @@ class COCODataset(BaseDataset):
 
         # 5) instantiate the torchvision dataset
         coco_ds = datasets.CocoDetection(
-            root=img_root, annFile=ann_file, transform=transform, target_transform=_to_contiguous,
+            root=img_root,
+            annFile=ann_file,
+            transform=transform,
+            target_transform=_to_contiguous,
         )
 
         # 6) wrap and return
