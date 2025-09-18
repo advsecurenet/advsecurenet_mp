@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader
 from opacus import PrivacyEngine
 from opacus.validators import ModuleValidator
 
-from shared.types.configs.base import DifferentialPrivacyBase
+from advnet_common.types.configs.base import DifferentialPrivacyBase
 
 
 def setup_privacy_engine(

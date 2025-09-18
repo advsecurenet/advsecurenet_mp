@@ -2,11 +2,10 @@ from dataclasses import dataclass, field
 from typing import Optional, Union, Any
 
 from torch import nn
-from torch.optim import Optimizer, lr_scheduler
 from torch.utils.data import DataLoader
 
 from advsecurenet.shared.types.configs.device_config import DeviceConfig
-from shared.types.configs.base import (
+from advnet_common.types.configs.base import (
     TrainingHyperparametersBase,
     OptimizationBase,
     CheckpointBase,

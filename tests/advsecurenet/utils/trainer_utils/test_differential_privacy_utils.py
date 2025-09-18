@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader, TensorDataset
 from advsecurenet.utils.trainer_utils.differential_privacy_utils import (
     setup_privacy_engine,
 )
-from shared.types.configs.base import DifferentialPrivacyBase
+from advnet_common.types.configs.base import DifferentialPrivacyBase
 
 
 class SimpleModel(nn.Module):

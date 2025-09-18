@@ -5,7 +5,7 @@ from advsecurenet.shared.types.configs.device_config import DeviceConfig
 from cli.shared.types.utils.dataloader import DataLoaderCliConfigType
 from advsecurenet.shared.types.configs.dataset_config import CreateDatasetCliConfig
 from cli.shared.types.utils.model import ModelCliConfigType
-from shared.types.configs.base import (
+from advnet_common.types.configs.base import (
     TrainingHyperparametersBase,
     OptimizationBase,
     CheckpointBase,
