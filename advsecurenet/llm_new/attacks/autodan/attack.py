@@ -118,10 +118,10 @@ class AutoDANPromptManager(PromptManager):
         _topk = topk - 1
 
         if not allow_non_ascii:
-            target_grad[:, self._nonascii_toks.to(target_grad.device)] = -np.infty
+            target_grad[:, self._nonascii_toks.to(target_grad.device)] = -np.inf
 
         if len(explored_ids) > 0:
-            target_grad[:, explored_ids] = -np.infty
+            target_grad[:, explored_ids] = -np.inf
 
         # optional heuristic: ban some tokens to affect the generation results
         if self.tokenizer.bos_token == '<|endoftext|>':  # for pythia
@@ -152,7 +152,7 @@ class AutoDANPromptManager(PromptManager):
                             if tok.startswith('▁')] + [29892, 29889]  # toks with whitespace prefix. add comma and period
             ban_tokens = [i for i in range(self.tokenizer.vocab_size) if i not in liked_tokens]
 
-        target_grad[:, ban_tokens] = -np.infty
+        target_grad[:, ban_tokens] = -np.inf
 
         target_obj = target_grad[0]
         control_obj = last_tok_ll[0]
