@@ -1,0 +1,17 @@
+datasets: [CIFAR10]             # or VOC, COCO_subset
+task: classification            # or detection
+models: [resnet18, wideresnet]
+defenses: [erm, advtrain, dpsgd]  # optional; empty = none
+attacks: [fgsm, pgd, autoattack]
+
+attack_args:
+  pgd: {epsilon: 0.031, steps: 10, step_size: 0.007}
+defense_args:
+  advtrain: {epsilon: 0.031, steps: 7}
+  dpsgd: {noise_multiplier: 1.0, max_grad_norm: 1.0}
+
+output:
+  dir: runs/cifar10_bench
+  formats: [csv, pandas, cli]   # choose any subset
+  save_raw: true                # optional JSONL of per-batch metrics
+seed: 123
