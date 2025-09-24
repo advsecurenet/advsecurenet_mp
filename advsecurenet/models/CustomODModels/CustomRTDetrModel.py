@@ -2,12 +2,13 @@ import torch
 import numpy as np
 from typing import List, Dict, Any, Optional, Union
 from transformers import (
-    RTDetrForObjectDetection,
     RTDetrImageProcessor,
 )
 from transformers.utils import ModelOutput
 
 from advsecurenet.models.CustomODModels.CustomODBaseModel import CustomODBaseModel
+from advsecurenet.models.huggingface_model import HuggingFaceModel
+from advsecurenet.shared.types.configs.model_config import HuggingFaceResolvedConfig
 
 
 class RTDetrEvalAdapter(torch.nn.Module):
@@ -88,9 +89,12 @@ class CustomRTDetrModel(CustomODBaseModel):
         self.processor: RTDetrImageProcessor = RTDetrImageProcessor.from_pretrained(
             model_name, cache_dir=cache_dir
         )
-        self._model: RTDetrForObjectDetection = RTDetrForObjectDetection.from_pretrained(
-            model_name, cache_dir=cache_dir
-        ).to(self.device)
+        cfg = HuggingFaceResolvedConfig(
+            model_name=model_name,
+            model_id=model_name,
+            cache_dir=cache_dir,
+        )
+        self._model = HuggingFaceModel(cfg).to(self.device).model
         self.id2label = self._model.config.id2label
         self.label2id = self._model.config.label2id
         self.categories = [self.id2label[i] for i in range(len(self.id2label))]
