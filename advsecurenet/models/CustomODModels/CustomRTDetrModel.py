@@ -19,12 +19,16 @@ class RTDetrEvalAdapter(torch.nn.Module):
         self.device = torch.device(device)
         self.conf_thresh = conf_thresh
 
-    def forward(self, x=None, pixel_values=None, pixel_mask=None, labels=None, **kwargs):
+    def forward(
+        self, x=None, pixel_values=None, pixel_mask=None, labels=None, **kwargs
+    ):
         if pixel_values is not None and x is None:
             pv = pixel_values.to(self.device)
             pm = pixel_mask.to(self.device) if pixel_mask is not None else None
             with torch.no_grad():
-                return self.core_model(pixel_values=pv, pixel_mask=pm, labels=labels, **kwargs)
+                return self.core_model(
+                    pixel_values=pv, pixel_mask=pm, labels=labels, **kwargs
+                )
 
         if x is None:
             raise ValueError("RTDetrEvalAdapter expects either x or pixel_values.")
@@ -50,15 +54,20 @@ class RTDetrEvalAdapter(torch.nn.Module):
             raise TypeError("Unsupported input type for RTDetrEvalAdapter.")
         imgs_list = [img.detach().cpu() for img in batch]
         enc = self.processor(images=imgs_list, return_tensors="pt", do_rescale=False)
-        enc = {k: (v.to(self.device) if isinstance(v, torch.Tensor) else v) for k, v in enc.items()}
+        enc = {
+            k: (v.to(self.device) if isinstance(v, torch.Tensor) else v)
+            for k, v in enc.items()
+        }
         with torch.no_grad():
             raw_out = self.core_model(**enc)
         if not isinstance(raw_out, ModelOutput):
             raw_out = ModelOutput(raw_out)
-        model_out = ModelOutput({
-            k: (v.detach().cpu() if isinstance(v, torch.Tensor) else v)
-            for k, v in raw_out.items()
-        })
+        model_out = ModelOutput(
+            {
+                k: (v.detach().cpu() if isinstance(v, torch.Tensor) else v)
+                for k, v in raw_out.items()
+            }
+        )
         H, W = batch.shape[-2], batch.shape[-1]
         target_sizes = torch.tensor([[H, W]] * batch.shape[0], dtype=torch.long)
         results = self.processor.post_process_object_detection(
@@ -66,11 +75,13 @@ class RTDetrEvalAdapter(torch.nn.Module):
         )
         detections = []
         for r in results:
-            detections.append({
-                "boxes": r["boxes"],
-                "scores": r["scores"],
-                "labels": r["labels"].to(torch.int64),
-            })
+            detections.append(
+                {
+                    "boxes": r["boxes"],
+                    "scores": r["scores"],
+                    "labels": r["labels"].to(torch.int64),
+                }
+            )
         return detections
 
 
@@ -84,7 +95,11 @@ class CustomRTDetrModel(CustomODBaseModel):
         super().__init__()
         self.expects_numpy_images = False
         if device is None:
-            device = f"cuda:{torch.cuda.current_device()}" if torch.cuda.is_available() else "cpu"
+            device = (
+                f"cuda:{torch.cuda.current_device()}"
+                if torch.cuda.is_available()
+                else "cpu"
+            )
         self.device = torch.device(device)
         self.processor: RTDetrImageProcessor = RTDetrImageProcessor.from_pretrained(
             model_name, cache_dir=cache_dir
@@ -100,7 +115,7 @@ class CustomRTDetrModel(CustomODBaseModel):
         self.categories = [self.id2label[i] for i in range(len(self.id2label))]
         self.num_classes = len(self.categories)
         self._model_name = "CustomRTDetrModel"
-        
+
     def forward(self, x, targets=None):
         """
         x: torch.Tensor [B,C,H,W] float32 (0..1 or 0..255)
@@ -109,7 +124,10 @@ class CustomRTDetrModel(CustomODBaseModel):
         """
         images_list = self._to_image_list(x)
         enc = self.processor(images=images_list, return_tensors="pt", do_rescale=False)
-        enc = {k: v.to(self.device) if isinstance(v, torch.Tensor) else v for k, v in enc.items()}
+        enc = {
+            k: v.to(self.device) if isinstance(v, torch.Tensor) else v
+            for k, v in enc.items()
+        }
         if self.training and targets is not None:
             # HF computes loss internally when labels are provided
             outputs = self._model(**enc, labels=targets)
@@ -118,8 +136,14 @@ class CustomRTDetrModel(CustomODBaseModel):
                 for k, v in outputs.loss_dict.items():
                     loss_components[f"loss_{k}"] = v
             else:
-                for name in ("loss_ce", "loss_cls", "loss_bbox", "loss_giou",
-                            "loss_cardinality", "loss_objectness"):
+                for name in (
+                    "loss_ce",
+                    "loss_cls",
+                    "loss_bbox",
+                    "loss_giou",
+                    "loss_cardinality",
+                    "loss_objectness",
+                ):
                     if hasattr(outputs, name) and getattr(outputs, name) is not None:
                         loss_components[name] = getattr(outputs, name)
             return loss_components
@@ -173,10 +197,26 @@ class CustomRTDetrModel(CustomODBaseModel):
             )
         preds = []
         for res in results:
-            boxes = res["boxes"].numpy().astype(np.float32) if len(res["boxes"]) else np.empty((0, 4), np.float32)
-            scores = res["scores"].numpy().astype(np.float32) if len(res["scores"]) else np.empty((0,), np.float32)
-            labels = res["labels"].numpy().astype(np.int64) if len(res["labels"]) else np.empty((0,), np.int64)
-            label_names = np.array([self.id2label[int(i)] for i in labels], dtype=object) if labels.size else np.empty((0,), dtype=object)
+            boxes = (
+                res["boxes"].numpy().astype(np.float32)
+                if len(res["boxes"])
+                else np.empty((0, 4), np.float32)
+            )
+            scores = (
+                res["scores"].numpy().astype(np.float32)
+                if len(res["scores"])
+                else np.empty((0,), np.float32)
+            )
+            labels = (
+                res["labels"].numpy().astype(np.int64)
+                if len(res["labels"])
+                else np.empty((0,), np.int64)
+            )
+            label_names = (
+                np.array([self.id2label[int(i)] for i in labels], dtype=object)
+                if labels.size
+                else np.empty((0,), dtype=object)
+            )
             preds.append(
                 {
                     "boxes": boxes,
@@ -214,7 +254,9 @@ class CustomRTDetrModel(CustomODBaseModel):
         """
         direction = 2 * float(target_val) - 1.0
         loss = torch.tensor(0.0, device=self.device, dtype=torch.float32)
-        if hasattr(predictions, "logits") and isinstance(predictions.logits, torch.Tensor):
+        if hasattr(predictions, "logits") and isinstance(
+            predictions.logits, torch.Tensor
+        ):
             logits = predictions.logits  # (B, Q, C)
             max_per_query, _ = logits.max(dim=-1)  # (B, Q)
             loss -= direction * max_per_query.sum()
@@ -255,8 +297,9 @@ class CustomRTDetrModel(CustomODBaseModel):
         into RT-DETR format expected by HF:
           {'boxes': cxcywh normalized [N,4], 'class_labels': [N]}
         """
-        assert hasattr(self, "input_shape") and self.input_shape is not None, \
-            "self.input_shape must be set (e.g., by ODWrapper) before translate_labels()"
+        assert (
+            hasattr(self, "input_shape") and self.input_shape is not None
+        ), "self.input_shape must be set (e.g., by ODWrapper) before translate_labels()"
         if self.channels_first:
             _, H, W = self.input_shape
         else:
@@ -266,10 +309,16 @@ class CustomRTDetrModel(CustomODBaseModel):
             if isinstance(a, np.ndarray):
                 return torch.from_numpy(a).to(device=device, dtype=dtype)
             return a.to(device=device, dtype=dtype)
+
         y = list(labels or [])
         if len(y) < batch_size:
-            y = y + [{"boxes": np.empty((0, 4), np.float32), "labels": np.empty((0,), np.int64)}
-                     for _ in range(batch_size - len(y))]
+            y = y + [
+                {
+                    "boxes": np.empty((0, 4), np.float32),
+                    "labels": np.empty((0,), np.int64),
+                }
+                for _ in range(batch_size - len(y))
+            ]
         elif len(y) > batch_size:
             y = y[:batch_size]
         out: List[Dict[str, torch.Tensor]] = []
