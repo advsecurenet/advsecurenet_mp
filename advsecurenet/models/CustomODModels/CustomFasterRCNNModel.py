@@ -1,6 +1,7 @@
 import torch
-import torchvision
+import os
 import numpy as np
+from unittest.mock import patch
 from torchvision.models.detection import (
     fasterrcnn_resnet50_fpn_v2,
     FasterRCNN_ResNet50_FPN_V2_Weights,
@@ -15,24 +16,17 @@ class CustomFasterRCNNModel(CustomODBaseModel):
         num_classes: int = 91,
         pretrained: bool = True,
         pretrained_backbone: bool = True,
+        model_weights_path: str | None = None,
         device: str | int | torch.device | None = None,
     ):
         super().__init__()
         self.expects_numpy_images = False
         self.num_classes = num_classes
-        if pretrained:
-            self._model = fasterrcnn_resnet50_fpn_v2(
-                weights=(
-                    FasterRCNN_ResNet50_FPN_V2_Weights.DEFAULT
-                    if pretrained_backbone
-                    else None
-                ),
-                num_classes=None if pretrained_backbone else num_classes,
-            )
-        else:
-            self._model = fasterrcnn_resnet50_fpn_v2(
-                weights=None, num_classes=num_classes
-            )
+        self.load_model_weights(
+            model_weights_path=model_weights_path, 
+            pretrained=pretrained, 
+            pretrained_backbone=pretrained_backbone,
+        )
         self._model_name = "CustomFasterRCNNModel"
         self.categories = FasterRCNN_ResNet50_FPN_V2_Weights.DEFAULT.meta["categories"]
         # Resolve and move the model
@@ -44,6 +38,61 @@ class CustomFasterRCNNModel(CustomODBaseModel):
             )
         self.device = torch.device(device)
         self._model.to(self.device)
+
+
+    def load_model_weights(self, model_weights_path, pretrained, pretrained_backbone):
+        if pretrained:
+            self._model = fasterrcnn_resnet50_fpn_v2(
+                weights=(
+                    FasterRCNN_ResNet50_FPN_V2_Weights.DEFAULT
+                    if pretrained_backbone
+                    else None
+                ),
+                num_classes=None if pretrained_backbone else self.num_classes,
+            )
+        else:
+            self._model = fasterrcnn_resnet50_fpn_v2(
+                weights=None, num_classes=self.num_classes
+            )
+        for m in self._model.modules():
+            if isinstance(m, torch.nn.modules.batchnorm._BatchNorm):
+                m.eval()
+                m.track_running_stats = False
+        if model_weights_path and isinstance(model_weights_path, str) and model_weights_path.endswith(".pth") and os.path.isfile(model_weights_path):
+            try:
+                original_torch_load = torch.load
+                def load_with_weights_only_false(*args, **kwargs):
+                    kwargs["weights_only"] = False
+                    return original_torch_load(*args, **kwargs)
+                with patch("torch.load", side_effect=load_with_weights_only_false):
+                    sd = torch.load(model_weights_path, map_location="cpu")
+                if isinstance(sd, dict):
+                    for k in ["state_dict", "model", "weights"]:
+                        if k in sd and isinstance(sd[k], dict):
+                            sd = sd[k]
+                            break
+                target_keys = set(self._model.state_dict().keys())
+                sd_clean = {}
+                for k, v in sd.items():
+                    nk = k
+                    for prefix in (
+                        "model._model.model.",
+                        "model.model.",
+                        "model._model.",
+                        "model.",
+                        "_model.model.",
+                        "_model.",
+                        "module.",
+                    ):
+                        if nk.startswith(prefix):
+                            nk = nk[len(prefix):]
+                    if nk not in target_keys and f"model.{nk}" in target_keys:
+                        nk = f"model.{nk}"
+                    sd_clean[nk] = v
+                self._model.load_state_dict(sd_clean, strict=False)
+            except Exception as e:
+                print(f"[CustomFasterRCNNModel][WARN] Failed to load .pth state_dict: {e}")
+        
 
     def forward(self, x, targets=None):
         """
@@ -91,9 +140,12 @@ class CustomFasterRCNNModel(CustomODBaseModel):
         return inference_model
 
     def prepare_training_inputs(self, images: torch.Tensor, targets: list[dict]):
+        images = images.to(self.device).float()
         img_list = [images[i] for i in range(images.size(0))]
         for t in img_list:
             t.requires_grad_(True)
+        n = len(next(iter(targets.values()))) if targets else 0
+        targets = [{k: v[i] for k, v in targets.items()} for i in range(n)]
         return img_list, targets
 
     def calculate_loss(self, predictions, target_val):

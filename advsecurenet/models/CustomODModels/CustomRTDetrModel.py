@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+import os
 from typing import List, Dict, Any, Optional, Union
 from transformers import (
     RTDetrImageProcessor,
@@ -89,6 +90,7 @@ class CustomRTDetrModel(CustomODBaseModel):
     def __init__(
         self,
         model_name: str = "PekingU/rtdetr_r101vd_coco_o365",
+        model_weights_path: str | None = None,
         device: Optional[Union[str, int, torch.device]] = None,
         cache_dir: Optional[str] = None,
     ):
@@ -110,11 +112,42 @@ class CustomRTDetrModel(CustomODBaseModel):
             cache_dir=cache_dir,
         )
         self._model = HuggingFaceModel(cfg).to(self.device).model
+        self.load_model_weights(model_weights_path)
         self.id2label = self._model.config.id2label
         self.label2id = self._model.config.label2id
         self.categories = [self.id2label[i] for i in range(len(self.id2label))]
         self.num_classes = len(self.categories)
         self._model_name = "CustomRTDetrModel"
+
+    def load_model_weights(self, model_weights_path):
+        if not (model_weights_path and isinstance(model_weights_path, str)
+                and model_weights_path.endswith(".pth") and os.path.isfile(model_weights_path)):
+            return
+
+        sd = torch.load(model_weights_path, map_location="cpu")
+        if isinstance(sd, dict):
+            for k in ("state_dict", "model", "weights"):
+                if k in sd and isinstance(sd[k], dict):
+                    sd = sd[k]
+                    break
+
+        target_keys = set(self._model.state_dict().keys())
+
+        def _clean(k: str) -> str:
+            nk = k
+            for p in (
+                "model._model.model.", "model.model.", "model._model.",
+                "_model.model.", "_model.", "model.", "module.",
+            ):
+                if nk.startswith(p):
+                    nk = nk[len(p):]
+            if nk not in target_keys and f"model.{nk}" in target_keys:
+                nk = f"model.{nk}"
+            return nk
+
+        sd_clean = { _clean(k): v for k, v in sd.items() }
+        self._model.load_state_dict(sd_clean, strict=False)
+        
 
     def forward(self, x, targets=None):
         """

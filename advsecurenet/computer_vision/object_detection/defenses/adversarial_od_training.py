@@ -35,16 +35,11 @@ class AdversarialODTraining(BaseAdversarialTraining):
         self._trainable = getattr(self._model, "model", self._model)
         for p in self._trainable.parameters():
             p.requires_grad_(True)
-        wrapper_name = getattr(
-            self._config, "detector_wrapper", None
-        ) or infer_wrapper_name(self._trainable)
-        self._wrapper_name = wrapper_name
         try:
-            self._od_wrapper = get_object_detector(wrapper_name)
-            self._od_wrapper.model = self._trainable
+            self._od_wrapper = get_object_detector(existing_model=self._trainable)
         except Exception as e:
             raise RuntimeError(
-                f"Failed to load detector wrapper '{wrapper_name}': {e}"
+                f"Failed to load detector wrapper: {e}"
             ) from e
         if not any(g["params"] for g in self._optimizer.param_groups):
             kwargs = self._config.optimizer_kwargs or {}
@@ -176,14 +171,7 @@ class AdversarialODTraining(BaseAdversarialTraining):
             )
         ):
             try:
-                det_name = (
-                    attack._object_detector
-                    if isinstance(attack._object_detector, str)
-                    else self._wrapper_name
-                )
-                detector_wrapper = get_object_detector(det_name.lower())
-                underlying = getattr(self._trainable, "model", self._trainable)
-                detector_wrapper.model = underlying
+                detector_wrapper = get_object_detector(existing_model=self._trainable)
                 attack._object_detector = detector_wrapper
                 attack._detector_resolved = True
             except Exception:
