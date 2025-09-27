@@ -127,6 +127,16 @@ class CustomODBaseModel(torch.nn.Module, ABC):
         raise NotImplementedError(
             "Subclasses must implement initialize_inference_model method."
         )
+    
+    @abstractmethod
+    def load_model_weights(self, model_weights_path):
+        """
+        Load model weights from the specified path.
+
+        Args:
+            model_weights_path: str, path to the model weights file.
+        """
+        raise NotImplementedError("Subclasses must implement load_model_weights method.")
 
     @abstractmethod
     def prepare_training_inputs(self, images: torch.Tensor, targets: list[dict]):

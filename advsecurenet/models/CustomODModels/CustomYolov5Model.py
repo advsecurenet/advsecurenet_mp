@@ -32,40 +32,27 @@ class CustomYolov5Model(CustomODBaseModel):
     ):
         super().__init__()
         self.expects_numpy_images = True
-        original_torch_load = torch.load
+        self._resolve_device(device)
+        self.load_model_weights(model_weights_path)
+        self.compute_loss = ComputeLoss(self._model)
 
+    def load_model_weights(self, model_weights_path):
+        original_torch_load = torch.load
         def load_with_weights_only_false(*args, **kwargs):
             kwargs["weights_only"] = False
             return original_torch_load(*args, **kwargs)
-
         # Decide loading strategy
         is_plain_state_dict = model_weights_path.endswith(".pth")
         base_arch_weights = "yolov5s.pt"
         arch_source = (
             model_weights_path if not is_plain_state_dict else base_arch_weights
         )
-        if device is not None:
-            if isinstance(device, (int,)):
-                resolved_device = (
-                    f"cuda:{device}" if torch.cuda.is_available() else "cpu"
-                )
-            else:
-                resolved_device = str(device)
-        else:
-            if torch.cuda.is_available():
-                try:
-                    resolved_device = f"cuda:{torch.cuda.current_device()}"
-                except Exception:
-                    resolved_device = "cuda:0"
-            else:
-                resolved_device = "cpu"
-        self.device = resolved_device
         with patch("torch.load", side_effect=load_with_weights_only_false):
             self._model = yolov5.load(
-                arch_source, autoshape=False, device=resolved_device
+                arch_source, autoshape=False, device=self.device
             ).model
             self._autoshape = AutoShape(self._model)
-            self._model.to(resolved_device)
+            self._model.to(self.device)
         # Freeze BatchNorm running stats to avoid per-rank drift during adversarial gradients
         for m in self._model.modules():
             if isinstance(m, torch.nn.modules.batchnorm._BatchNorm):
@@ -79,7 +66,6 @@ class CustomYolov5Model(CustomODBaseModel):
                         if k in sd and isinstance(sd[k], dict):
                             sd = sd[k]
                             break
-
                 def _clean(d):
                     target_keys = set(self._model.state_dict().keys())
                     cleaned = {}
@@ -97,7 +83,6 @@ class CustomYolov5Model(CustomODBaseModel):
                             nk = f"model.{nk}"
                         cleaned[nk] = v
                     return cleaned
-
                 sd_clean = _clean(sd)
                 self._model.load_state_dict(sd_clean, strict=False)
             except Exception as e:
@@ -111,7 +96,6 @@ class CustomYolov5Model(CustomODBaseModel):
             "obj_pw": 1.0,
             "fl_gamma": 0.0,
         }
-        self.compute_loss = ComputeLoss(self._model)
 
     def forward(self, x, targets=None):
         try:
@@ -188,9 +172,7 @@ class CustomYolov5Model(CustomODBaseModel):
             if hasattr(model, "_autoshape"):
                 inference_model = model._autoshape
             else:
-                from yolov5.models.common import AutoShape as _AutoShape
-
-                inference_model = _AutoShape(model)
+                inference_model = AutoShape(model)
             if hasattr(inference_model, "conf"):
                 inference_model.conf = conf_thresh
         except Exception as e:
@@ -317,3 +299,21 @@ class CustomYolov5Model(CustomODBaseModel):
             if pieces
             else torch.zeros((0, 6), device=self.device)
         )
+    
+    def _resolve_device(self, device):
+        if device is not None:
+            if isinstance(device, (int,)):
+                resolved_device = (
+                    f"cuda:{device}" if torch.cuda.is_available() else "cpu"
+                )
+            else:
+                resolved_device = str(device)
+        else:
+            if torch.cuda.is_available():
+                try:
+                    resolved_device = f"cuda:{torch.cuda.current_device()}"
+                except Exception:
+                    resolved_device = "cuda:0"
+            else:
+                resolved_device = "cpu"
+        self.device = resolved_device

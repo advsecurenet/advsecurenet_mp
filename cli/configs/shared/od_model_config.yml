@@ -9,7 +9,7 @@ is_external: true
 random_seed: null
 path_configs:
   model_weights_path: "model_weights/yolov5s.pt"
-  model_arch_path: "../../../advsecurenet/models/CustomModels/CustomYolov5Model.py" # path to CustomYolov5Model.py file
+  model_arch_path: "../../../advsecurenet/models/CustomODModels/CustomYolov5Model.py" # path to CustomYolov5Model.py file
 norm_config:
   add_norm_layer: false
   norm_mean:
