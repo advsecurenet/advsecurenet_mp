@@ -1,6 +1,45 @@
 import pytest
 import torch
 from unittest.mock import MagicMock, patch
+import sys
+import types
+
+# Minimal transformers stub to avoid heavy dependency during imports
+if "transformers" not in sys.modules:
+    class _AutoModel:
+        @classmethod
+        def from_pretrained(cls, *args, **kwargs):
+            return MagicMock()
+
+    class _AutoConfig:
+        @classmethod
+        def from_pretrained(cls, *args, **kwargs):
+            class _Cfg:
+                architectures = []
+
+            return _Cfg()
+
+    transformers_stub = types.SimpleNamespace(AutoModel=_AutoModel, AutoConfig=_AutoConfig)
+    sys.modules["transformers"] = transformers_stub
+
+# Minimal mean_average_precision stub to satisfy evaluator imports
+if "mean_average_precision" not in sys.modules:
+    class _StubMetric:
+        def add(self, *args, **kwargs):
+            pass
+
+        def reset(self):
+            pass
+
+        def value(self, **kwargs):
+            return {"mAP": 0.0}
+
+    class _MetricBuilder:
+        @staticmethod
+        def build_evaluation_metric(*args, **kwargs):
+            return _StubMetric()
+
+    sys.modules["mean_average_precision"] = types.SimpleNamespace(MetricBuilder=_MetricBuilder)
 
 from advsecurenet.computer_vision.object_detection.attacks.attacker.od_attacker import (
     ODAttacker,
@@ -103,14 +142,16 @@ def test_execute_dummy_subclass(config):
     assert attacker.execute() == "executed"
 
 
-def test_eval_model_to_and_eval_called(config):
-    # Patch model to check .to and .eval calls
+def test_init_does_not_move_or_eval_model(config):
+    # Attacker no longer moves/evals the model during __init__
     mock_model = MagicMock()
     config.model = mock_model
     config.device.processor = "cpu"
-    DummyODAttacker(config)
-    mock_model.to.assert_called_once_with(torch.device("cpu"))
-    mock_model.to().eval.assert_called_once()
+    attacker = DummyODAttacker(config)
+    # Ensure device is set but model movement/eval are not invoked automatically
+    assert attacker._device == torch.device("cpu")
+    mock_model.to.assert_not_called()
+    mock_model.eval.assert_not_called()
 
 
 def test_create_dataloader_with_real_dataloader(config):

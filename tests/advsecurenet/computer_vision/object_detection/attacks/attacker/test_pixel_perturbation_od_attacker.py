@@ -4,11 +4,14 @@ import numpy as np
 from unittest.mock import MagicMock, patch
 from torch.utils.data import Dataset, DataLoader
 
-from advsecurenet.computer_vision.object_detection.attacks.attacker.adversarial_patch_od_attacker import (
-    AdversarialPatchODAttacker,
+from advsecurenet.computer_vision.object_detection.attacks.attacker.pixel_perturbation_od_attacker import (
+    PixelPerturbationODAttacker,
 )
 from advsecurenet.shared.types.configs.attack_configs.od_attacker_config import (
     ODAttackerConfig,
+)
+from advsecurenet.computer_vision.object_detection.attacks.pixel_perturbation_based.tog.tog_attack_type import (
+    TOGAttackType,
 )
 
 
@@ -29,20 +32,22 @@ class DummyDataset(Dataset):
         return images, targets_dict
 
 
-# Dummy attack with .attack() and .apply_patch()
-class DummyAttack:
-    def attack(self, mask, dataloader, device):
-        return torch.ones((3, 10, 10))
-
-    def apply_patch(self, x, patch_external, random_location):
-        return torch.from_numpy(x / 255.0)
+# Dummy attack with .attack()
+class DummyPixelAttack:
+    def attack(self, x, y=None, mask=None, tog_variant=None, tog_mislabeling_mode=None):
+        return np.ones_like(x)
 
 
 @pytest.fixture
-def patch_config():
+def pixel_config():
+    # Create the minimal attack and attach a minimal _object_detector with an inference_model
+    attack = DummyPixelAttack()
+    attack._object_detector = MagicMock()
+    attack._object_detector.inference_model = MagicMock(name="inference_model")
+
     config = ODAttackerConfig(
         model=MagicMock(),
-        attack=DummyAttack(),
+        attack=attack,
         dataloader=DataLoader(DummyDataset()),
         device=MagicMock(processor="cpu", use_ddp=False),
         return_adversarial_images=True,
@@ -54,13 +59,15 @@ def patch_config():
 
 
 @patch(
-    "advsecurenet.computer_vision.object_detection.attacks.attacker.adversarial_patch_od_attacker.ObjectDetectorAdversarialEvaluator"
+    "advsecurenet.computer_vision.object_detection.attacks.attacker.pixel_perturbation_od_attacker.ObjectDetectorAdversarialEvaluator"
 )
-def test_execute_return_adv_images(mock_evaluator, patch_config):
+def test_execute_return_adv_images(mock_evaluator, pixel_config):
     evaluator_instance = MagicMock()
     mock_evaluator.return_value.__enter__.return_value = evaluator_instance
     evaluator_instance.get_results.return_value = {"mAP": 0.5}
-    attacker = AdversarialPatchODAttacker(patch_config)
+    attacker = PixelPerturbationODAttacker(
+        pixel_config, attack_type=TOGAttackType.VANISHING
+    )
     adv_images = attacker.execute()
     assert isinstance(adv_images, list)
     assert all(isinstance(img, torch.Tensor) for img in adv_images)
@@ -69,40 +76,46 @@ def test_execute_return_adv_images(mock_evaluator, patch_config):
 
 
 @patch(
-    "advsecurenet.computer_vision.object_detection.attacks.attacker.adversarial_patch_od_attacker.ObjectDetectorAdversarialEvaluator"
+    "advsecurenet.computer_vision.object_detection.attacks.attacker.pixel_perturbation_od_attacker.ObjectDetectorAdversarialEvaluator"
 )
-def test_execute_dont_return_adv_images(mock_evaluator, patch_config):
-    patch_config.return_adversarial_images = False
+def test_execute_dont_return_adv_images(mock_evaluator, pixel_config):
+    pixel_config.return_adversarial_images = False
     evaluator_instance = MagicMock()
     mock_evaluator.return_value.__enter__.return_value = evaluator_instance
     evaluator_instance.get_results.return_value = {"mAP": 0.5}
-    attacker = AdversarialPatchODAttacker(patch_config)
+    attacker = PixelPerturbationODAttacker(
+        pixel_config, attack_type=TOGAttackType.FABRICATION
+    )
     adv_images = attacker.execute()
     assert adv_images is None
 
 
 @patch(
-    "advsecurenet.computer_vision.object_detection.attacks.attacker.adversarial_patch_od_attacker.ObjectDetectorAdversarialEvaluator"
+    "advsecurenet.computer_vision.object_detection.attacks.attacker.pixel_perturbation_od_attacker.ObjectDetectorAdversarialEvaluator"
 )
-def test_execute_empty_dataloader(mock_evaluator, patch_config):
-    patch_config.dataloader = DataLoader(DummyDataset(n=0))
+def test_execute_empty_dataloader(mock_evaluator, pixel_config):
+    pixel_config.dataloader = DataLoader(DummyDataset(n=0))
     evaluator_instance = MagicMock()
     mock_evaluator.return_value.__enter__.return_value = evaluator_instance
     evaluator_instance.get_results.return_value = {"mAP": 0.5}
-    attacker = AdversarialPatchODAttacker(patch_config)
+    attacker = PixelPerturbationODAttacker(
+        pixel_config, attack_type=TOGAttackType.UNTARGETED
+    )
     adv_images = attacker.execute()
     assert isinstance(adv_images, list)
     assert adv_images == []
 
 
 @patch(
-    "advsecurenet.computer_vision.object_detection.attacks.attacker.adversarial_patch_od_attacker.ObjectDetectorAdversarialEvaluator"
+    "advsecurenet.computer_vision.object_detection.attacks.attacker.pixel_perturbation_od_attacker.ObjectDetectorAdversarialEvaluator"
 )
-def test_patch_application_shape(mock_evaluator, patch_config):
+def test_patch_application_shape(mock_evaluator, pixel_config):
     evaluator_instance = MagicMock()
     mock_evaluator.return_value.__enter__.return_value = evaluator_instance
     evaluator_instance.get_results.return_value = {"mAP": 0.5}
-    attacker = AdversarialPatchODAttacker(patch_config)
+    attacker = PixelPerturbationODAttacker(
+        pixel_config, attack_type=TOGAttackType.VANISHING
+    )
     adv_images = attacker.execute()
     for img in adv_images:
         assert img.shape[-3:] == (

@@ -2,3 +2,4 @@ from advsecurenet.models.CustomODModels.CustomYolov5Model import CustomYolov5Mod
 from advsecurenet.models.CustomODModels.CustomFasterRCNNModel import (
     CustomFasterRCNNModel,
 )
+from advsecurenet.models.CustomODModels.CustomRTDetrModel import CustomRTDetrModel
