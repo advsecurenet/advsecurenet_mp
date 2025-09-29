@@ -10,6 +10,13 @@ _LABELS_REGISTRY: Dict[str, List[str]] = {
 }
 
 
+def get_dataset_classes_count(name: str) -> int:
+    """
+    Return number of classes for a dataset; 0 if unknown.
+    """
+    return len(_LABELS_REGISTRY.get((name or "").upper(), []))
+
+
 def get_dataset_labels(name: str) -> List[str]:
     """
     Return label list for a dataset; empty list if unknown.

@@ -7,6 +7,7 @@ from torchvision.models.detection import (
     FasterRCNN_ResNet50_FPN_V2_Weights,
 )
 
+from advsecurenet.datasets.COCO.coco_utils import COCO_INSTANCE_CATEGORY_NAMES, ID_TO_CONTIGUOUS, FASTERRCNN_COCO_LABEL_OFFSET, NUM_CLASSES
 from advsecurenet.models.CustomODModels.CustomODBaseModel import CustomODBaseModel
 
 
@@ -108,6 +109,17 @@ class CustomFasterRCNNModel(CustomODBaseModel):
         """
         if isinstance(x, torch.Tensor):
             x = [x[i] for i in range(x.shape[0])]
+            # img_list = []
+            # for i in range(x.shape[0]):
+            #     im = x[i].to(self.device)
+            #     # Ensure float32 and normalize if it looks like [0, 255]
+            #     if im.dtype != torch.float32:
+            #         im = im.float()
+            #     if im.max() > 1.0:
+            #         im = im / 255.0
+            #     img_list.append(im)
+            # x = img_list
+
         if self.training and targets is not None:
             loss_dict = self._model(x, targets)
             total_loss = sum(loss_dict.values())
@@ -246,5 +258,45 @@ class CustomFasterRCNNModel(CustomODBaseModel):
                 "labels": labels,
             }
             pred["label_names"] = np.array([self.categories[int(l)] for l in labels])
+            preds.append(pred)
+        return preds
+
+    def translate_predictions_for_map_evaluator_coco(self, outputs: list[dict[str, torch.Tensor]]):
+        preds = []
+        for out in outputs:
+            boxes = out["boxes"].detach().cpu().numpy()
+            scores = out["scores"].detach().cpu().numpy()
+            labels = out["labels"].detach().cpu().numpy()
+            mapped = np.array([ID_TO_CONTIGUOUS.get(int(l), -1) for l in labels],
+                            dtype=np.int32)
+            keep = mapped >= 0
+            boxes, scores, mapped = boxes[keep], scores[keep], mapped[keep]
+            mapped = mapped + FASTERRCNN_COCO_LABEL_OFFSET
+            keep = (mapped >= 0) & (mapped < NUM_CLASSES)
+            boxes, scores, mapped = boxes[keep], scores[keep], mapped[keep]
+            pred = {
+                "boxes": boxes,
+                "scores": scores,
+                "labels": mapped + FASTERRCNN_COCO_LABEL_OFFSET,  # map to COCO labels
+                "label_names": np.array([COCO_INSTANCE_CATEGORY_NAMES[i] for i in mapped]),
+            }
+            preds.append(pred)
+        return preds
+
+
+    def translate_predictions_for_map_evaluator(self, outputs: list[dict[str, torch.Tensor]], dataset_name: str = "coco"):
+        """From torchvision outputs (list of dicts) back to your np format."""
+        if dataset_name.lower() == "coco":
+            return self._translate_predictions_for_map_evaluator_coco(outputs)
+        preds = []
+        for out in outputs:
+            boxes = out["boxes"].detach().cpu().numpy()
+            scores = out["scores"].detach().cpu().numpy()
+            labels = out["labels"].detach().cpu().numpy()
+            pred = {
+                "boxes": boxes,
+                "scores": scores,
+                "labels": labels,
+            }
             preds.append(pred)
         return preds

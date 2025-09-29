@@ -168,6 +168,9 @@ ID_TO_CONTIGUOUS = {
     raw_id: idx for idx, raw_id in enumerate(COCO_INSTANCE_CATEGORY_IDS)
 }
 
+FASTERRCNN_COCO_LABEL_OFFSET = -1  # background is 0, first class is 1
+NUM_CLASSES = 80
+
 
 def map_raw_to_contiguous(raw_label: int) -> int:
     return ID_TO_CONTIGUOUS[raw_label]

@@ -1,5 +1,6 @@
 from advsecurenet.evaluation.base_evaluator import BaseEvaluator
 from advsecurenet.models.base_model import BaseModel
+from advsecurenet.datasets.label_utils import get_dataset_classes_count
 from mean_average_precision import MetricBuilder
 import torch
 import torch.distributed as dist
@@ -18,14 +19,15 @@ class MeanAveragePrecisionEvaluator(BaseEvaluator):
     as well as the gap between them.
     """
 
-    def __init__(self, num_classes: int = 80):
-        self.num_classes = num_classes
+    def __init__(self, dataset_name: str = "coco"):
+        self.dataset_name = dataset_name.lower()
+        self.num_classes = get_dataset_classes_count(self.dataset_name)
         # One metric for clean images, one for adversarial
         self.clean_metric = MetricBuilder.build_evaluation_metric(
-            "map_2d", async_mode=True, num_classes=num_classes
+            "map_2d", async_mode=True, num_classes=self.num_classes
         )
         self.adv_metric = MetricBuilder.build_evaluation_metric(
-            "map_2d", async_mode=True, num_classes=num_classes
+            "map_2d", async_mode=True, num_classes=self.num_classes
         )
         self._clean_entries = []
         self._adv_entries = []
@@ -141,26 +143,26 @@ class MeanAveragePrecisionEvaluator(BaseEvaluator):
         """
         model.eval()
         device = next(model.parameters()).device
-        is_custom_yolov5 = bool(getattr(model, "expects_numpy_images", False))
-        if is_custom_yolov5:
+        expects_numpy_images = bool(getattr(model, "expects_numpy_images", False))
+        if expects_numpy_images:
             with torch.no_grad():
                 clean_predictions = self.detections_to_dicts(
                     model(self.tensor_to_numpy_images(original_images)),
-                    expects_numpy=is_custom_yolov5,
+                    expects_numpy=expects_numpy_images,
                 )
                 adv_predictions = self.detections_to_dicts(
                     model(self.tensor_to_numpy_images(adversarial_images)),
-                    expects_numpy=is_custom_yolov5,
+                    expects_numpy=expects_numpy_images,
                 )
         else:
             with torch.no_grad():
-                clean_predictions = self.detections_to_dicts(
+                clean_predictions = model.translate_predictions_for_map_evaluator(
                     model(self.to_tensor_list(original_images, device)),
-                    expects_numpy=is_custom_yolov5,
+                    dataset_name=self.dataset_name,
                 )
-                adv_predictions = self.detections_to_dicts(
+                adv_predictions = model.translate_predictions_for_map_evaluator(
                     model(self.to_tensor_list(adversarial_images, device)),
-                    expects_numpy=is_custom_yolov5,
+                    dataset_name=self.dataset_name,
                 )
         # Update both clean and adversarial metrics
         self._process_and_update(self.clean_metric, clean_predictions, targets)

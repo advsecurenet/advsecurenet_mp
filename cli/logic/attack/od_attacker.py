@@ -186,6 +186,7 @@ class CLIODAttacker:
             device=self._config.device,
             attack=attack,
             return_adversarial_images=self._config.attack_procedure.save_result_images,
+            dataset_name=self._config.dataset.dataset_name,
             evaluators=self._get_evaluators(),
         )
         return config, extra_kwargs

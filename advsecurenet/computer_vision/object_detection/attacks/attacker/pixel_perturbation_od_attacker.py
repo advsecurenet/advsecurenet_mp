@@ -69,6 +69,7 @@ class PixelPerturbationODAttacker(ODAttacker):
         adversarial_images = []
         with ObjectDetectorAdversarialEvaluator(
             evaluators=self._config.evaluators,
+            dataset_name=self._config.dataset_name,
             target_models=[
                 self._config.attack._object_detector.inference_model
             ],  # we evaluate on the eval_model
