@@ -87,18 +87,20 @@ def run_epoch(
         None
     """
     total_loss = 0.0
-    loader_length = len(train_loader)  # Save length before cleanup
+    total_examples = 0
 
     # Use explicit iterator for robust DataLoader worker cleanup
     data_iter = iter(train_loader)
     for _, (source, targets) in enumerate(tqdm(data_iter, leave=False)):
         source, targets = source.to(device), targets.to(device)
         loss = run_batch(source, targets, model, optimizer, loss_fn, scheduler)
-        total_loss += loss
+        batch_size = source.size(0)
+        total_loss += loss * batch_size
+        total_examples += batch_size
     del data_iter  # Explicitly delete iterator to trigger worker shutdown
-    total_loss /= loader_length
+    avg_loss = total_loss / total_examples
     click.echo(
-        click.style(f"Epoch {epoch} - Average loss: {total_loss:.4f}", fg="blue")
+        click.style(f"Epoch {epoch} - Average loss: {avg_loss:.4f}", fg="blue")
     )
 
 
