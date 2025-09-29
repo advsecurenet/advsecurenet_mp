@@ -99,9 +99,7 @@ def run_epoch(
         total_examples += batch_size
     del data_iter  # Explicitly delete iterator to trigger worker shutdown
     avg_loss = total_loss / total_examples
-    click.echo(
-        click.style(f"Epoch {epoch} - Average loss: {avg_loss:.4f}", fg="blue")
-    )
+    click.echo(click.style(f"Epoch {epoch} - Average loss: {avg_loss:.4f}", fg="blue"))
 
 
 def should_save_checkpoint(
