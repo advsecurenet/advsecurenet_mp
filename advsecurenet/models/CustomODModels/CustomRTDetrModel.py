@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 import numpy as np
 import os
 from typing import List, Dict, Any, Optional, Union
@@ -155,28 +156,46 @@ class CustomRTDetrModel(CustomODBaseModel):
         targets: list of dicts in HF RT-DETR format:
                 {'class_labels': LongTensor[N], 'boxes': FloatTensor[N,4] (cxcywh in [0,1])}
         """
+        if isinstance(x, torch.Tensor):
+            if x.dim() == 3:
+                x = x.unsqueeze(0)
+            if x.max() > 1.5:
+                x = torch.clamp(x, 0, 255)
+            else:
+                x = torch.clamp(x, 0.0, 1.0)
+            if torch.isnan(x).any() or torch.isinf(x).any():
+                raise ValueError("NaN/Inf detected in input tensor before preprocessing")
+            
         images_list = self._to_image_list(x)
-        enc = self.processor(images=images_list, return_tensors="pt", do_rescale=False)
-        enc = {
-            k: v.to(self.device) if isinstance(v, torch.Tensor) else v
-            for k, v in enc.items()
-        }
+        need_grad = self.training or any(t.requires_grad for t in images_list)
+
+        if need_grad:
+            batch = x.to(self.device).float()
+            if batch.max() > 1.0:
+                batch = torch.clamp(batch, 0, 255) / 255.0
+            else:
+                batch = torch.clamp(batch, 0.0, 1.0)
+            if batch.dim() == 3:
+                batch = batch.unsqueeze(0)
+            pixel_values = F.interpolate(batch, size=(640, 640), mode="bilinear", align_corners=False)
+            mean = torch.tensor([0.485, 0.456, 0.406], device=self.device).view(1, -1, 1, 1)
+            std  = torch.tensor([0.229, 0.224, 0.225], device=self.device).view(1, -1, 1, 1)
+            pixel_values = (pixel_values - mean) / std
+            if torch.isnan(pixel_values).any() or torch.isinf(pixel_values).any():
+                raise ValueError("NaN/Inf in pixel_values after normalization")
+            pixel_mask = torch.ones(pixel_values.shape[0], 640, 640, dtype=torch.bool, device=self.device)
+            enc = {"pixel_values": pixel_values, "pixel_mask": pixel_mask}
+        else:
+            enc = self.processor(images=images_list, return_tensors="pt", do_rescale=False)
+            enc = {k: v.to(self.device) if isinstance(v, torch.Tensor) else v for k, v in enc.items()}
         if self.training and targets is not None:
-            # HF computes loss internally when labels are provided
             outputs = self._model(**enc, labels=targets)
             loss_components = {"loss_total": outputs.loss}
             if hasattr(outputs, "loss_dict") and isinstance(outputs.loss_dict, dict):
                 for k, v in outputs.loss_dict.items():
                     loss_components[f"loss_{k}"] = v
             else:
-                for name in (
-                    "loss_ce",
-                    "loss_cls",
-                    "loss_bbox",
-                    "loss_giou",
-                    "loss_cardinality",
-                    "loss_objectness",
-                ):
+                for name in ("loss_ce","loss_cls","loss_bbox","loss_giou","loss_cardinality","loss_objectness"):
                     if hasattr(outputs, name) and getattr(outputs, name) is not None:
                         loss_components[name] = getattr(outputs, name)
             return loss_components
@@ -311,12 +330,18 @@ class CustomRTDetrModel(CustomODBaseModel):
             t = torch.from_numpy(x).float()
         else:
             t = x.float()
-        # Normalize if needed
-        with torch.no_grad():
-            if t.max() > 1.0:
-                t = t / 255.0
-        t = t.to(self.device)
-        t.requires_grad_(bool(requires_grad))
+        if t.device != self.device:
+            t = t.to(self.device)
+        if t.max() > 1.0:
+            t = torch.clamp(t, 0, 255) / 255.0
+        else:
+            t = torch.clamp(t, 0.0, 1.0)
+        if requires_grad:
+            if not t.requires_grad:
+                t.requires_grad_(True)
+        else:
+            if t.requires_grad:
+                t = t.detach()
         return t
 
     def translate_labels(
@@ -343,6 +368,9 @@ class CustomRTDetrModel(CustomODBaseModel):
                 return torch.from_numpy(a).to(device=device, dtype=dtype)
             return a.to(device=device, dtype=dtype)
 
+        if isinstance(labels, dict):
+            labels = self._labels_to_list_of_dicts(labels)
+
         y = list(labels or [])
         if len(y) < batch_size:
             y = y + [
@@ -365,6 +393,14 @@ class CustomRTDetrModel(CustomODBaseModel):
                 continue
             # XYXY pixels -> CXCYWH normalized
             x1, y1, x2, y2 = boxes_xyxy.unbind(dim=1)
+            x1 = x1.clamp(0, W); x2 = x2.clamp(0, W)
+            y1 = y1.clamp(0, H); y2 = y2.clamp(0, H)
+            finite = torch.isfinite(x1) & torch.isfinite(y1) & torch.isfinite(x2) & torch.isfinite(y2)
+            proper = (x2 > x1) & (y2 > y1)
+            keep = finite & proper
+            if keep.sum() != len(keep):
+                x1, y1, x2, y2 = x1[keep], y1[keep], x2[keep], y2[keep]
+                classes = classes[keep]
             w = (x2 - x1).clamp(min=0)
             h = (y2 - y1).clamp(min=0)
             cx = x1 + 0.5 * w
@@ -372,6 +408,7 @@ class CustomRTDetrModel(CustomODBaseModel):
             # Normalize to [0,1] by image dims
             assert W > 0 and H > 0, f"Invalid input_shape: {self.input_shape}"
             boxes_cxcywh = torch.stack([cx / W, cy / H, w / W, h / H], dim=1)
+            boxes_cxcywh = boxes_cxcywh.clamp(0.0, 1.0)
             out.append({"boxes": boxes_cxcywh, "class_labels": classes})
         return out
 
@@ -382,4 +419,37 @@ class CustomRTDetrModel(CustomODBaseModel):
         """
         if not isinstance(x, torch.Tensor) or x.dim() != 4:
             raise TypeError("Expected x as torch.Tensor [B,C,H,W]")
+        if self.training or any(t.requires_grad for t in x):
+            return [x[i] for i in range(x.shape[0])]
         return [x[i].detach().cpu() for i in range(x.shape[0])]
+    
+    def _labels_to_list_of_dicts(
+        self, labels: Dict[str, torch.Tensor]
+    ) -> List[Dict[str, torch.Tensor]]:
+        """
+        Convert a dict of batched tensors to a list of dicts per image.
+        """
+        seq_val = next((v for v in labels.values() if isinstance(v, (list, tuple))), None)
+        if seq_val is not None:
+            n = len(seq_val)
+            labels = [
+                {k: (v[i] if isinstance(v, (list, tuple)) else v) for k, v in labels.items()}
+                for i in range(n)
+            ]
+        else:
+            t_val = next(
+                (v for v in labels.values() if isinstance(v, torch.Tensor) and v.dim() > 0),
+                None,
+            )
+            if t_val is not None:
+                n = t_val.shape[0]
+                labels = [
+                    {
+                        k: (v[i] if isinstance(v, torch.Tensor) and v.dim() > 0 else v)
+                        for k, v in labels.items()
+                    }
+                    for i in range(n)
+                ]
+            else:
+                # Fallback: wrap single dict
+                labels = [labels]

@@ -244,6 +244,7 @@ class AdversarialODTraining(BaseAdversarialTraining):
         output = self._trainable(model_inputs, model_targets)
         loss = self._od_wrapper.extract_total_loss(output)
         loss.backward()
+        torch.nn.utils.clip_grad_norm_(self._trainable.parameters(), max_norm=10.0)
         self._optimizer.step()
         if self._scheduler:
             self._scheduler.step()
