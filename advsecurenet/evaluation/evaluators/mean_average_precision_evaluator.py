@@ -1,6 +1,7 @@
 from advsecurenet.evaluation.base_evaluator import BaseEvaluator
 from advsecurenet.models.base_model import BaseModel
 from advsecurenet.datasets.label_utils import get_dataset_classes_count
+from advsecurenet.models.CustomODModels.CustomYolov5Model import translate_predictions_for_map_evaluator_yolo
 from mean_average_precision import MetricBuilder
 import torch
 import torch.distributed as dist
@@ -124,15 +125,15 @@ class MeanAveragePrecisionEvaluator(BaseEvaluator):
         model.eval()
         device = next(model.parameters()).device
         expects_numpy_images = bool(getattr(model, "expects_numpy_images", False))
-        if expects_numpy_images:
+        if expects_numpy_images: # only yolo models expect numpy images
             with torch.no_grad():
-                clean_predictions = model.translate_predictions_for_map_evaluator(
+                clean_predictions = translate_predictions_for_map_evaluator_yolo(
                     model(self.tensor_to_numpy_images(original_images)),
-                    expects_numpy=expects_numpy_images,
+                    dataset_name=self.dataset_name,
                 )
-                adv_predictions = model.translate_predictions_for_map_evaluator(
+                adv_predictions = translate_predictions_for_map_evaluator_yolo(
                     model(self.tensor_to_numpy_images(adversarial_images)),
-                    expects_numpy=expects_numpy_images,
+                    dataset_name=self.dataset_name,
                 )
         else:
             with torch.no_grad():

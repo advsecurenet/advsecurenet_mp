@@ -24,6 +24,26 @@ def _suppress_yolov5_autocast_warning():
         )
         yield
 
+def translate_predictions_for_map_evaluator_yolo(predictions, dataset_name: str, expects_numpy: bool = True) -> List[Dict[str, Any]]:
+    results = []
+    if expects_numpy:
+        for det_tensor in predictions.pred:
+            det_tensor_cpu = det_tensor.detach().cpu()
+            boxes = det_tensor_cpu[:, :4].numpy()
+            scores = det_tensor_cpu[:, 4].numpy()
+            labels = det_tensor_cpu[:, 5].numpy().astype(int)
+            results.append({"boxes": boxes, "labels": labels, "scores": scores})
+    else:
+        for d in predictions:
+            results.append(
+                {
+                    "boxes": d["boxes"].detach().cpu().numpy(),
+                    "scores": d["scores"].detach().cpu().numpy(),
+                    "labels": d["labels"].detach().cpu().numpy().astype(int),
+                }
+            )
+    return results
+
 
 class CustomYolov5Model(CustomODBaseModel):
     def __init__(
@@ -227,24 +247,7 @@ class CustomYolov5Model(CustomODBaseModel):
         return x_preprocessed
     
     def translate_predictions_for_map_evaluator(self, predictions, dataset_name: str, expects_numpy: bool = True) -> List[Dict[str, Any]]:
-        results = []
-        if expects_numpy:
-            for det_tensor in predictions.pred:
-                det_tensor_cpu = det_tensor.detach().cpu()
-                boxes = det_tensor_cpu[:, :4].numpy()
-                scores = det_tensor_cpu[:, 4].numpy()
-                labels = det_tensor_cpu[:, 5].numpy().astype(int)
-                results.append({"boxes": boxes, "labels": labels, "scores": scores})
-        else:
-            for d in predictions:
-                results.append(
-                    {
-                        "boxes": d["boxes"].detach().cpu().numpy(),
-                        "scores": d["scores"].detach().cpu().numpy(),
-                        "labels": d["labels"].detach().cpu().numpy().astype(int),
-                    }
-                )
-        return results
+        return translate_predictions_for_map_evaluator_yolo(predictions, dataset_name, expects_numpy)
 
     def translate_labels(
         self,

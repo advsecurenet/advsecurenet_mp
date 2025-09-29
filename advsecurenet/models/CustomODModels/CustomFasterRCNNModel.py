@@ -277,7 +277,7 @@ class CustomFasterRCNNModel(CustomODBaseModel):
             preds.append(pred)
         return preds
 
-    def translate_predictions_for_map_evaluator_coco(self, outputs: list[dict[str, torch.Tensor]]):
+    def _translate_predictions_for_map_evaluator_coco(self, outputs: list[dict[str, torch.Tensor]]):
         preds = []
         for out in outputs:
             boxes = out["boxes"].detach().cpu().numpy()
