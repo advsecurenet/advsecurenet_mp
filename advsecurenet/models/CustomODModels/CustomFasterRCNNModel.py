@@ -43,6 +43,14 @@ class CustomFasterRCNNModel(CustomODBaseModel):
         self._model.to(self.device)
 
 
+    def _parameters_sha256(self):
+        import hashlib
+        with torch.no_grad():
+            flat = torch.nn.utils.parameters_to_vector(
+                [p.detach().cpu() for p in self._model.parameters()]
+            )
+        return hashlib.sha256(flat.numpy().tobytes()).hexdigest()
+
     def load_model_weights(self, model_weights_path, pretrained, pretrained_backbone):
         if pretrained:
             self._model = fasterrcnn_resnet50_fpn_v2(
@@ -63,6 +71,7 @@ class CustomFasterRCNNModel(CustomODBaseModel):
                 m.track_running_stats = False
         if model_weights_path and isinstance(model_weights_path, str) and model_weights_path.endswith(".pth") and os.path.isfile(model_weights_path):
             try:
+                before_hash = self._parameters_sha256()
                 original_torch_load = torch.load
                 def load_with_weights_only_false(*args, **kwargs):
                     kwargs["weights_only"] = False
@@ -93,6 +102,11 @@ class CustomFasterRCNNModel(CustomODBaseModel):
                         nk = f"model.{nk}"
                     sd_clean[nk] = v
                 self._model.load_state_dict(sd_clean, strict=False)
+                after_hash = self._parameters_sha256()
+                if before_hash != after_hash:
+                    print(f"[CustomFasterRCNNModel] Model parameters changed after loading '{model_weights_path}'.")
+                else:
+                    print(f"[CustomFasterRCNNModel][WARN] Loading '{model_weights_path}' did not change model parameters.")
             except Exception as e:
                 print(f"[CustomFasterRCNNModel][WARN] Failed to load .pth state_dict: {e}")
         

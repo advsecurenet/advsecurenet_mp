@@ -124,11 +124,20 @@ class CustomRTDetrModel(CustomODBaseModel):
         self.num_classes = len(self.categories)
         self._model_name = "CustomRTDetrModel"
 
+    def _parameters_sha256(self):
+        import hashlib
+        with torch.no_grad():
+            flat = torch.nn.utils.parameters_to_vector(
+                [p.detach().cpu() for p in self._model.parameters()]
+            )
+        return hashlib.sha256(flat.numpy().tobytes()).hexdigest()
+
     def load_model_weights(self, model_weights_path):
         if not (model_weights_path and isinstance(model_weights_path, str)
                 and model_weights_path.endswith(".pth") and os.path.isfile(model_weights_path)):
             return
 
+        before_hash = self._parameters_sha256()
         sd = torch.load(model_weights_path, map_location="cpu")
         if isinstance(sd, dict):
             for k in ("state_dict", "model", "weights"):
@@ -152,6 +161,11 @@ class CustomRTDetrModel(CustomODBaseModel):
 
         sd_clean = { _clean(k): v for k, v in sd.items() }
         self._model.load_state_dict(sd_clean, strict=False)
+        after_hash = self._parameters_sha256()
+        if before_hash != after_hash:
+            print(f"[CustomRTDetrModel] Model parameters changed after loading '{model_weights_path}'.")
+        else:
+            print(f"[CustomRTDetrModel][WARN] Loading '{model_weights_path}' did not change model parameters.")
         
 
     def forward(self, x, targets=None):

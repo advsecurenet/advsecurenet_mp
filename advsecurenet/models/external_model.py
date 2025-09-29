@@ -5,6 +5,7 @@ from types import ModuleType
 import torch
 
 from advsecurenet.models.base_model import BaseModel
+from advsecurenet.models.custom_model_utils import get_object_detector_model_names
 from advsecurenet.shared.types.configs.model_config import ExternalModelConfig
 from advsecurenet.utils.kwargs_utils import filter_kwargs_for_callable
 
@@ -49,13 +50,16 @@ class ExternalModel(BaseModel):
         filtered_architecture = filter_kwargs_for_callable(
             model_class, self._architecture
         )
-
-        self.model = model_class(**filtered_architecture)
-        if self._pretrained:
-            try:
-                self.model.load_state_dict(torch.load(self._model_weights_path))
-            except Exception as e:
-                raise ValueError(f"Error loading model weights! Details: {e}") from e
+        if self._model_name in get_object_detector_model_names(): # custom object detector models have model_weights_path in the architecture
+            filtered_architecture["model_weights_path"] = self._model_weights_path
+            self.model = model_class(**filtered_architecture)
+        else:
+            self.model = model_class(**filtered_architecture)
+            if self._pretrained:
+                try:
+                    self.model.load_state_dict(torch.load(self._model_weights_path))
+                except Exception as e:
+                    raise ValueError(f"Error loading model weights! Details: {e}") from e
 
     def models(self):
         """
