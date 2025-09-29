@@ -1,3 +1,4 @@
+from typing import Any, Dict, List
 import torch
 from abc import ABC, abstractmethod
 import numpy as np
@@ -222,3 +223,17 @@ class CustomODBaseModel(torch.nn.Module, ABC):
                         [img_idx, cls, xc, yc, w, h] normalized to [0,1].
         """
         raise NotImplementedError("Subclasses must implement translate_labels method.")
+    
+    @abstractmethod
+    def translate_predictions_for_map_evaluator(self, predictions, dataset_name: str, expects_numpy: bool = True) -> List[Dict[str, Any]]:
+        """
+        Convert backend-native predictions into a standardized format for mAP evaluation.
+
+        Args:
+            predictions: backend-native predictions (often the output of `predict`).
+            dataset_name: str, name of the dataset (e.g., 'coco') to determine class mapping.
+
+        Returns:
+            Standardized predictions for mAP evaluation.
+        """
+        raise NotImplementedError("Subclasses must implement translate_predictions_for_map_evaluator method.")

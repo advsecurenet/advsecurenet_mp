@@ -1,5 +1,6 @@
 from contextlib import contextmanager
 import os
+from typing import Any, Dict, List
 import warnings
 import torch
 import torch.nn.functional as F
@@ -27,6 +28,7 @@ def _suppress_yolov5_autocast_warning():
 class CustomYolov5Model(CustomODBaseModel):
     def __init__(
         self,
+        num_classes: int = 80,
         model_weights_path="yolov5s.pt",
         device: str | int | torch.device | None = None,
     ):
@@ -209,6 +211,26 @@ class CustomYolov5Model(CustomODBaseModel):
         if requires_grad:
             x_preprocessed.requires_grad_(True)
         return x_preprocessed
+    
+    def translate_predictions_for_map_evaluator(self, predictions, dataset_name: str, expects_numpy: bool = True) -> List[Dict[str, Any]]:
+        results = []
+        if expects_numpy:
+            for det_tensor in predictions.pred:
+                det_tensor_cpu = det_tensor.detach().cpu()
+                boxes = det_tensor_cpu[:, :4].numpy()
+                scores = det_tensor_cpu[:, 4].numpy()
+                labels = det_tensor_cpu[:, 5].numpy().astype(int)
+                results.append({"boxes": boxes, "labels": labels, "scores": scores})
+        else:
+            for d in predictions:
+                results.append(
+                    {
+                        "boxes": d["boxes"].detach().cpu().numpy(),
+                        "scores": d["scores"].detach().cpu().numpy(),
+                        "labels": d["labels"].detach().cpu().numpy().astype(int),
+                    }
+                )
+        return results
 
     def translate_labels(
         self,

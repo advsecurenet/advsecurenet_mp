@@ -7,8 +7,10 @@ from torchvision.models.detection import (
     FasterRCNN_ResNet50_FPN_V2_Weights,
 )
 
-from advsecurenet.datasets.COCO.coco_utils import COCO_INSTANCE_CATEGORY_NAMES, ID_TO_CONTIGUOUS, FASTERRCNN_COCO_LABEL_OFFSET, NUM_CLASSES
+from advsecurenet.datasets.COCO.coco_utils import COCO_INSTANCE_CATEGORY_NAMES, ID_TO_CONTIGUOUS
 from advsecurenet.models.CustomODModels.CustomODBaseModel import CustomODBaseModel
+
+FASTERRCNN_COCO_LABEL_OFFSET = -1  # background is 0, first class is 1
 
 
 class CustomFasterRCNNModel(CustomODBaseModel):
@@ -272,7 +274,7 @@ class CustomFasterRCNNModel(CustomODBaseModel):
             keep = mapped >= 0
             boxes, scores, mapped = boxes[keep], scores[keep], mapped[keep]
             mapped = mapped + FASTERRCNN_COCO_LABEL_OFFSET
-            keep = (mapped >= 0) & (mapped < NUM_CLASSES)
+            keep = (mapped >= 0) & (mapped < self.num_classes)
             boxes, scores, mapped = boxes[keep], scores[keep], mapped[keep]
             pred = {
                 "boxes": boxes,

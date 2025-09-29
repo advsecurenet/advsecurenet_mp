@@ -41,26 +41,6 @@ class MeanAveragePrecisionEvaluator(BaseEvaluator):
         self._clean_entries.clear()
         self._adv_entries.clear()
 
-    def detections_to_dicts(self, detections, expects_numpy=False):
-        results = []
-        if expects_numpy:
-            for det_tensor in detections.pred:
-                det_tensor_cpu = det_tensor.detach().cpu()
-                boxes = det_tensor_cpu[:, :4].numpy()
-                scores = det_tensor_cpu[:, 4].numpy()
-                labels = det_tensor_cpu[:, 5].numpy().astype(int)
-                results.append({"boxes": boxes, "labels": labels, "scores": scores})
-        else:
-            for d in detections:
-                results.append(
-                    {
-                        "boxes": d["boxes"].detach().cpu().numpy(),
-                        "scores": d["scores"].detach().cpu().numpy(),
-                        "labels": d["labels"].detach().cpu().numpy().astype(int),
-                    }
-                )
-        return results
-
     def tensor_to_numpy_images(self, images: torch.Tensor):
         # images: [B, C, H, W], values in [0, 1] or [0, 255]
         imgs = []
@@ -146,11 +126,11 @@ class MeanAveragePrecisionEvaluator(BaseEvaluator):
         expects_numpy_images = bool(getattr(model, "expects_numpy_images", False))
         if expects_numpy_images:
             with torch.no_grad():
-                clean_predictions = self.detections_to_dicts(
+                clean_predictions = model.translate_predictions_for_map_evaluator(
                     model(self.tensor_to_numpy_images(original_images)),
                     expects_numpy=expects_numpy_images,
                 )
-                adv_predictions = self.detections_to_dicts(
+                adv_predictions = model.translate_predictions_for_map_evaluator(
                     model(self.tensor_to_numpy_images(adversarial_images)),
                     expects_numpy=expects_numpy_images,
                 )

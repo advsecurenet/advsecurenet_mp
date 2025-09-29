@@ -21,6 +21,9 @@ class RTDetrEvalAdapter(torch.nn.Module):
         self.device = torch.device(device)
         self.conf_thresh = conf_thresh
 
+    def translate_predictions_for_map_evaluator(self, predictions, dataset_name: str, expects_numpy: bool = True) -> List[Dict[str, Any]]:
+        return predictions
+
     def forward(
         self, x=None, pixel_values=None, pixel_mask=None, labels=None, **kwargs
     ):
@@ -90,6 +93,7 @@ class RTDetrEvalAdapter(torch.nn.Module):
 class CustomRTDetrModel(CustomODBaseModel):
     def __init__(
         self,
+        num_classes: int = 80,
         model_name: str = "PekingU/rtdetr_r101vd_coco_o365",
         model_weights_path: str | None = None,
         device: Optional[Union[str, int, torch.device]] = None,
@@ -343,6 +347,9 @@ class CustomRTDetrModel(CustomODBaseModel):
             if t.requires_grad:
                 t = t.detach()
         return t
+
+    def translate_predictions_for_map_evaluator(self, predictions, dataset_name: str, expects_numpy: bool = True) -> List[Dict[str, Any]]:
+        return predictions
 
     def translate_labels(
         self,
