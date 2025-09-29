@@ -38,6 +38,14 @@ class CustomYolov5Model(CustomODBaseModel):
         self.load_model_weights(model_weights_path)
         self.compute_loss = ComputeLoss(self._model)
 
+    def _parameters_sha256(self):
+        import hashlib
+        with torch.no_grad():
+            flat = torch.nn.utils.parameters_to_vector(
+                [p.detach().cpu() for p in self._model.parameters()]
+            )
+        return hashlib.sha256(flat.numpy().tobytes()).hexdigest()
+
     def load_model_weights(self, model_weights_path):
         original_torch_load = torch.load
         def load_with_weights_only_false(*args, **kwargs):
@@ -62,6 +70,7 @@ class CustomYolov5Model(CustomODBaseModel):
                 m.track_running_stats = False
         if is_plain_state_dict and os.path.isfile(model_weights_path):
             try:
+                before_hash = self._parameters_sha256()
                 sd = torch.load(model_weights_path, map_location="cpu")
                 if isinstance(sd, dict):
                     for k in ["state_dict", "model", "weights"]:
@@ -87,6 +96,11 @@ class CustomYolov5Model(CustomODBaseModel):
                     return cleaned
                 sd_clean = _clean(sd)
                 self._model.load_state_dict(sd_clean, strict=False)
+                after_hash = self._parameters_sha256()
+                if before_hash != after_hash:
+                    print(f"[CustomYolov5Model] Model parameters changed after loading '{model_weights_path}'.")
+                else:
+                    print(f"[CustomYolov5Model][WARN] Loading '{model_weights_path}' did not change model parameters.")
             except Exception as e:
                 print(f"[CustomYolov5Model][WARN] Failed to load .pth state_dict: {e}")
         self._model.hyp = {
