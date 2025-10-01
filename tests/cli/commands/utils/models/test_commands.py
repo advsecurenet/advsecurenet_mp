@@ -102,7 +102,6 @@ def test_huggingface_command_with_all_options(mock_cli_huggingface_model, runner
     )
 
 
-
 @pytest.mark.cli
 @pytest.mark.essential
 @patch("cli.commands.utils.models.commands.cli_huggingface_model")
@@ -114,7 +113,7 @@ def test_huggingface_command_pretrained_false(mock_cli_huggingface_model, runner
             "huggingface",
             "-i",
             "bert-base-uncased",
-            "--no-pretrained"  # Explicitly set pretrained to False
+            "--no-pretrained",  # Explicitly set pretrained to False
         ],
     )
     assert result.exit_code == 0
@@ -138,7 +137,7 @@ def test_huggingface_command_pretrained_true(mock_cli_huggingface_model, runner)
             "huggingface",
             "-i",
             "bert-base-uncased",
-            "--pretrained"  # Explicitly set pretrained to True
+            "--pretrained",  # Explicitly set pretrained to True
         ],
     )
     assert result.exit_code == 0
