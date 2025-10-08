@@ -146,11 +146,6 @@ def _get_user_splits(config: CreateDatasetCliConfig) -> List[str]:
         - For custom split names to work with CLI utilities, the codebase would need updates
           to handle non-standard split names
 
-    Codebase Compatibility:
-        - ✅ API usage: Fully supports custom split names
-        - ⚠️ CLI usage: Limited to 'train'/'test'
-        - Future enhancement: CLI could be extended to support arbitrary split names
-
     Examples:
         >>> # Using split_config (highest priority) - typically created by factory
         >>> # This would normally be populated by load_dataset() factory function
@@ -174,7 +169,7 @@ def _get_user_splits(config: CreateDatasetCliConfig) -> List[str]:
         >>> _get_user_splits(config)
         ['train', 'test']
     """
-    # First priority: use the keys from split_config if it's provided.
+    # First priority: use the keys from split_config if it's provided and has keys.
     if config.split_config:
         return list(config.split_config.keys())
 
@@ -233,6 +228,13 @@ def resolve_dataset_config(config: CreateDatasetCliConfig) -> ResolvedDatasetCon
     split-specific overrides.
     """
     user_splits_to_process = _get_user_splits(config)
+
+    if not user_splits_to_process:
+        raise ValueError(
+            f"No splits defined for dataset '{config.dataset_name}'. "
+            "Please specify splits in 'split_config' or 'load_splits'."
+        )
+
     final_splits = {}
 
     for split_name in user_splits_to_process:

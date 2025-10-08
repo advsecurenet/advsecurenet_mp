@@ -9,5 +9,5 @@ class DeviceConfig:
     """
 
     use_ddp: Optional[bool] = False
-    processor: Optional[str] = "cpu"
+    processor: Optional[str] = None
     gpu_ids: Optional[str] = None

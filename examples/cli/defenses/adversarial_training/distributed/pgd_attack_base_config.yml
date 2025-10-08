@@ -2,10 +2,10 @@ target_parameters:
   targeted: false
   auto_generate_target: true
   target_images_config:
-    target_images_dir:
+    target_images_dir: null
   target_labels_config:
     target_labels: []
-    target_labels_path:
+    target_labels_path: null
     target_labels_separator: ','
 attack_parameters:
   epsilon: 0.3

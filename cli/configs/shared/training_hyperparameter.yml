@@ -1,0 +1,4 @@
+epochs: 10 # Number of epochs to train for.
+learning_rate: 0.001 # Learning rate for training.
+criterion: cross_entropy
+verbose: false

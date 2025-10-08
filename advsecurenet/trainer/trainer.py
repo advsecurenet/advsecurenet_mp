@@ -1,17 +1,20 @@
 import logging
-import os
-from typing import Union, cast
 
-import click
 import torch
-from torch import nn, optim
+from torch import nn
+from torch.utils.data import DataLoader
 from tqdm.auto import tqdm, trange
 
-from advsecurenet.shared.optimizer import Optimizer
-from advsecurenet.shared.scheduler import Scheduler
+from opacus.validators import ModuleValidator
+
+from advsecurenet.trainer import trainer_logic
 from advsecurenet.shared.types.configs.train_config import TrainConfig
 from advsecurenet.utils.loss import get_loss_function
-from advsecurenet.utils.model_utils import save_model
+from advsecurenet.utils.model_utils import non_inplace_operations
+from advsecurenet.utils.trainer_utils.differential_privacy_utils import (
+    setup_privacy_engine,
+)
+from advsecurenet.utils.device_utils import setup_device
 
 logger = logging.getLogger(__name__)
 
@@ -29,359 +32,337 @@ class Trainer:
             config (TrainConfig): The train config.
         """
         self._config = config
+        self._processor = config.device_config.processor
         self._device = self._setup_device()
-        self._model = self._setup_model()
-        self._optimizer = self._setup_optimizer()
-        self._loss_fn = get_loss_function(config.criterion)
-        self._start_epoch = self._load_checkpoint_if_any()
-        self._scheduler = self._setup_scheduler()
+        self._loss_fn = get_loss_function(config.training_process_config.criterion)
+        self._needs_global_patch = False
 
-    def train(self) -> None:
-        """
-        Public method for training the model.
-        """
-        self._pre_training()
-        for epoch in trange(
-            self._start_epoch, self._config.epochs + 1, leave=True, position=0
-        ):
-            self._run_epoch(epoch)
-            if self._should_save_checkpoint(epoch):
-                self._save_checkpoint(epoch, self._optimizer)
-        self._post_training()
+        # Move model to device and prepare for DP if needed
+        model = self._config.model_config.model.to(self._device)
+        if self._is_differential_privacy_enabled():
+            model = self._prepare_model_for_dp(model)
 
-    def _setup_device(self) -> torch.device:
-        """
-        Setup the device.
-        """
-        device = self._config.processor or torch.device(
-            "cuda" if torch.cuda.is_available() else "cpu"
-        )
-        return device
+        optimizer = self._setup_optimizer(model)
 
-    def _setup_model(self) -> torch.nn.Module:
-        """
-        Initializes the model and moves it to the device.
-        """
-        return self._config.model.to(self._device)
+        # Handle checkpoint loading if needed
+        self.start_epoch = self._handle_checkpoint_loading(model, optimizer)
 
-    def _setup_optimizer(self) -> optim.Optimizer:
-        """
-        Initializes the optimizer based on the given optimizer string or optim.Optimizer.
+        # Setup differential privacy if enabled
+        self._setup_differential_privacy(model, optimizer)
 
-        Returns:
-            optim.Optimizer: The optimizer. I.e. Adam, SGD, etc.
-        """
-        kwargs = self._config.optimizer_kwargs if self._config.optimizer_kwargs else {}
-        optimizer = self._get_optimizer(
-            self._config.optimizer, self._model, self._config.learning_rate, **kwargs
-        )
+        self._setup_scheduler()
 
-        return optimizer
-
-    def _setup_scheduler(self) -> torch.optim.lr_scheduler._LRScheduler:
+    def _setup_optimizer(self, model: torch.nn.Module) -> torch.optim.Optimizer:
         """
-        Initializes the scheduler based on the given scheduler string or torch.optim.lr_scheduler._LRScheduler.
-
-        Returns:
-            torch.optim.lr_scheduler._LRScheduler: The scheduler. I.e. ReduceLROnPlateau, etc.
-        """
-        scheduler = self._get_scheduler(self._config.scheduler, self._optimizer)
-        return scheduler
-
-    def _get_scheduler(
-        self,
-        scheduler: Union[str, torch.optim.lr_scheduler._LRScheduler],
-        optimizer: optim.Optimizer,
-    ) -> torch.optim.lr_scheduler._LRScheduler:
-        """
-        Returns the scheduler based on the given scheduler string or torch.optim.lr_scheduler._LRScheduler.
+        Setup the optimizer for training.
 
         Args:
-            scheduler (str or torch.optim.lr_scheduler._LRScheduler, optional): The scheduler. Defaults to None.
-            optimizer (optim.Optimizer, optional): The optimizer. Required if scheduler is a string.
+            model: The model to create optimizer for.
 
         Returns:
-            torch.optim.lr_scheduler._LRScheduler: The scheduler. I.e. ReduceLROnPlateau, etc.
+            The configured optimizer.
         """
-        if scheduler is None:
-            return None
-        if isinstance(scheduler, str):
-            if scheduler.upper() not in Scheduler.__members__:
-                raise ValueError(
-                    "Unsupported scheduler! Choose from: "
-                    + ", ".join([e.name for e in Scheduler])
-                )
-            scheduler_function_class = Scheduler[scheduler.upper()].value
-            scheduler = scheduler_function_class(
-                optimizer,
-                **(
-                    self._config.scheduler_kwargs
-                    if self._config.scheduler_kwargs
-                    else {}
-                ),
-            )
-        elif not isinstance(scheduler, torch.optim.lr_scheduler._LRScheduler):
-            raise ValueError(
-                "Scheduler must be a string or an instance of torch.optim.lr_scheduler._LRScheduler."
-            )
-        return cast(torch.optim.lr_scheduler._LRScheduler, scheduler)
+        optimizer_kwargs = self._config.optimization_config.optimizer_kwargs or {}
+        return trainer_logic.get_optimizer(
+            self._config.optimization_config.optimizer,
+            model,
+            self._config.training_process_config.learning_rate,
+            **optimizer_kwargs
+        )
 
-    def _get_optimizer(
-        self,
-        optimizer: Union[str, optim.Optimizer],
-        model: nn.Module,
-        learning_rate: float = 0.001,
-        **kwargs,
-    ) -> optim.Optimizer:
+    def _prepare_model_for_dp(self, model):
         """
-        Returns the optimizer based on the given optimizer string or optim.Optimizer.
+        Prepare model for differential privacy training.
 
         Args:
-            optimizer (str or optim.Optimizer, optional): The optimizer. Defaults to Adam with learning rate 0.001.
-            model (nn.Module, optional): The model to optimize. Required if optimizer is a string.
-            learning_rate (float, optional): The learning rate. Defaults to 0.001.
+            model: The model to prepare for differential privacy.
 
         Returns:
-            optim.Optimizer: The optimizer.
-
-        Examples:
-
-            >>> _get_optimizer("adam")
-            >>> _get_optimizer(optim.Adam(model.parameters(), lr=0.001))
-
+            The modified model ready for differential privacy training.
         """
+        if not ModuleValidator.is_valid(model):
+            model = ModuleValidator.fix(model)
 
-        # if the optimizer is already an instance of optim.Optimizer, return it
-        if isinstance(optimizer, optim.Optimizer):
-            return optimizer
-
-        if model is None and isinstance(optimizer, str):
-            raise ValueError("Model must be provided if optimizer is a string.")
-
-        # if the model is provided but the optimizer not, initialize the default optimizer
-        if model is not None and optimizer is None:
-            optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-
-        #  if the model is provided and the optimizer is a string, initialize the optimizer based on the string
-        if model is not None and isinstance(optimizer, str):
-            if optimizer.upper() not in Optimizer.__members__:
-                raise ValueError(
-                    "Unsupported optimizer! Choose from: "
-                    + ", ".join([e.name for e in Optimizer])
-                )
-
-            optimizer_class = Optimizer[optimizer.upper()].value
-            optimizer = optimizer_class(model.parameters(), lr=learning_rate, **kwargs)
-
-        return cast(optim.Optimizer, optimizer)
-
-    def _load_checkpoint_if_any(self) -> int:
-        """
-        Loads the checkpoint if any and returns the start epoch.
-
-        Returns:
-            int: The start epoch.
-        """
-        try:
-            start_epoch = 1
-            if self._config.load_checkpoint and self._config.load_checkpoint_path:
-                if os.path.isfile(self._config.load_checkpoint_path):
-                    logger.info(
-                        "Loading checkpoint from %s", self._config.load_checkpoint_path
-                    )
-                    checkpoint = torch.load(self._config.load_checkpoint_path)
-                    self._load_model_state_dict(checkpoint["model_state_dict"])
-                    self._optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
-                    self._assign_device_to_optimizer_state()
-                    start_epoch = checkpoint["epoch"] + 1
-                else:
-                    logger.warning(
-                        "Checkpoint file not found at %s",
-                        self._config.load_checkpoint_path,
-                    )
-            return start_epoch
-        except Exception as e:
-            logger.error("Failed to load checkpoint: %s", e)
-            return 1
-
-    def _load_model_state_dict(self, state_dict):
-        # Loads the given model state dict.
-        self._model.load_state_dict(state_dict)
-
-    def _get_model_state_dict(self) -> dict:
-        # Returns the model state dict.
-        return self._model.state_dict()
-
-    def _assign_device_to_optimizer_state(self):
-        # Default implementation
-        for state in self._optimizer.state.values():
-            for k, v in state.items():
-                if isinstance(v, torch.Tensor):
-                    state[k] = v.to(self._device)
-
-    def _get_save_checkpoint_prefix(self) -> str:
-        """
-        Returns the save checkpoint prefix.
-
-        Returns:
-            str: The save checkpoint prefix.
-
-        Notes:
-            If the save checkpoint name is provided, it will be used as the prefix. Otherwise, the model variant and the dataset name will be used as the prefix.
-        """
-
-        if self._config.save_checkpoint_name:
-            return self._config.save_checkpoint_name
+        if hasattr(model, "inplace_false") and callable(model.inplace_false):
+            model.inplace_false()
         else:
-            return f"{self._config.model._model_name}_{self._config.train_loader.dataset.__class__.__name__}_checkpoint"
+            self._needs_global_patch = True
 
-    def _save_checkpoint(self, epoch: int, optimizer: optim.Optimizer) -> None:
+        return model
+
+    def _handle_checkpoint_loading(self, model, optimizer):
         """
-        Saves the checkpoint.
+        Handle checkpoint loading and return starting epoch.
 
         Args:
-            epoch (int): The current epoch.
-            optimizer (optim.Optimizer): The optimizer.
-        """
-        checkpoint_sub_dir = "training"
-        checkpoint_dir = self._config.save_checkpoint_path or os.path.join(
-            os.getcwd(), f"checkpoints/{checkpoint_sub_dir}"
-        )
+            model: The model to load state into.
+            optimizer: The optimizer to load state into.
 
-        if not os.path.exists(checkpoint_dir):
-            os.makedirs(checkpoint_dir)
-
-        save_checkpoint_prefix = self._get_save_checkpoint_prefix()
-        checkpoint_filename = f"{save_checkpoint_prefix}_epoch_{epoch}.pth"
-        checkpoint_path = os.path.join(checkpoint_dir, checkpoint_filename)
-
-        torch.save(
-            {
-                "epoch": epoch,
-                "model_state_dict": self._get_model_state_dict(),
-                "optimizer_state_dict": optimizer.state_dict(),
-            },
-            checkpoint_path,
-        )
-        click.echo(click.style(f"Saved checkpoint to {checkpoint_path}", fg="green"))
-
-    def _should_save_checkpoint(self, epoch: int) -> bool:
-        """
-        Determines if a checkpoint should be saved based on the given epoch, the checkpoint interval and the current rank.
-        Args:
-            epoch (int): The current epoch.
         Returns:
-            bool: True if a checkpoint should be saved, False otherwise.
+            int: The starting epoch number (1 if no checkpoint loaded, or checkpoint epoch + 1).
+        """
+        start_epoch = 1
+
+        if self._config.checkpoint_config.load_checkpoint:
+            checkpoint = trainer_logic.load_checkpoint_data(
+                checkpoint_path=self._config.checkpoint_config.load_checkpoint_path,
+                device=self._device,
+            )
+
+            if checkpoint:
+                model.load_state_dict(checkpoint["model_state_dict"])
+                optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+                trainer_logic.assign_device_to_optimizer_state(optimizer, self._device)
+                start_epoch = checkpoint["epoch"] + 1
+
+        return start_epoch
+
+    def _setup_differential_privacy(self, model, optimizer):
+        """
+        Setup differential privacy components.
+
+        Args:
+            model: The model to make private.
+            optimizer: The optimizer to make private.
+
+        Returns:
+            None
+        """
+        train_loader = self._config.training_process_config.train_loader
+
+        if (
+            self._is_differential_privacy_enabled()
+            and train_loader
+            and self._config.differential_privacy_config is not None
+        ):
+            (
+                self.model,
+                self.optimizer,
+                self._train_loader,
+                self._privacy_engine,
+                private_loss_fn,
+            ) = setup_privacy_engine(
+                model, optimizer, train_loader, self._config.differential_privacy_config
+            )
+
+            if private_loss_fn:
+                self._loss_fn = private_loss_fn
+        else:
+            self.model = model
+            self.optimizer = optimizer
+            self._train_loader = train_loader
+            self._privacy_engine = None
+
+        # Setup model (handles DDP wrapping if needed)
+        self.model = self._setup_model(self.model)
+
+    def _setup_scheduler(self):
+        """
+        Setup the learning rate scheduler.
+
+        Args:
+            None
+
+        Returns:
+            None
+        """
+        self._scheduler = trainer_logic.get_scheduler(
+            scheduler=self._config.optimization_config.scheduler,
+            optimizer=self.optimizer,
+            scheduler_kwargs=self._config.optimization_config.scheduler_kwargs,
+        )
+
+    def _is_differential_privacy_enabled(self):
+        """
+        Check if differential privacy is enabled.
+
+        Args:
+            None
+
+        Returns:
+            bool: True if differential privacy is enabled, False otherwise.
         """
         return (
-            self._config.save_checkpoint
-            and self._config.checkpoint_interval > 0
-            and epoch % self._config.checkpoint_interval == 0
+            self._config.differential_privacy_config is not None
+            and self._config.differential_privacy_config.enable
         )
 
-    def _should_save_final_model(self) -> bool:
+    def _execute_training_loop(self) -> None:
         """
-        Determines if the final model should be saved based on the given save_final_model flag and the current rank.
-        """
-        return self._config.save_final_model
-
-    def _save_final_model(self) -> None:
-        """
-        Saves the final model to the current directory with the name of the model variant and the dataset name.
-        """
-        if not self._config.save_model_path:
-            self._config.save_model_path = os.getcwd()
-
-        model_name = (
-            self._config.model._model_name
-            if hasattr(self._config.model, "_model_name")
-            else "model"
-        )
-        dataset_name = (
-            self._config.train_loader.dataset.name
-            if hasattr(self._config.train_loader.dataset, "name")
-            else "dataset"
-        )
-
-        if not self._config.save_model_name:
-            self._config.save_model_name = f"{model_name}_{dataset_name}_final.pth"
-
-        # if the same file exists, add a index to the file name
-        index = 0
-        while os.path.isfile(self._config.save_model_name):
-            index += 1
-            self._config.save_model_name = (
-                f"{model_name}_{dataset_name}_final_{index}.pth"
-            )
-
-        save_model(
-            model=self._model,
-            filename=self._config.save_model_name,
-            filepath=self._config.save_model_path,
-            distributed=self._config.use_ddp,
-        )
-
-    def _run_batch(self, source: torch.Tensor, targets: torch.Tensor) -> float:
-        """
-        Runs the given batch.
+        Contains the actual training loop logic. This is called by the train method.
 
         Args:
-            source (torch.Tensor): The source.
-            targets (torch.Tensor): The targets.
+            None
 
         Returns:
-            float: The loss.
+            None
         """
-        self._model.train()
-        self._optimizer.zero_grad()
-        output = self._model(source)
+        self._pre_training()
 
-        if hasattr(output, "logits"):
-            output = output.logits
+        # Use trange as a context manager to ensure proper cleanup
+        with trange(
+            self.start_epoch,
+            self._config.training_process_config.epochs + 1,
+            leave=True,
+            position=0,
+        ) as epoch_iterator:
+            for epoch in epoch_iterator:
+                self._run_epoch(epoch)
 
-        loss = self._loss_fn(output, targets)
-        loss.backward()
-        self._optimizer.step()
-        if self._scheduler:
-            self._scheduler.step()
-        return loss.item()
+                if self._should_save_checkpoint(epoch):
+                    checkpoint_path = self._get_checkpoint_path(epoch)
+                    self._save_checkpoint(epoch, checkpoint_path)
+
+        self._post_training()
 
     def _run_epoch(self, epoch: int) -> None:
         """
-        Runs the given epoch.
+        Runs a single training epoch. Can be overridden for DDP.
+
+        Args:
+            epoch (int): The current epoch number.
+
+        Returns:
+            None
         """
-        total_loss = 0.0
-        for _, (source, targets) in enumerate(
-            tqdm(self._config.train_loader, leave=False)
-        ):
-            source, targets = source.to(self._device), targets.to(self._device)
-            loss = self._run_batch(source, targets)
-            total_loss += loss
-
-        total_loss /= len(self._config.train_loader)
-        click.echo(
-            click.style(f"Epoch {epoch} - Average loss: {total_loss:.4f}", fg="blue")
+        trainer_logic.run_epoch(
+            epoch,
+            self._train_loader,
+            self._device,
+            self.model,
+            self.optimizer,
+            self._loss_fn,
+            self._scheduler,
         )
-        self._log_loss(epoch, total_loss)
 
-    def _pre_training(self) -> None:
-        # Method to run before training starts.
-        self._model.train()
+    def _should_save_checkpoint(self, epoch: int) -> bool:
+        """
+        Determines if a checkpoint should be saved. Can be overridden for DDP.
+
+        Args:
+            epoch (int): The current epoch number.
+
+        Returns:
+            bool: True if a checkpoint should be saved, False otherwise.
+        """
+        return trainer_logic.should_save_checkpoint(
+            epoch,
+            self._config.checkpoint_config.save_checkpoint,
+            self._config.checkpoint_config.checkpoint_interval,
+        )
+
+    def _get_checkpoint_path(self, epoch: int) -> str:
+        """
+        Gets the checkpoint path. Can be overridden for DDP.
+
+        Args:
+            epoch (int): The current epoch number.
+
+        Returns:
+            str: The path where the checkpoint should be saved.
+        """
+        return trainer_logic.define_save_checkpoint_path(
+            save_checkpoint_path=self._config.checkpoint_config.save_checkpoint_path,
+            save_checkpoint_name=self._config.checkpoint_config.save_checkpoint_name,
+            checkpoint_sub_dir=None,  # Not available in config
+            model_name="model",  # Default fallback
+            dataset_name="dataset",  # Default fallback
+            epoch=epoch,
+        )
+
+    def _save_checkpoint(self, epoch: int, checkpoint_path: str) -> None:
+        """
+        Saves a checkpoint. Can be overridden for DDP.
+
+        Args:
+            epoch (int): The current epoch number.
+            checkpoint_path (str): The path where the checkpoint should be saved.
+
+        Returns:
+            None
+        """
+        trainer_logic.save_checkpoint(
+            epoch, self.optimizer, self.model, checkpoint_path
+        )
 
     def _post_training(self) -> None:
-        # Method to run after training ends.
-        if self._should_save_final_model():
-            self._save_final_model()
+        """
+        Post-training logic. Can be overridden for DDP.
 
-    def _log_loss(
-        self, epoch: int, loss: float, dir: str = None, filename: str = "loss.log"
-    ) -> None:
-        path = (
-            os.path.join(dir, filename) if dir else os.path.join(os.getcwd(), filename)
+        Args:
+            None
+
+        Returns:
+            None
+        """
+        trainer_logic.post_training(
+            save_final_model_flag=self._config.final_model_config.save_final_model,
+            model=self.model,
+            save_path=self._config.final_model_config.save_model_path,
+            save_name=self._config.final_model_config.save_model_name,
+            model_name=None,
+            dataset_name=None,
+            use_ddp=self._config.device_config.use_ddp or False,
+            privacy_engine=self._privacy_engine,
+            delta=(
+                self._config.differential_privacy_config.delta
+                if self._config.differential_privacy_config
+                else None
+            ),
         )
-        # Save the loss to the log file. If the log file does not exist, create it in the current directory.
-        if not os.path.exists(path):
-            with open(path, "w", encoding="utf-8") as f:
-                f.write("epoch,loss\n")
-        with open(path, "a", encoding="utf-8") as f:
-            f.write(f"{epoch},{loss}\n")
+
+    def train(self) -> None:
+        """
+        Public method for training the model. It applies a global patch for DP
+        compatibility if needed.
+
+        Args:
+            None
+
+        Returns:
+            None
+        """
+        if self._needs_global_patch:
+            # If the global patch is needed, run the loop inside the context manager.
+            with non_inplace_operations():
+                self._execute_training_loop()
+        else:
+            # Otherwise, run the loop normally.
+            self._execute_training_loop()
+
+    def _setup_model(self, model) -> torch.nn.Module:
+        """
+        Initializes the model and moves it to the device. Can be overridden for DDP.
+
+        Args:
+            model: The model to setup.
+
+        Returns:
+            torch.nn.Module: The model moved to the appropriate device.
+        """
+        return model.to(self._device)
+
+    def _setup_device(self):
+        """
+        Setup the device for training.
+
+        Args:
+            None
+
+        Returns:
+            The configured device for training.
+        """
+        return setup_device(self._processor)
+
+    def _pre_training(self) -> None:
+        """
+        Method to run before training starts. Can be overridden by other trainers that inherit from this trainer.
+
+        Args:
+            None
+
+        Returns:
+            None
+        """
+        # Method to run before training starts.
+        self.model.train()

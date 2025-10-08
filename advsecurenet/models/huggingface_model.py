@@ -5,6 +5,7 @@ import torch
 
 import transformers
 from transformers import AutoModel, AutoConfig
+from torch import nn
 
 from advsecurenet.models.base_model import BaseModel, check_model_loaded
 from advsecurenet.shared.types.configs.model_config import (
@@ -59,7 +60,6 @@ class HuggingFaceModel(BaseModel):
                 self._determine_model_class_and_config()
             )
             self.model = self._instantiate_model(ModelClass, config_object)
-
         except Exception as e:
             # Re-raise specific ValueErrors from manual override if they match the pattern
             if isinstance(e, ValueError) and (
@@ -95,8 +95,11 @@ class HuggingFaceModel(BaseModel):
 
         try:
             ManualModelClass = getattr(transformers, model_class_name_override, None)
-            if ManualModelClass is not None and issubclass(
-                ManualModelClass, torch.nn.Module
+            if ManualModelClass is not None and (
+                issubclass(ManualModelClass, torch.nn.Module)
+                or hasattr(
+                    ManualModelClass, "from_pretrained"
+                )  # Check for Hugging Face Auto classes
             ):
                 return ManualModelClass, f"{model_class_name_override} (Manual)"
             else:
@@ -138,8 +141,11 @@ class HuggingFaceModel(BaseModel):
             arch_name = config.architectures[0]
             try:
                 InferredModelClass = getattr(transformers, arch_name, None)
-                if InferredModelClass is not None and issubclass(
-                    InferredModelClass, torch.nn.Module
+                if InferredModelClass is not None and (
+                    issubclass(InferredModelClass, torch.nn.Module)
+                    or hasattr(
+                        InferredModelClass, "from_pretrained"
+                    )  # Check for Hugging Face Auto classes
                 ):
                     ModelClass = InferredModelClass
                     determined_class_name = f"{arch_name} (Inferred)"
