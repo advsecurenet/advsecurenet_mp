@@ -1001,7 +1001,11 @@
       <li><a href="advsecurenet.shared.types.configs.attack_configs.html#advsecurenet.shared.types.configs.attack_configs.cw_attack_config.CWAttackConfig.c_upper">c_upper (advsecurenet.shared.types.configs.attack_configs.cw_attack_config.CWAttackConfig attribute)</a>
 </li>
       <li><a href="advsecurenet.shared.types.configs.html#advsecurenet.shared.types.configs.model_config.HuggingFaceInputConfig.cache_dir">cache_dir (advsecurenet.shared.types.configs.model_config.HuggingFaceInputConfig attribute)</a>
+
+      <ul>
+        <li><a href="cli.shared.types.utils.html#cli.shared.types.utils.model.ModelCliConfigType.cache_dir">(cli.shared.types.utils.model.ModelCliConfigType attribute)</a>
 </li>
+      </ul></li>
       <li><a href="advsecurenet.evaluation.evaluators.html#advsecurenet.evaluation.evaluators.perturbation_distance_evaluator.PerturbationDistanceEvaluator.calculate_l0_distance">calculate_l0_distance() (advsecurenet.evaluation.evaluators.perturbation_distance_evaluator.PerturbationDistanceEvaluator method)</a>
 </li>
       <li><a href="advsecurenet.evaluation.evaluators.html#advsecurenet.evaluation.evaluators.perturbation_distance_evaluator.PerturbationDistanceEvaluator.calculate_l2_distance">calculate_l2_distance() (advsecurenet.evaluation.evaluators.perturbation_distance_evaluator.PerturbationDistanceEvaluator method)</a>
@@ -1020,13 +1024,9 @@
 </li>
       <li><a href="advsecurenet.models.html#advsecurenet.models.base_model.check_model_loaded">check_model_loaded() (in module advsecurenet.models.base_model)</a>
 </li>
-      <li><a href="advsecurenet.shared.types.configs.html#advsecurenet.shared.types.configs.train_config.CheckpointConfig.checkpoint_interval">checkpoint_interval (advsecurenet.shared.types.configs.train_config.CheckpointConfig attribute)</a>
-
-      <ul>
-        <li><a href="cli.shared.types.train.html#cli.shared.types.train.training.Training.checkpoint_interval">(cli.shared.types.train.training.Training attribute)</a>
+      <li><a href="cli.shared.types.train.html#cli.shared.types.train.training.Training.checkpoint">checkpoint (cli.shared.types.train.training.Training attribute)</a>
 </li>
-      </ul></li>
-      <li><a href="advsecurenet.shared.types.configs.html#advsecurenet.shared.types.configs.train_config.CheckpointConfig">CheckpointConfig (class in advsecurenet.shared.types.configs.train_config)</a>
+      <li><a href="advsecurenet.shared.types.configs.html#advsecurenet.shared.types.configs.train_config.TrainConfig.checkpoint_config">checkpoint_config (advsecurenet.shared.types.configs.train_config.TrainConfig attribute)</a>
 </li>
       <li><a href="advsecurenet.shared.types.html#advsecurenet.shared.types.dataset.DatasetType.CIFAR10">CIFAR10 (advsecurenet.shared.types.dataset.DatasetType attribute)</a>
 </li>
@@ -1674,11 +1674,7 @@
       <li><a href="advsecurenet.shared.types.configs.html#advsecurenet.shared.types.configs.test_config.TestConfig.criterion">criterion (advsecurenet.shared.types.configs.test_config.TestConfig attribute)</a>
 
       <ul>
-        <li><a href="advsecurenet.shared.types.configs.html#advsecurenet.shared.types.configs.train_config.TrainingProcessConfig.criterion">(advsecurenet.shared.types.configs.train_config.TrainingProcessConfig attribute)</a>
-</li>
         <li><a href="cli.shared.types.evaluation.html#cli.shared.types.evaluation.testing.Testing.criterion">(cli.shared.types.evaluation.testing.Testing attribute)</a>
-</li>
-        <li><a href="cli.shared.types.train.html#cli.shared.types.train.training.Training.criterion">(cli.shared.types.train.training.Training attribute)</a>
 </li>
       </ul></li>
       <li><a href="advsecurenet.shared.html#advsecurenet.shared.loss.Loss.CROSS_ENTROPY">CROSS_ENTROPY (advsecurenet.shared.loss.Loss attribute)</a>
@@ -1773,10 +1769,10 @@
 </li>
       <li><a href="advsecurenet.trainer.html#advsecurenet.trainer.ddp_trainer.DDPTrainer">DDPTrainer (class in advsecurenet.trainer.ddp_trainer)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="advsecurenet.shared.types.html#advsecurenet.shared.types.attacks.AttackType.DECISION_BOUNDARY">DECISION_BOUNDARY (advsecurenet.shared.types.attacks.AttackType attribute)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="advsecurenet.attacks.decision_based.html#advsecurenet.computer_vision.image_classification.attacks.decision_based.boundary.DecisionBoundary">DecisionBoundary (class in advsecurenet.computer_vision.image_classification.attacks.decision_based.boundary)</a>
 </li>
       <li><a href="advsecurenet.shared.types.configs.attack_configs.html#advsecurenet.shared.types.configs.attack_configs.decision_boundary_attack_config.DecisionBoundaryAttackConfig">DecisionBoundaryAttackConfig (class in advsecurenet.shared.types.configs.attack_configs.decision_boundary_attack_config)</a>
@@ -1811,12 +1807,18 @@
         <li><a href="cli.shared.types.train.html#cli.shared.types.train.training.TrainingCliConfigType.device">(cli.shared.types.train.training.TrainingCliConfigType attribute)</a>
 </li>
       </ul></li>
+      <li><a href="advsecurenet.shared.types.configs.html#advsecurenet.shared.types.configs.train_config.TrainConfig.device_config">device_config (advsecurenet.shared.types.configs.train_config.TrainConfig attribute)</a>
+</li>
       <li><a href="advsecurenet.shared.types.configs.html#advsecurenet.shared.types.configs.device_config.DeviceConfig">DeviceConfig (class in advsecurenet.shared.types.configs.device_config)</a>
 
       <ul>
         <li><a href="cli.shared.types.utils.html#cli.shared.types.utils.device.DeviceConfig">(class in cli.shared.types.utils.device)</a>
 </li>
       </ul></li>
+      <li><a href="cli.shared.types.train.html#cli.shared.types.train.training.Training.differential_privacy">differential_privacy (cli.shared.types.train.training.Training attribute)</a>
+</li>
+      <li><a href="advsecurenet.shared.types.configs.html#advsecurenet.shared.types.configs.train_config.TrainConfig.differential_privacy_config">differential_privacy_config (advsecurenet.shared.types.configs.train_config.TrainConfig attribute)</a>
+</li>
       <li><a href="advsecurenet.utils.html#advsecurenet.utils.logging.LoggingConfig.disable_existing_loggers">disable_existing_loggers (advsecurenet.utils.logging.LoggingConfig attribute)</a>, <a href="advsecurenet.utils.html#id0">[1]</a>
 </li>
       <li><a href="advsecurenet.dataloader.html#advsecurenet.dataloader.distributed_eval_sampler.DistributedEvalSampler">DistributedEvalSampler (class in advsecurenet.dataloader.distributed_eval_sampler)</a>
@@ -1845,12 +1847,6 @@
 </li>
       <li><a href="advsecurenet.shared.types.configs.attack_configs.html#advsecurenet.shared.types.configs.attack_configs.decision_boundary_attack_config.DecisionBoundaryAttackConfig.early_stopping_threshold">early_stopping_threshold (advsecurenet.shared.types.configs.attack_configs.decision_boundary_attack_config.DecisionBoundaryAttackConfig attribute)</a>
 </li>
-      <li><a href="advsecurenet.shared.types.configs.html#advsecurenet.shared.types.configs.train_config.TrainingProcessConfig.epochs">epochs (advsecurenet.shared.types.configs.train_config.TrainingProcessConfig attribute)</a>
-
-      <ul>
-        <li><a href="cli.shared.types.train.html#cli.shared.types.train.training.Training.epochs">(cli.shared.types.train.training.Training attribute)</a>
-</li>
-      </ul></li>
       <li><a href="advsecurenet.shared.types.configs.attack_configs.html#advsecurenet.shared.types.configs.attack_configs.fgsm_attack_config.FgsmAttackConfig.epsilon">epsilon (advsecurenet.shared.types.configs.attack_configs.fgsm_attack_config.FgsmAttackConfig attribute)</a>
 
       <ul>
@@ -1861,10 +1857,10 @@
       </ul></li>
       <li><a href="advsecurenet.shared.types.configs.html#advsecurenet.shared.types.configs.configs.ConfigType.EVALUATION">EVALUATION (advsecurenet.shared.types.configs.configs.ConfigType attribute)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="cli.shared.types.evaluation.html#cli.shared.types.evaluation.evaluation.AdversarialEvaluationCliConfigType.evaluation_config">evaluation_config (cli.shared.types.evaluation.evaluation.AdversarialEvaluationCliConfigType attribute)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="advsecurenet.shared.types.configs.attack_configs.html#advsecurenet.shared.types.configs.attack_configs.attacker_config.AttackerConfig.evaluators">evaluators (advsecurenet.shared.types.configs.attack_configs.attacker_config.AttackerConfig attribute)</a>
 
       <ul>
@@ -1907,10 +1903,12 @@
 </li>
       <li><a href="advsecurenet.utils.html#advsecurenet.utils.dataclass.filter_for_dataclass">filter_for_dataclass() (in module advsecurenet.utils.dataclass)</a>
 </li>
-      <li><a href="advsecurenet.shared.types.configs.html#advsecurenet.shared.types.configs.train_config.FinalModelConfig">FinalModelConfig (class in advsecurenet.shared.types.configs.train_config)</a>
+      <li><a href="cli.shared.types.train.html#cli.shared.types.train.training.Training.final_model">final_model (cli.shared.types.train.training.Training attribute)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="advsecurenet.shared.types.configs.html#advsecurenet.shared.types.configs.train_config.TrainConfig.final_model_config">final_model_config (advsecurenet.shared.types.configs.train_config.TrainConfig attribute)</a>
+</li>
       <li><a href="advsecurenet.utils.html#advsecurenet.utils.network.find_free_port">find_free_port() (in module advsecurenet.utils.network)</a>
 </li>
       <li><a href="advsecurenet.utils.html#advsecurenet.utils.dataclass.flatten_dataclass">flatten_dataclass() (in module advsecurenet.utils.dataclass)</a>
@@ -2120,10 +2118,6 @@
       <ul>
         <li><a href="advsecurenet.shared.types.configs.attack_configs.html#advsecurenet.shared.types.configs.attack_configs.lots_attack_config.LotsAttackConfig.learning_rate">(advsecurenet.shared.types.configs.attack_configs.lots_attack_config.LotsAttackConfig attribute)</a>, <a href="advsecurenet.shared.types.configs.attack_configs.html#id2">[1]</a>
 </li>
-        <li><a href="advsecurenet.shared.types.configs.html#advsecurenet.shared.types.configs.train_config.TrainingProcessConfig.learning_rate">(advsecurenet.shared.types.configs.train_config.TrainingProcessConfig attribute)</a>
-</li>
-        <li><a href="cli.shared.types.train.html#cli.shared.types.train.training.Training.learning_rate">(cli.shared.types.train.training.Training attribute)</a>
-</li>
       </ul></li>
       <li><a href="advsecurenet.utils.html#advsecurenet.utils.logging.LoggingConfig.level">level (advsecurenet.utils.logging.LoggingConfig attribute)</a>, <a href="advsecurenet.utils.html#id2">[1]</a>
 </li>
@@ -2133,22 +2127,8 @@
 </li>
       <li><a href="cli.shared.utils.html#cli.shared.utils.config.load_and_instantiate_config">load_and_instantiate_config() (in module cli.shared.utils.config)</a>
 </li>
-      <li><a href="advsecurenet.shared.types.configs.html#advsecurenet.shared.types.configs.train_config.CheckpointConfig.load_checkpoint">load_checkpoint (advsecurenet.shared.types.configs.train_config.CheckpointConfig attribute)</a>
-
-      <ul>
-        <li><a href="cli.shared.types.train.html#cli.shared.types.train.training.Training.load_checkpoint">(cli.shared.types.train.training.Training attribute)</a>
-</li>
-      </ul></li>
-      <li><a href="advsecurenet.shared.types.configs.html#advsecurenet.shared.types.configs.train_config.CheckpointConfig.load_checkpoint_path">load_checkpoint_path (advsecurenet.shared.types.configs.train_config.CheckpointConfig attribute)</a>
-
-      <ul>
-        <li><a href="cli.shared.types.train.html#cli.shared.types.train.training.Training.load_checkpoint_path">(cli.shared.types.train.training.Training attribute)</a>
-</li>
-      </ul></li>
       <li><a href="cli.shared.utils.html#cli.shared.utils.config.load_configuration">load_configuration() (in module cli.shared.utils.config)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="advsecurenet.datasets.html#advsecurenet.datasets.base_dataset.BaseDataset.load_dataset">load_dataset() (advsecurenet.datasets.base_dataset.BaseDataset method)</a>
 
       <ul>
@@ -2157,6 +2137,8 @@
       </ul></li>
       <li><a href="advsecurenet.datasets.html#advsecurenet.datasets.dataset_factory.DatasetFactory.load_dataset_from_config">load_dataset_from_config() (advsecurenet.datasets.dataset_factory.DatasetFactory static method)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="advsecurenet.models.html#advsecurenet.models.base_model.BaseModel.load_model">load_model() (advsecurenet.models.base_model.BaseModel method)</a>
 
       <ul>
@@ -2260,12 +2242,24 @@
 </li>
       </ul></li>
       <li><a href="advsecurenet.shared.types.configs.html#advsecurenet.shared.types.configs.model_config.HuggingFaceInputConfig.model_class_name">model_class_name (advsecurenet.shared.types.configs.model_config.HuggingFaceInputConfig attribute)</a>
+
+      <ul>
+        <li><a href="cli.shared.types.utils.html#cli.shared.types.utils.model.ModelCliConfigType.model_class_name">(cli.shared.types.utils.model.ModelCliConfigType attribute)</a>
+</li>
+      </ul></li>
+      <li><a href="advsecurenet.shared.types.configs.html#advsecurenet.shared.types.configs.train_config.TrainConfig.model_config">model_config (advsecurenet.shared.types.configs.train_config.TrainConfig attribute)</a>
 </li>
       <li><a href="advsecurenet.shared.types.configs.html#advsecurenet.shared.types.configs.model_config.HuggingFaceResolvedConfig.model_id">model_id (advsecurenet.shared.types.configs.model_config.HuggingFaceResolvedConfig attribute)</a>
+
+      <ul>
+        <li><a href="cli.shared.types.utils.html#cli.shared.types.utils.model.ModelCliConfigType.model_id">(cli.shared.types.utils.model.ModelCliConfigType attribute)</a>
 </li>
+      </ul></li>
       <li><a href="advsecurenet.shared.types.configs.html#advsecurenet.shared.types.configs.model_config.CreateModelConfig.model_identifier">model_identifier (advsecurenet.shared.types.configs.model_config.CreateModelConfig attribute)</a>
 </li>
       <li><a href="advsecurenet.shared.types.configs.html#advsecurenet.shared.types.configs.model_config.IdentifierSource.MODEL_IDENTIFIER">MODEL_IDENTIFIER (advsecurenet.shared.types.configs.model_config.IdentifierSource attribute)</a>
+</li>
+      <li><a href="cli.shared.types.utils.html#cli.shared.types.utils.model.ModelCliConfigType.model_identifier">model_identifier (cli.shared.types.utils.model.ModelCliConfigType attribute)</a>
 </li>
       <li><a href="advsecurenet.models.html#advsecurenet.models.base_model.BaseModel.model_name">model_name (advsecurenet.models.base_model.BaseModel attribute)</a>
 
@@ -2728,6 +2722,8 @@
 </li>
       <li><a href="advsecurenet.shared.html#advsecurenet.shared.loss.Loss.NLL_LOSS2D">NLL_LOSS2D (advsecurenet.shared.loss.Loss attribute)</a>
 </li>
+      <li><a href="advsecurenet.utils.html#advsecurenet.utils.model_utils.non_inplace_operations">non_inplace_operations() (in module advsecurenet.utils.model_utils)</a>
+</li>
       <li><a href="advsecurenet.dataloader.html#advsecurenet.dataloader.data_loader_factory.DataLoaderFactory.None">None (advsecurenet.dataloader.data_loader_factory.DataLoaderFactory attribute)</a>
 </li>
       <li><a href="cli.shared.types.utils.html#cli.shared.types.utils.model.ModelCliConfigType.norm_config">norm_config (cli.shared.types.utils.model.ModelCliConfigType attribute)</a>
@@ -2742,10 +2738,10 @@
 </li>
       <li><a href="cli.shared.messages.html#cli.shared.messages.errors.CLITrainerErrorMessages.NORM_LAYER_MISSING_MEAN_OR_STD">NORM_LAYER_MISSING_MEAN_OR_STD (cli.shared.messages.errors.CLITrainerErrorMessages attribute)</a>
 </li>
-      <li><a href="cli.shared.types.utils.html#cli.shared.types.utils.model.ModelNormConfig.norm_mean">norm_mean (cli.shared.types.utils.model.ModelNormConfig attribute)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="cli.shared.types.utils.html#cli.shared.types.utils.model.ModelNormConfig.norm_mean">norm_mean (cli.shared.types.utils.model.ModelNormConfig attribute)</a>
+</li>
       <li><a href="cli.shared.types.utils.html#cli.shared.types.utils.model.ModelNormConfig.norm_std">norm_std (cli.shared.types.utils.model.ModelNormConfig attribute)</a>
 </li>
       <li><a href="advsecurenet.utils.html#advsecurenet.utils.normalization_layer.NormalizationLayer">NormalizationLayer (class in advsecurenet.utils.normalization_layer)</a>
@@ -2802,22 +2798,14 @@
 </li>
       <li><a href="advsecurenet.shared.html#advsecurenet.shared.scheduler.Scheduler.ONE_CYCLE_LR">ONE_CYCLE_LR (advsecurenet.shared.scheduler.Scheduler attribute)</a>
 </li>
-      <li><a href="advsecurenet.shared.types.configs.html#advsecurenet.shared.types.configs.train_config.OptimizationConfig">OptimizationConfig (class in advsecurenet.shared.types.configs.train_config)</a>
-</li>
-      <li><a href="advsecurenet.shared.types.configs.html#advsecurenet.shared.types.configs.train_config.OptimizationConfig.optimizer">optimizer (advsecurenet.shared.types.configs.train_config.OptimizationConfig attribute)</a>
+      <li><a href="cli.shared.types.train.html#cli.shared.types.train.training.Training.optimization">optimization (cli.shared.types.train.training.Training attribute)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="advsecurenet.shared.types.configs.html#advsecurenet.shared.types.configs.train_config.TrainConfig.optimization_config">optimization_config (advsecurenet.shared.types.configs.train_config.TrainConfig attribute)</a>
+</li>
       <li><a href="advsecurenet.shared.html#advsecurenet.shared.optimizer.Optimizer">Optimizer (class in advsecurenet.shared.optimizer)</a>
 </li>
-      <li><a href="cli.shared.types.train.html#cli.shared.types.train.training.Training.optimizer">optimizer (cli.shared.types.train.training.Training attribute)</a>
-</li>
-      <li><a href="advsecurenet.shared.types.configs.html#advsecurenet.shared.types.configs.train_config.OptimizationConfig.optimizer_kwargs">optimizer_kwargs (advsecurenet.shared.types.configs.train_config.OptimizationConfig attribute)</a>
-
-      <ul>
-        <li><a href="cli.shared.types.train.html#cli.shared.types.train.training.Training.optimizer_kwargs">(cli.shared.types.train.training.Training attribute)</a>
-</li>
-      </ul></li>
       <li><a href="advsecurenet.shared.types.configs.attack_configs.html#advsecurenet.shared.types.configs.attack_configs.deepfool_attack_config.DeepFoolAttackConfig.overshoot">overshoot (advsecurenet.shared.types.configs.attack_configs.deepfool_attack_config.DeepFoolAttackConfig attribute)</a>
 </li>
   </ul></td>
@@ -2943,7 +2931,11 @@
       <li><a href="advsecurenet.shared.types.configs.attack_configs.html#advsecurenet.shared.types.configs.attack_configs.attacker_config.AttackerConfig.return_adversarial_images">return_adversarial_images (advsecurenet.shared.types.configs.attack_configs.attacker_config.AttackerConfig attribute)</a>
 </li>
       <li><a href="advsecurenet.shared.types.configs.html#advsecurenet.shared.types.configs.model_config.HuggingFaceInputConfig.revision">revision (advsecurenet.shared.types.configs.model_config.HuggingFaceInputConfig attribute)</a>
+
+      <ul>
+        <li><a href="cli.shared.types.utils.html#cli.shared.types.utils.model.ModelCliConfigType.revision">(cli.shared.types.utils.model.ModelCliConfigType attribute)</a>
 </li>
+      </ul></li>
       <li><a href="advsecurenet.shared.html#advsecurenet.shared.optimizer.Optimizer.RMS_PROP">RMS_PROP (advsecurenet.shared.optimizer.Optimizer attribute)</a>
 </li>
       <li><a href="advsecurenet.evaluation.evaluators.html#advsecurenet.evaluation.evaluators.robustness_gap_evaluator.RobustnessGapEvaluator">RobustnessGapEvaluator (class in advsecurenet.evaluation.evaluators.robustness_gap_evaluator)</a>
@@ -2964,30 +2956,6 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="advsecurenet.shared.types.configs.html#advsecurenet.shared.types.configs.dataloader_config.DataLoaderConfig.sampler">sampler (advsecurenet.shared.types.configs.dataloader_config.DataLoaderConfig attribute)</a>
 </li>
-      <li><a href="advsecurenet.shared.types.configs.html#advsecurenet.shared.types.configs.train_config.CheckpointConfig.save_checkpoint">save_checkpoint (advsecurenet.shared.types.configs.train_config.CheckpointConfig attribute)</a>
-
-      <ul>
-        <li><a href="cli.shared.types.train.html#cli.shared.types.train.training.Training.save_checkpoint">(cli.shared.types.train.training.Training attribute)</a>
-</li>
-      </ul></li>
-      <li><a href="advsecurenet.shared.types.configs.html#advsecurenet.shared.types.configs.train_config.CheckpointConfig.save_checkpoint_name">save_checkpoint_name (advsecurenet.shared.types.configs.train_config.CheckpointConfig attribute)</a>
-
-      <ul>
-        <li><a href="cli.shared.types.train.html#cli.shared.types.train.training.Training.save_checkpoint_name">(cli.shared.types.train.training.Training attribute)</a>
-</li>
-      </ul></li>
-      <li><a href="advsecurenet.shared.types.configs.html#advsecurenet.shared.types.configs.train_config.CheckpointConfig.save_checkpoint_path">save_checkpoint_path (advsecurenet.shared.types.configs.train_config.CheckpointConfig attribute)</a>
-
-      <ul>
-        <li><a href="cli.shared.types.train.html#cli.shared.types.train.training.Training.save_checkpoint_path">(cli.shared.types.train.training.Training attribute)</a>
-</li>
-      </ul></li>
-      <li><a href="advsecurenet.shared.types.configs.html#advsecurenet.shared.types.configs.train_config.FinalModelConfig.save_final_model">save_final_model (advsecurenet.shared.types.configs.train_config.FinalModelConfig attribute)</a>
-
-      <ul>
-        <li><a href="cli.shared.types.train.html#cli.shared.types.train.training.Training.save_final_model">(cli.shared.types.train.training.Training attribute)</a>
-</li>
-      </ul></li>
       <li><a href="cli.shared.utils.html#cli.shared.utils.helpers.save_images">save_images() (in module cli.shared.utils.helpers)</a>
 </li>
       <li><a href="advsecurenet.models.html#advsecurenet.models.base_model.BaseModel.save_model">save_model() (advsecurenet.models.base_model.BaseModel method)</a>
@@ -2996,42 +2964,18 @@
         <li><a href="advsecurenet.utils.html#advsecurenet.utils.model_utils.save_model">(in module advsecurenet.utils.model_utils)</a>
 </li>
       </ul></li>
-      <li><a href="advsecurenet.shared.types.configs.html#advsecurenet.shared.types.configs.train_config.FinalModelConfig.save_model_name">save_model_name (advsecurenet.shared.types.configs.train_config.FinalModelConfig attribute)</a>
-
-      <ul>
-        <li><a href="cli.shared.types.train.html#cli.shared.types.train.training.Training.save_model_name">(cli.shared.types.train.training.Training attribute)</a>
-</li>
-      </ul></li>
-      <li><a href="advsecurenet.shared.types.configs.html#advsecurenet.shared.types.configs.train_config.FinalModelConfig.save_model_path">save_model_path (advsecurenet.shared.types.configs.train_config.FinalModelConfig attribute)</a>
-
-      <ul>
-        <li><a href="cli.shared.types.train.html#cli.shared.types.train.training.Training.save_model_path">(cli.shared.types.train.training.Training attribute)</a>
-</li>
-      </ul></li>
       <li><a href="cli.shared.types.attack.html#cli.shared.types.attack.attack.AttackProcedureCliConfigType.save_result_images">save_result_images (cli.shared.types.attack.attack.AttackProcedureCliConfigType attribute)</a>
 </li>
       <li><a href="advsecurenet.evaluation.html#advsecurenet.evaluation.base_evaluator.BaseEvaluator.save_results_to_csv">save_results_to_csv() (advsecurenet.evaluation.base_evaluator.BaseEvaluator method)</a>
 </li>
-      <li><a href="advsecurenet.shared.types.configs.html#advsecurenet.shared.types.configs.train_config.OptimizationConfig.scheduler">scheduler (advsecurenet.shared.types.configs.train_config.OptimizationConfig attribute)</a>
-</li>
       <li><a href="advsecurenet.shared.html#advsecurenet.shared.scheduler.Scheduler">Scheduler (class in advsecurenet.shared.scheduler)</a>
 </li>
-      <li><a href="cli.shared.types.train.html#cli.shared.types.train.training.Training.scheduler">scheduler (cli.shared.types.train.training.Training attribute)</a>
-</li>
-      <li><a href="advsecurenet.shared.types.configs.html#advsecurenet.shared.types.configs.train_config.OptimizationConfig.scheduler_kwargs">scheduler_kwargs (advsecurenet.shared.types.configs.train_config.OptimizationConfig attribute)</a>
-
-      <ul>
-        <li><a href="cli.shared.types.train.html#cli.shared.types.train.training.Training.scheduler_kwargs">(cli.shared.types.train.training.Training attribute)</a>
-</li>
-      </ul></li>
       <li><a href="advsecurenet.utils.html#advsecurenet.utils.reproducibility_utils.set_deterministic">set_deterministic() (in module advsecurenet.utils.reproducibility_utils)</a>
 </li>
       <li><a href="advsecurenet.dataloader.html#advsecurenet.dataloader.distributed_eval_sampler.DistributedEvalSampler.set_epoch">set_epoch() (advsecurenet.dataloader.distributed_eval_sampler.DistributedEvalSampler method)</a>
 </li>
       <li><a href="advsecurenet.models.html#advsecurenet.models.base_model.BaseModel.set_layer">set_layer() (advsecurenet.models.base_model.BaseModel method)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="advsecurenet.utils.html#advsecurenet.utils.reproducibility_utils.set_nondeterministic">set_nondeterministic() (in module advsecurenet.utils.reproducibility_utils)</a>
 </li>
       <li><a href="advsecurenet.utils.html#advsecurenet.utils.reproducibility_utils.set_seed">set_seed() (in module advsecurenet.utils.reproducibility_utils)</a>
@@ -3050,6 +2994,8 @@
       </ul></li>
       <li><a href="advsecurenet.evaluation.evaluators.html#advsecurenet.evaluation.evaluators.similarity_evaluator.SimilarityEvaluator">SimilarityEvaluator (class in advsecurenet.evaluation.evaluators.similarity_evaluator)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="advsecurenet.shared.types.configs.attack_configs.html#advsecurenet.shared.types.configs.attack_configs.lots_attack_config.LotsAttackMode.SINGLE">SINGLE (advsecurenet.shared.types.configs.attack_configs.lots_attack_config.LotsAttackMode attribute)</a>
 </li>
       <li><a href="advsecurenet.shared.html#advsecurenet.shared.loss.Loss.SMOOTH_L1_LOSS">SMOOTH_L1_LOSS (advsecurenet.shared.loss.Loss attribute)</a>
@@ -3152,12 +3098,12 @@
 </li>
       <li><a href="cli.shared.types.evaluation.html#cli.shared.types.evaluation.testing.TestingCliConfigType.testing">testing (cli.shared.types.evaluation.testing.TestingCliConfigType attribute)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="cli.shared.types.evaluation.html#cli.shared.types.evaluation.testing.TestingCliConfigType">TestingCliConfigType (class in cli.shared.types.evaluation.testing)</a>
 </li>
       <li><a href="cli.shared.utils.html#cli.shared.utils.helpers.to_bchw_format">to_bchw_format() (in module cli.shared.utils.helpers)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="advsecurenet.shared.types.html#advsecurenet.shared.types.attacks.AttackType.TOG">TOG (advsecurenet.shared.types.attacks.AttackType attribute)</a>
 </li>
       <li><a href="advsecurenet.shared.types.configs.html#advsecurenet.shared.types.configs.test_config.TestConfig.topk">topk (advsecurenet.shared.types.configs.test_config.TestConfig attribute)</a>
@@ -3186,6 +3132,8 @@
         <li><a href="cli.logic.train.html#cli.logic.train.trainer.CLITrainer.train">(cli.logic.train.trainer.CLITrainer method)</a>
 </li>
       </ul></li>
+      <li><a href="advsecurenet.shared.types.configs.defense_configs.html#advsecurenet.shared.types.configs.defense_configs.adversarial_training_config.AdversarialTrainingConfig.train_config">train_config (advsecurenet.shared.types.configs.defense_configs.adversarial_training_config.AdversarialTrainingConfig attribute)</a>
+</li>
       <li><a href="advsecurenet.shared.types.configs.html#advsecurenet.shared.types.configs.train_config.TrainingProcessConfig.train_loader">train_loader (advsecurenet.shared.types.configs.train_config.TrainingProcessConfig attribute)</a>
 </li>
       <li><a href="advsecurenet.shared.types.configs.html#advsecurenet.shared.types.configs.train_config.TrainConfig">TrainConfig (class in advsecurenet.shared.types.configs.train_config)</a>
@@ -3202,6 +3150,10 @@
         <li><a href="cli.shared.types.train.html#cli.shared.types.train.training.TrainingCliConfigType.training">(cli.shared.types.train.training.TrainingCliConfigType attribute)</a>
 </li>
       </ul></li>
+      <li><a href="cli.shared.types.train.html#cli.shared.types.train.training.Training.training_hyperparameter">training_hyperparameter (cli.shared.types.train.training.Training attribute)</a>
+</li>
+      <li><a href="advsecurenet.shared.types.configs.html#advsecurenet.shared.types.configs.train_config.TrainConfig.training_process_config">training_process_config (advsecurenet.shared.types.configs.train_config.TrainConfig attribute)</a>
+</li>
       <li><a href="cli.shared.types.train.html#cli.shared.types.train.training.TrainingCliConfigType">TrainingCliConfigType (class in cli.shared.types.train.training)</a>
 </li>
       <li><a href="advsecurenet.shared.types.configs.html#advsecurenet.shared.types.configs.train_config.TrainingProcessConfig">TrainingProcessConfig (class in advsecurenet.shared.types.configs.train_config)</a>
@@ -3213,7 +3165,11 @@
       <li><a href="advsecurenet.shared.html#advsecurenet.shared.loss.Loss.TRIPLET_MARGIN_LOSS">TRIPLET_MARGIN_LOSS (advsecurenet.shared.loss.Loss attribute)</a>
 </li>
       <li><a href="advsecurenet.shared.types.configs.html#advsecurenet.shared.types.configs.model_config.HuggingFaceInputConfig.trust_remote_code">trust_remote_code (advsecurenet.shared.types.configs.model_config.HuggingFaceInputConfig attribute)</a>
+
+      <ul>
+        <li><a href="cli.shared.types.utils.html#cli.shared.types.utils.model.ModelCliConfigType.trust_remote_code">(cli.shared.types.utils.model.ModelCliConfigType attribute)</a>
 </li>
+      </ul></li>
   </ul></td>
 </tr></table>
 
@@ -3270,8 +3226,6 @@
 
       <ul>
         <li><a href="advsecurenet.shared.types.configs.attack_configs.html#advsecurenet.shared.types.configs.attack_configs.lots_attack_config.LotsAttackConfig.verbose">(advsecurenet.shared.types.configs.attack_configs.lots_attack_config.LotsAttackConfig attribute)</a>, <a href="advsecurenet.shared.types.configs.attack_configs.html#id5">[1]</a>
-</li>
-        <li><a href="advsecurenet.shared.types.configs.html#advsecurenet.shared.types.configs.train_config.TrainingProcessConfig.verbose">(advsecurenet.shared.types.configs.train_config.TrainingProcessConfig attribute)</a>
 </li>
         <li><a href="cli.shared.types.attack.html#cli.shared.types.attack.attack.AttackProcedureCliConfigType.verbose">(cli.shared.types.attack.attack.AttackProcedureCliConfigType attribute)</a>
 </li>
