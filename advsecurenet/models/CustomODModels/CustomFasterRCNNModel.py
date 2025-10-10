@@ -9,6 +9,7 @@ from torchvision.models.detection import (
 
 from advsecurenet.datasets.COCO.coco_utils import COCO_INSTANCE_CATEGORY_NAMES, ID_TO_CONTIGUOUS
 from advsecurenet.models.CustomODModels.CustomODBaseModel import CustomODBaseModel
+from advsecurenet.datasets.label_utils import coco_label_ids_to_pascal
 
 FASTERRCNN_COCO_LABEL_OFFSET = -1  # background is 0, first class is 1
 
@@ -304,15 +305,31 @@ class CustomFasterRCNNModel(CustomODBaseModel):
         """From torchvision outputs (list of dicts) back to your np format."""
         if dataset_name.lower() == "coco":
             return self._translate_predictions_for_map_evaluator_coco(outputs)
+        map_to_pascal = dataset_name.lower() == "pascal_voc"
         preds = []
         for out in outputs:
             boxes = out["boxes"].detach().cpu().numpy()
             scores = out["scores"].detach().cpu().numpy()
-            labels = out["labels"].detach().cpu().numpy()
-            pred = {
-                "boxes": boxes,
-                "scores": scores,
-                "labels": labels,
-            }
-            preds.append(pred)
+            if map_to_pascal: # Assuming COCO label IDs as model's output
+                labels_raw = out["labels"].detach().cpu().numpy().astype(int)
+                mapped = np.array(
+                    coco_label_ids_to_pascal(labels_raw.tolist(), assume_contiguous=False, unmapped_value=-1),
+                    dtype=np.int64,
+                )
+                keep = mapped >= 0
+                preds.append(
+                    {
+                        "boxes": boxes[keep],
+                        "scores": scores[keep],
+                        "labels": mapped[keep],
+                    }
+                )
+            else:
+                labels = out["labels"].detach().cpu().numpy()
+                pred = {
+                    "boxes": boxes,
+                    "scores": scores,
+                    "labels": labels,
+                }
+                preds.append(pred)
         return preds
