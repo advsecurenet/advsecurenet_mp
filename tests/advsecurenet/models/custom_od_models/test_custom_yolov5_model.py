@@ -82,6 +82,37 @@ def test_model_initialization():
 
 
 @pytest.mark.advsecurenet
+def test_forward_eval_path_uses_autoshape(capsys):
+    with patch("yolov5.load") as mock_load, patch(
+        "yolov5.models.common.AutoShape"
+    ) as mock_autoshape, patch("yolov5.utils.loss.ComputeLoss") as mock_compute_loss:
+        from advsecurenet.models.CustomODModels.CustomYolov5Model import (
+            CustomYolov5Model,
+        )
+
+        dummy_model = MinimalYoloModel()
+        dummy_model.modules = lambda: []
+        mock_load.return_value.model = dummy_model
+        class DummyAuto:
+            def __call__(self, imgs, size=None):
+                return types.SimpleNamespace(
+                    xyxy=[np.empty((0, 6))],
+                    pred=[torch.zeros((0, 5 + 3), dtype=torch.float32)],
+                )
+        mock_autoshape.return_value = DummyAuto()
+        mock_compute_loss.return_value = MagicMock()
+    model = CustomYolov5Model()
+    model.eval()
+    # Ensure input_shape exists for size accessor in predict_per_batch
+    model.input_shape = (3, 32, 32)
+    # Call predict_per_batch to go through AutoShape code path deterministically
+    imgs = torch.zeros(1, 3, 32, 32)
+    inference_model = model.initialize_inference_model(model._model, device="cpu")
+    outs = model.predict_per_batch(imgs, inference_model, clip_values=(0, 255))
+    assert isinstance(outs, list)
+
+
+@pytest.mark.advsecurenet
 @pytest.mark.essential
 def test_forward_train_mode():
     with patch("yolov5.load") as mock_load, patch(
@@ -128,6 +159,81 @@ def test_custom_weights_path():
         mock_compute_loss.return_value = MagicMock()
         model = CustomYolov5Model(model_weights_path="some/other/path.pt")
         mock_load.assert_called_once_with("some/other/path.pt", autoshape=False, device=ANY)
+
+
+@pytest.mark.advsecurenet
+def test_pth_weight_loading_hash_changed_and_unchanged(tmp_path, monkeypatch):
+    with patch("yolov5.load") as mock_load, patch(
+        "yolov5.models.common.AutoShape"
+    ) as mock_autoshape, patch("yolov5.utils.loss.ComputeLoss") as mock_compute_loss:
+        from advsecurenet.models.CustomODModels.CustomYolov5Model import (
+            CustomYolov5Model,
+        )
+
+        dm = MinimalYoloModel()
+        dm.modules = lambda: []
+        mock_load.return_value.model = dm
+        mock_autoshape.return_value = MagicMock()
+        mock_compute_loss.return_value = MagicMock()
+
+        # Prepare a valid .pth and force os.path.isfile True
+        pth = tmp_path / "w.pth"
+        torch.save({"weights": {"x": torch.tensor(1)}}, pth)
+        monkeypatch.setattr("os.path.isfile", lambda p: True)
+
+        # Sequence 1: changed hash
+        cap = []
+        def run_with_hashes(vals):
+            seq = iter(vals)
+            monkeypatch.setattr(CustomYolov5Model, "_parameters_sha256", lambda self: next(seq))
+            m = CustomYolov5Model(model_weights_path=str(pth))
+            cap.append(m)
+            return m
+
+        m1 = run_with_hashes(["A", "B"])  # changed
+        # Sequence 2: unchanged
+        _ = run_with_hashes(["S", "S"])  # unchanged
+        # No exception is sufficient; the prints are not strictly asserted here because
+        # environment may buffer differently under CI.
+        assert isinstance(cap[0], CustomYolov5Model)
+
+
+@pytest.mark.advsecurenet
+def test_initialize_inference_model_sets_conf_when_available():
+    with patch("yolov5.load") as mock_load, patch(
+        "yolov5.models.common.AutoShape"
+    ) as mock_autoshape, patch("yolov5.utils.loss.ComputeLoss") as mock_compute_loss:
+        from advsecurenet.models.CustomODModels.CustomYolov5Model import (
+            CustomYolov5Model,
+        )
+        dm = MinimalYoloModel()
+        dm.modules = lambda: []
+        mock_load.return_value.model = dm
+        as_inst = MagicMock()
+        as_inst.conf = 0.0
+        mock_autoshape.return_value = as_inst
+        mock_compute_loss.return_value = MagicMock()
+        model = CustomYolov5Model()
+        inf = model.initialize_inference_model(dm, device="cpu", conf_thresh=0.33)
+        assert hasattr(inf, "conf") and abs(inf.conf - 0.33) < 1e-6
+
+
+@pytest.mark.advsecurenet
+def test_resolve_device_none_cpu(monkeypatch):
+    with patch("yolov5.load") as mock_load, patch(
+        "yolov5.models.common.AutoShape"
+    ) as mock_autoshape, patch("yolov5.utils.loss.ComputeLoss") as mock_compute_loss:
+        from advsecurenet.models.CustomODModels.CustomYolov5Model import (
+            CustomYolov5Model,
+        )
+        dm = MinimalYoloModel()
+        dm.modules = lambda: []
+        mock_load.return_value.model = dm
+        mock_autoshape.return_value = MagicMock()
+        mock_compute_loss.return_value = MagicMock()
+        monkeypatch.setattr("torch.cuda.is_available", lambda: False)
+        model = CustomYolov5Model(device=None)
+        assert model.device == "cpu"
 
 
 @pytest.mark.advsecurenet

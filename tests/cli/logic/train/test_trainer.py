@@ -118,6 +118,7 @@ def test_cli_trainer_prepare_dataloader(mock_get_datasets, mock_get_dataloader):
         dataset=mock_train_data,
         dataset_type="train",
         use_ddp=mock_config.device.use_ddp,
+        is_object_detection=False,
     )
     assert dataloader == mock_get_dataloader.return_value
 

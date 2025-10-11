@@ -120,6 +120,7 @@ def test_atcli_trainer_ddp_training_fn(
     trainer = ATCLITrainer(mock_config)
 
     trainer._prepare_training_environment = MagicMock(return_value=mock_training_env)
+    trainer._task_override = "classification"
 
     trainer._ddp_training_fn(0, 2)
 
@@ -147,7 +148,9 @@ def test_atcli_trainer_execute_training(
     trainer = ATCLITrainer(mock_config)
 
     trainer._prepare_training_environment = MagicMock(return_value=mock_training_env)
-
+    trainer._task_override = "classification"
+    # Ensure the mocked class has a __name__ attribute for logging
+    mock_adversarial_training.__name__ = "AdversarialTraining"
     trainer._execute_training()
 
     mock_adversarial_training.assert_called_once_with(mock_training_env)

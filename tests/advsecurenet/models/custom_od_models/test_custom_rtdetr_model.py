@@ -33,6 +33,13 @@ class DummyHFModel:
         out.pred_boxes = torch.rand(2, 5, 4)
         return out
 
+    # Provide state_dict to support weight loading test
+    def state_dict(self):
+        return {"k": torch.tensor(1)}
+
+    def load_state_dict(self, sd, strict=False):
+        return type("_LD", (), {"missing_keys": [], "unexpected_keys": []})()
+
 
 class DummyProcessor:
     def __init__(self):
@@ -134,6 +141,31 @@ def test_initialize_inference_model_and_predict_per_batch_modeloutput(patched_mo
     imgs = torch.zeros((2, 3, 16, 16))
     preds = model.predict_per_batch(imgs, adapter, clip_values=(0, 255))
     assert isinstance(preds, list) and all(isinstance(d, dict) for d in preds)
+
+
+@pytest.mark.advsecurenet
+def test_load_model_weights_hash_change_message(tmp_path, patched_module, monkeypatch, capsys):
+    CustomRTDetrModel = patched_module.CustomRTDetrModel
+    # Create small .pth file with nested dicts
+    pth = tmp_path / "rt.pth"
+    torch.save({"model": {"k": torch.tensor(1)}}, pth)
+    # Force different before/after hashes
+    seq = iter(["H0", "H1"])
+    monkeypatch.setattr(CustomRTDetrModel, "_parameters_sha256", lambda self: next(seq))
+    _ = CustomRTDetrModel(model_name="dummy", device="cpu", model_weights_path=str(pth))
+    out = capsys.readouterr().out
+    assert "Model parameters changed" in out
+
+
+@pytest.mark.advsecurenet
+def test_translate_predictions_for_map_evaluator_passthrough(patched_module):
+    CustomRTDetrModel = patched_module.CustomRTDetrModel
+    model = CustomRTDetrModel(model_name="dummy", device="cpu")
+    outs = [
+        {"boxes": torch.tensor([[0.1, 0.2, 0.3, 0.4]]), "scores": torch.tensor([0.5]), "labels": torch.tensor([1])}
+    ]
+    preds = model.translate_predictions_for_map_evaluator(outs, dataset_name="voc")
+    assert isinstance(preds, list) and preds[0]["boxes"].shape == (1, 4)
 
 
 @pytest.mark.advsecurenet

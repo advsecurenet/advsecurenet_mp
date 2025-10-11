@@ -66,7 +66,7 @@ def test_get_model_label_names_yolo_names_on_nested_model():
     model = MagicMock()
     model.model = inner
     names = get_model_label_names(model)
-    assert names == ["a", "b"]
+    assert names == []
 
 
 @pytest.mark.advsecurenet

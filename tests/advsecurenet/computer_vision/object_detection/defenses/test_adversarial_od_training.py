@@ -290,7 +290,10 @@ def test_perform_attack_resolves_object_detector_success(base_instance, monkeypa
 
     import advsecurenet.computer_vision.object_detection.defenses.adversarial_od_training as mod
 
-    monkeypatch.setattr(mod, "get_object_detector", lambda name: _Wrapper())
+    # Resolver is called with keyword argument existing_model
+    def _resolver(*args, **kwargs):
+        return _Wrapper()
+    monkeypatch.setattr(mod, "get_object_detector", _resolver)
 
     attack = Attack()
     images = torch.zeros(2, 3, 4, 4)
@@ -306,7 +309,7 @@ def test_perform_attack_resolves_object_detector_fallback_to_model_predict(base_
     # get_object_detector fails; model has predict -> fallback
     import advsecurenet.computer_vision.object_detection.defenses.adversarial_od_training as mod
 
-    def _raise(_):
+    def _raise(*args, **kwargs):
         raise RuntimeError("boom")
 
     monkeypatch.setattr(mod, "get_object_detector", _raise)
@@ -328,7 +331,7 @@ def test_perform_attack_resolves_object_detector_fallback_to_model_predict(base_
 def test_perform_attack_resolves_object_detector_raises_without_predict(base_instance, monkeypatch):
     import advsecurenet.computer_vision.object_detection.defenses.adversarial_od_training as mod
 
-    def _raise(_):
+    def _raise(*args, **kwargs):
         raise RuntimeError("boom")
 
     monkeypatch.setattr(mod, "get_object_detector", _raise)
@@ -337,8 +340,11 @@ def test_perform_attack_resolves_object_detector_raises_without_predict(base_ins
     attack._object_detector = "anything"
     images = torch.zeros(1, 3, 4, 4)
     targets = {"labels": [torch.tensor(1)]}
+    # Provide a model object that definitely lacks a 'predict' attribute
+    class NoPredict:
+        pass
     with pytest.raises(RuntimeError, match=r"Cannot resolve object detector"):
-        base_instance._perform_attack(attack, base_instance._trainable, images, targets)
+        base_instance._perform_attack(attack, NoPredict(), images, targets)
 
 
 @pytest.mark.advsecurenet
@@ -353,6 +359,8 @@ def test_run_epoch_logs_and_uses_batches(monkeypatch):
     param = torch.nn.Parameter(torch.tensor(1.0))
     inst._optimizer = torch.optim.SGD([param], lr=0.1)
     inst._scheduler = None
+    # minimal config with one attack for _generate_adversarial_batch
+    inst.config = SimpleNamespace(attacks=[MockDefaultAttack()])
     # wrapper returns constant loss tensor with grad
     inst._od_wrapper = SimpleNamespace(
         prepare_training_inputs=lambda imgs, t: (imgs, t),

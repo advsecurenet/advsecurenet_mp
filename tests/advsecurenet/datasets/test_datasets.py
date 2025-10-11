@@ -534,7 +534,10 @@ def test_pascalvoc_load_dataset_success(monkeypatch, tmp_path):
     assert callable(tt)
     sample = {"annotation": {"object": {"name": "dog", "bndbox": {"xmin": 1, "ymin": 1, "xmax": 2, "ymax": 3}}}}
     out = tt(sample)
-    assert isinstance(out, list)
+    assert isinstance(out, dict)
+    assert "boxes" in out and "labels" in out
+    # ensure xyxy (not xywh)
+    assert out["boxes"].shape[1] == 4
 
 
 @pytest.mark.advsecurenet

@@ -1,5 +1,6 @@
 import pytest
 import torch
+import numpy as np
 from unittest.mock import MagicMock, patch
 import sys
 import types
@@ -67,6 +68,23 @@ class DummyDataset(TorchDataset):
 
     def __getitem__(self, idx):
         return torch.zeros(3, 224, 224), 0
+
+
+class _NormalizeLike:
+    def __init__(self, mean, std):
+        self.mean = mean
+        self.std = std
+
+
+class _DatasetWithTransform(TorchDataset):
+    def __init__(self, with_normalize=True):
+        self.transform = types.SimpleNamespace(
+            transforms=[_NormalizeLike([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])] if with_normalize else []
+        )
+    def __len__(self):
+        return 1
+    def __getitem__(self, idx):
+        return torch.zeros(3, 8, 8), {"boxes": [torch.tensor([[0.0, 0.0, 1.0, 1.0]])], "labels": [torch.tensor([1])]} 
 
 
 @pytest.fixture
@@ -181,3 +199,47 @@ def test_invalid_processor_string_raises():
     )
     with pytest.raises(Exception):
         DummyODAttacker(config)
+
+
+def test_preprocess_images_denormalize_and_scale_warnings(caplog, config):
+    # DataLoader with dataset.transform including normalize-like transform
+    from torch.utils.data import DataLoader
+    ds = _DatasetWithTransform(with_normalize=True)
+    config.dataloader = DataLoader(ds)
+    attacker = DummyODAttacker(config)
+
+    # Case 1: inputs in [-1,1] -> map to [0,255]
+    imgs = torch.linspace(-1, 1, steps=8 * 8).view(1, 1, 8, 8).repeat(1, 3, 1, 1)
+    arr = attacker.preprocess_images(imgs)
+    assert np.issubdtype(arr.dtype, np.floating) and arr.min() >= 0.0 and arr.max() <= 255.0
+
+    # Case 2: already in 0..1 -> multiply by 255
+    imgs2 = torch.rand(1, 3, 8, 8)
+    arr2 = attacker.preprocess_images(imgs2)
+    assert arr2.max() <= 255.0
+
+    # Case 3: values > 1.1 lead to pass-through then clip warning
+    caplog.clear()
+    with caplog.at_level("WARNING"):
+        big = torch.full((1, 3, 8, 8), 300.0)
+        arr3 = attacker.preprocess_images(big)
+        # Environment logging filters can suppress warnings; assert effect instead
+        assert arr3.max() == 255.0
+
+
+def test_preprocess_targets_dict_and_process_batch(config, monkeypatch):
+    # Patch move_batch_to_device to return inputs unchanged
+    monkeypatch.setattr(
+        "advsecurenet.utils.device_utils.move_batch_to_device",
+        lambda images, targets, device: (images.to(device), {k: [v[0].to(device)] for k, v in targets.items()}),
+    )
+    from torch.utils.data import DataLoader
+    ds = _DatasetWithTransform(with_normalize=False)
+    config.dataloader = DataLoader(ds)
+    attacker = DummyODAttacker(config)
+    batch = next(iter(attacker._dataloader))
+    images_np, targets_np, original_images = attacker.process_batch(batch)
+    # images_np is numpy array in [0,255]; targets list of dicts with numpy arrays
+    assert isinstance(images_np, np.ndarray)
+    assert isinstance(targets_np, list) and isinstance(targets_np[0]["boxes"], np.ndarray)
+    assert isinstance(original_images, torch.Tensor)

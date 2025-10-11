@@ -116,6 +116,32 @@ def test_execute_tog(
 
 @pytest.mark.cli
 @pytest.mark.essential
+@patch("cli.logic.attack.od_attacker.DDPCoordinator")
+@patch("cli.logic.attack.od_attacker.DDPODAttacker")
+@patch("cli.logic.attack.od_attacker.set_visible_gpus")
+def test_execute_ddp_flow(mock_set_visible_gpus, mock_ddp_od_attacker, mock_ddp_coord, od_attacker_config):
+    class DummyAttackType:
+        name = "DPATCH"
+
+    # Simulate DDP path
+    od_attacker_config.device = MagicMock()
+    od_attacker_config.device.use_ddp = True
+    od_attacker_config.device.gpu_ids = [0, 1]
+    od_attacker_config.attack_procedure.save_result_images = True
+    mock_ddp_coord.return_value.run.return_value = None
+    mock_ddp_od_attacker.gather_results.return_value = ["imgA", "imgB"]
+
+    attacker = CLIODAttacker(od_attacker_config, DummyAttackType())
+    with patch("click.secho"):
+        with patch.object(attacker, "_prepare_attack_config", return_value=(MagicMock(), {})):
+            attacker.execute()
+    mock_set_visible_gpus.assert_called_once()
+    mock_ddp_coord.assert_called_once()
+    mock_ddp_od_attacker.gather_results.assert_called_once_with(2)
+
+
+@pytest.mark.cli
+@pytest.mark.essential
 @patch("cli.logic.attack.od_attacker.create_model")
 @patch("cli.logic.attack.od_attacker.get_object_detector")
 @patch("cli.logic.attack.od_attacker.DPatch")
@@ -226,3 +252,49 @@ def test_sample_data_if_required_no_sampling(od_attacker_config):
     mock_data = MagicMock()
     result = attacker._sample_data_if_required(mock_data)
     assert result == mock_data
+
+
+@pytest.mark.cli
+@pytest.mark.essential
+@patch("cli.logic.attack.od_attacker.create_model")
+@patch("cli.logic.attack.od_attacker.get_object_detector")
+@patch("cli.logic.attack.od_attacker.DPatch")
+def test_prepare_attack_config_builds_configs(mock_dpatch, mock_get_object_detector, mock_create_model, od_attacker_config):
+    class DummyAttackType:
+        name = "DPATCH"
+
+    # create_model().model should have object_detector_config
+    model_instance = MagicMock()
+    model_instance.object_detector_config = {"foo": "bar"}
+    mock_create_model.return_value = MagicMock(model=model_instance)
+    mock_get_object_detector.return_value = MagicMock()
+    mock_dpatch.return_value = MagicMock()
+
+    attacker = CLIODAttacker(od_attacker_config, DummyAttackType())
+    cfg, extras = attacker._prepare_attack_config()
+    assert hasattr(cfg, "dataloader") and hasattr(cfg, "attack")
+    mock_get_object_detector.assert_called_once()
+    mock_dpatch.assert_called_once()
+
+
+@pytest.mark.cli
+@pytest.mark.essential
+def test_create_dataloader_config_sets_collate_for_coco(od_attacker_config):
+    class DummyAttackType:
+        name = "DPATCH"
+
+    od_attacker_config.dataset.dataset_name = "COCO"
+    attacker = CLIODAttacker(od_attacker_config, DummyAttackType())
+    dl_cfg = attacker._create_dataloader_config()
+    assert hasattr(dl_cfg, "collate_fn")
+
+
+@pytest.mark.cli
+@pytest.mark.essential
+def test_build_concrete_attacker_class_unknown_raises(od_attacker_config):
+    class DummyAttackType:
+        name = "UNKNOWN"
+
+    attacker = CLIODAttacker(od_attacker_config, DummyAttackType())
+    with pytest.raises(ValueError):
+        attacker._build_concrete_attacker_class()
