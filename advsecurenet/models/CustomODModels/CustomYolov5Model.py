@@ -11,6 +11,7 @@ from yolov5.models.common import AutoShape
 from unittest.mock import patch
 
 from advsecurenet.models.CustomODModels.CustomODBaseModel import CustomODBaseModel
+from advsecurenet.datasets.label_utils import coco_label_ids_to_pascal
 
 
 @contextmanager
@@ -26,22 +27,37 @@ def _suppress_yolov5_autocast_warning():
 
 def translate_predictions_for_map_evaluator_yolo(predictions, dataset_name: str, expects_numpy: bool = True) -> List[Dict[str, Any]]:
     results = []
+    dataset_name = (dataset_name or "").lower()
+    map_to_pascal = dataset_name == "pascal_voc"
     if expects_numpy:
         for det_tensor in predictions.pred:
             det_tensor_cpu = det_tensor.detach().cpu()
             boxes = det_tensor_cpu[:, :4].numpy()
             scores = det_tensor_cpu[:, 4].numpy()
             labels = det_tensor_cpu[:, 5].numpy().astype(int)
+            # n = min(len(boxes), len(scores), len(labels))
+            # boxes, scores, labels = boxes[:n], scores[:n], labels[:n]
+            if map_to_pascal:
+                mapped = np.array(
+                    coco_label_ids_to_pascal(labels.tolist(), assume_contiguous=True, unmapped_value=-1),
+                    dtype=np.int64,
+                )
+                keep = mapped >= 0
+                boxes, scores, labels = boxes[keep], scores[keep], mapped[keep]
             results.append({"boxes": boxes, "labels": labels, "scores": scores})
     else:
         for d in predictions:
-            results.append(
-                {
-                    "boxes": d["boxes"].detach().cpu().numpy(),
-                    "scores": d["scores"].detach().cpu().numpy(),
-                    "labels": d["labels"].detach().cpu().numpy().astype(int),
-                }
-            )
+            boxes = d["boxes"].detach().cpu().numpy()
+            scores = d["scores"].detach().cpu().numpy()
+            labels = d["labels"].detach().cpu().numpy().astype(int)
+            if map_to_pascal:
+                mapped = np.array(
+                    coco_label_ids_to_pascal(labels.tolist(), assume_contiguous=True, unmapped_value=-1),
+                    dtype=np.int64,
+                )
+                keep = mapped >= 0
+                boxes, scores, labels = boxes[keep], scores[keep], mapped[keep]
+            results.append({"boxes": boxes, "scores": scores, "labels": labels})
     return results
 
 

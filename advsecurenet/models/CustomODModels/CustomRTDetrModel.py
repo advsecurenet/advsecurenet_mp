@@ -11,6 +11,7 @@ from transformers.utils import ModelOutput
 from advsecurenet.models.CustomODModels.CustomODBaseModel import CustomODBaseModel
 from advsecurenet.models.huggingface_model import HuggingFaceModel
 from advsecurenet.shared.types.configs.model_config import HuggingFaceResolvedConfig
+from advsecurenet.datasets.label_utils import coco_label_ids_to_pascal
 
 
 class RTDetrEvalAdapter(torch.nn.Module):
@@ -363,6 +364,17 @@ class CustomRTDetrModel(CustomODBaseModel):
         return t
 
     def translate_predictions_for_map_evaluator(self, predictions, dataset_name: str, expects_numpy: bool = True) -> List[Dict[str, Any]]:
+        ds = (dataset_name or "").lower()
+        if ds == "pascal_voc":
+            results: List[Dict[str, Any]] = []
+            for d in predictions:
+                boxes = d["boxes"].detach().cpu().numpy() if isinstance(d["boxes"], torch.Tensor) else d["boxes"]
+                scores = d["scores"].detach().cpu().numpy() if isinstance(d["scores"], torch.Tensor) else d["scores"]
+                labels = d["labels"].detach().cpu().numpy().astype(int) if isinstance(d["labels"], torch.Tensor) else d["labels"].astype(int)
+                mapped = np.array(coco_label_ids_to_pascal(labels.tolist(), assume_contiguous=True, unmapped_value=-1), dtype=np.int64)
+                keep = mapped >= 0
+                results.append({"boxes": boxes[keep], "scores": scores[keep], "labels": mapped[keep]})
+            return results
         return predictions
 
     def translate_labels(
