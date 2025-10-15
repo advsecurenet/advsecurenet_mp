@@ -1,0 +1,28 @@
+train:
+  model_name: EleutherAI/pythia-410m     # or Qwen/Qwen1.5-0.5B with LoRA
+  output_dir: outputs/pythia410m-alpaca
+  learning_rate: 1e-4
+  max_steps: 1000
+  per_device_train_batch_size: 1
+  gradient_accumulation_steps: 8
+  fp16: true
+  bf16: false
+  gradient_checkpointing: false
+  logging_steps: 20
+  eval_strategy: steps
+  eval_steps: 100
+
+data:
+  hub_name: yahma/alpaca-cleaned
+  hub_train_split: "train[:45000]"
+  hub_eval_split: "train[45000:52000]"
+  max_seq_len: 512
+
+peft:
+  enabled: true
+  quantization: null        # use qlora only if you have bitsandbytes
+  r: 8
+  lora_alpha: 16
+  lora_dropout: 0.05
+  target_modules: ["query_key_value","dense"]
+ 
