@@ -59,7 +59,7 @@ if __name__ == "__main__":
     import pathlib
 
     # Example path to your config file
-    cfg_path = "advsecurenet_mp/advsecurenet/llm_finetuning/configs/instruction.yaml"
+    cfg_path = "/Users/philip/Desktop/advsecurenet_mp/advsecurenet/llm_finetuning/configs/instruction.yaml"
 
     cfg = load_yaml(str(cfg_path))
     run_training(cfg)
