@@ -40,6 +40,10 @@ setup(
         "huggingface-hub==0.24.1",  # Ensure compatibility with YOLOv5
         "pycocotools",
         "opacus",
+        "pydantic>=2.4.0",                
+        "peft>=0.13.0",                   # works with Transformers 4.48.x
+        "accelerate>=0.33.0",             # Trainer/Accelerate integration
+        "safetensors>=0.4.2",  
     ],
     entry_points={
         "console_scripts": [

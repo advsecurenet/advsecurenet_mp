@@ -205,9 +205,9 @@ def test_generic_hub_without_fields_falls_back_to_str_ex(monkeypatch):
         return FakeDataset([{"foo": 123}])
 
     monkeypatch.setattr(data_mod, "load_dataset", fake_load_dataset_hub, raising=True)
-    cfg = make_cfg(
+    cfg = make_cfg()
 
-    tok = FakeTokenizer()
+    tok = FakeTokenizer(
         hub_name="some_dataset",
         hub_train_split="train",
         max_seq_len=20,
