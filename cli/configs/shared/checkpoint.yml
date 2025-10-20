@@ -1,0 +1,8 @@
+save_checkpoint: false
+save_checkpoint_path: null
+save_checkpoint_name: null
+checkpoint_interval: 1
+
+# Checkpoint Loading Configurations
+load_checkpoint: false
+load_checkpoint_path: null

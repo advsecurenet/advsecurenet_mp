@@ -106,20 +106,44 @@ def test_huggingface_command_with_all_options(mock_cli_huggingface_model, runner
 @pytest.mark.essential
 @patch("cli.commands.utils.models.commands.cli_huggingface_model")
 def test_huggingface_command_pretrained_false(mock_cli_huggingface_model, runner):
-    # Test with pretrained flag set to False (since default is True, passing --pretrained toggles it to False)
+    # Test with pretrained flag explicitly set to False
     result = runner.invoke(
         models,
         [
             "huggingface",
             "-i",
             "bert-base-uncased",
-            "--pretrained",  # This toggles pretrained from True to False
+            "--no-pretrained",  # Explicitly set pretrained to False
         ],
     )
     assert result.exit_code == 0
     mock_cli_huggingface_model.assert_called_once_with(
         model_identifier="bert-base-uncased",
         pretrained=False,
+        revision=None,
+        trust_remote_code=False,
+        model_class_name=None,
+    )
+
+
+@pytest.mark.cli
+@pytest.mark.essential
+@patch("cli.commands.utils.models.commands.cli_huggingface_model")
+def test_huggingface_command_pretrained_true(mock_cli_huggingface_model, runner):
+    # Test with pretrained flag explicitly set to True
+    result = runner.invoke(
+        models,
+        [
+            "huggingface",
+            "-i",
+            "bert-base-uncased",
+            "--pretrained",  # Explicitly set pretrained to True
+        ],
+    )
+    assert result.exit_code == 0
+    mock_cli_huggingface_model.assert_called_once_with(
+        model_identifier="bert-base-uncased",
+        pretrained=True,
         revision=None,
         trust_remote_code=False,
         model_class_name=None,

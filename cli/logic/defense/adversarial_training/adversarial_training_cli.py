@@ -119,7 +119,7 @@ class ATCLITrainer(CLITrainer):
         models.append(model)
 
         config = AdversarialTrainingConfig(
-            models=models, attacks=attacks, **asdict(train_config)
+            models=models, attacks=attacks, train_config=train_config
         )
         return config
 

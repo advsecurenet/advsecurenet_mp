@@ -1,5 +1,5 @@
 # Device Configuration
-use_ddp: False # Whether to use multi-GPU training with DistributedDataParallel.
+use_ddp: false # Whether to use multi-GPU training with DistributedDataParallel.
 
 # --- Device Configuration SINGLE GPU ONLY ---
 # This configuration is only for single GPU training. For multi-GPU training, use the next configuration.

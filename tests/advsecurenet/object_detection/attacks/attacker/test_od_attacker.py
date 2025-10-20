@@ -81,6 +81,14 @@ def test_setup_device_default_mps(mock_cuda, mock_mps, config):
     assert attacker._device == torch.device("mps")
 
 
+@patch("torch.cuda.is_available", return_value=False)
+@patch("torch.backends.mps.is_available", return_value=True)
+def test_setup_device_default_mps(mock_cuda, mock_mps, config):
+    config.device.processor = None
+    attacker = DummyODAttacker(config)
+    assert attacker._device == torch.device("mps")
+
+
 def test_create_dataloader_with_instance(config):
     dummy_dl_config = DataLoaderConfig(dataset=DummyDataset())
     config.dataloader = dummy_dl_config

@@ -21,6 +21,7 @@ from advsecurenet.shared.types.configs.device_config import DeviceConfig
 from cli.logic.attack.attacker import CLIAttacker
 from cli.shared.types.attack import BaseAttackCLIConfigType
 
+
 logger = logging.getLogger("cli.logic.attack.attacker")
 
 
@@ -279,34 +280,33 @@ def test_get_target_parameters_none(attacker_config):
 @patch("cli.logic.attack.attacker.CLIAttacker._prepare_dataset")
 @patch("cli.logic.attack.attacker.CLIAttacker._validate_dataset_availability")
 @patch("cli.logic.attack.attacker.resolve_dataset_config")
-@pytest.mark.parametrize("dataset_part", ["train", "test"])
-def test_select_data_partition(
+@pytest.mark.parametrize("split_key", ["train", "test"])
+def test_select_data_partition_with_splits(
     mock_resolve_dataset_config,
     mock_validate_dataset,
     mock_prepare_dataset,
     attacker_config,
-    dataset_part,
+    split_key,
 ):
-    # Mock the dataset config to return splits with the dataset_part
-    mock_dataset_config = MagicMock()
-    mock_dataset_config.splits = {dataset_part: ""}
-    mock_resolve_dataset_config.return_value = mock_dataset_config
+    # Mock the resolved_config to have splits.keys() return [split_key]
+    mock_splits = {split_key: None}
+    mock_resolved_config = MagicMock()
+    mock_resolved_config.splits = mock_splits
+    mock_resolve_dataset_config.return_value = mock_resolved_config
 
     train_data = MagicMock()
     test_data = MagicMock()
+
     attacker = CLIAttacker(attacker_config, AttackType.FGSM)
     mock_validate_dataset.return_value = (
-        train_data if dataset_part == "train" else test_data
+        train_data if split_key == "train" else test_data
     )
-
     returned_data = attacker._select_data_partition(train_data, test_data)
-
     mock_resolve_dataset_config.assert_called_once_with(attacker_config.dataset)
     mock_validate_dataset.assert_called_once_with(
-        train_data if dataset_part == "train" else test_data, dataset_part
+        train_data if split_key == "train" else test_data, split_key
     )
-
-    assert returned_data == (train_data if dataset_part == "train" else test_data)
+    assert returned_data == (train_data if split_key == "train" else test_data)
 
 
 @pytest.mark.cli
@@ -327,12 +327,13 @@ def test_select_data_partition_only_test(
 
     test_data = MagicMock()
     attacker = CLIAttacker(attacker_config, AttackType.FGSM)
+    mock_validate_dataset.return_value = test_data
 
     returned_data = attacker._select_data_partition(
         test_data=test_data, train_data=None
     )
 
-    mock_resolve_dataset_config.assert_called_once_with(attacker_config.dataset)
+    mock_validate_dataset.assert_called_once_with(test_data, "test")
     assert returned_data == test_data
 
 
@@ -695,3 +696,135 @@ def test_prepare_attack_config(
     mock_create_attack.assert_called_once()
     mock_create_model.assert_called_once_with("mock_model_config")
     mock_create_dataloader_config.assert_called_once()
+
+
+@pytest.mark.cli
+@pytest.mark.essential
+@patch("cli.logic.attack.attacker.CLIAttacker._prepare_dataset")
+def test_save_images_if_needed_gather_results(mock_prepare_dataset, attacker_config):
+    """Test _save_images_if_needed when gathering results from DDP processes."""
+    # Setup for DDP scenario
+    attacker_config.attack_procedure.save_result_images = True
+    attacker_config.device.use_ddp = True
+    attacker_config.device.gpu_ids = [0, 1]
+
+    attacker = CLIAttacker(attacker_config, AttackType.FGSM)
+
+    # Mock DDPAttacker.gather_results and _save_adversarial_images
+    with patch(
+        "cli.logic.attack.attacker.DDPAttacker.gather_results",
+        return_value=["img1", "img2"],
+    ) as mock_gather, patch.object(attacker, "_save_adversarial_images") as mock_save:
+        # Call with no adv_imgs provided (None), should gather results
+        attacker._save_images_if_needed(adv_imgs=None, world_size=2)
+
+        # Verify gather_results was called and images were saved
+        mock_gather.assert_called_once_with(2)
+        mock_save.assert_called_once_with(["img1", "img2"])
+
+
+@pytest.mark.cli
+@pytest.mark.essential
+@patch("cli.logic.attack.attacker.CLIAttacker._prepare_dataset")
+def test_save_images_if_needed_no_images_to_save(
+    mock_prepare_dataset, attacker_config, caplog
+):
+    """Test _save_images_if_needed when no images are provided."""
+    attacker = CLIAttacker(attacker_config, AttackType.FGSM)
+
+    # Call with no adv_imgs and no DDP scenario
+    with caplog.at_level(logging.INFO):
+        attacker._save_images_if_needed(adv_imgs=None)
+
+    # Verify the "No adversarial images to save" log message
+    assert "No adversarial images to save" in caplog.text
+
+
+@pytest.mark.cli
+@pytest.mark.essential
+@patch("cli.logic.attack.attacker.CLIAttacker._prepare_dataset")
+def test_create_dataloader_config(mock_prepare_dataset, attacker_config):
+    """Test _create_dataloader_config method."""
+    # Setup dataloader config
+    attacker_config.dataloader.default.batch_size = 32
+    attacker_config.dataloader.default.num_workers = 4
+    attacker_config.dataloader.default.shuffle = True
+    attacker_config.dataloader.default.drop_last = False
+    attacker_config.dataloader.default.pin_memory = True
+
+    attacker = CLIAttacker(attacker_config, AttackType.FGSM)
+
+    # Mock dataset
+    mock_dataset = MagicMock()
+    attacker._dataset = mock_dataset
+
+    # Call the method
+    dataloader_config = attacker._create_dataloader_config()
+
+    # Verify the configuration
+    assert dataloader_config.dataset == mock_dataset
+    assert dataloader_config.batch_size == 32
+    assert dataloader_config.num_workers == 4
+    assert dataloader_config.shuffle is True
+    assert dataloader_config.drop_last is False
+    assert dataloader_config.pin_memory is True
+    assert dataloader_config.sampler is None
+
+
+@pytest.mark.cli
+@pytest.mark.essential
+@patch("cli.logic.attack.attacker.get_datasets")
+@patch("cli.logic.attack.attacker.resolve_dataset_config")
+@patch("cli.logic.attack.attacker.CLIAttacker._prepare_dataset")
+def test_select_data_partition_no_available_splits_test_data(
+    mock_prepare_dataset, mock_resolve_config, mock_get_datasets, attacker_config
+):
+    """Test _select_data_partition when no splits are available but test data exists."""
+    # Mock resolved config with empty splits
+    mock_resolved_config = MagicMock()
+    mock_resolved_config.splits.keys.return_value = []  # No available splits
+    mock_resolve_config.return_value = mock_resolved_config
+
+    # Mock datasets
+    mock_train_data = MagicMock()
+    mock_test_data = MagicMock()
+    mock_get_datasets.return_value = (mock_train_data, mock_test_data)
+
+    attacker = CLIAttacker(attacker_config, AttackType.FGSM)
+
+    # Mock _validate_dataset_availability
+    with patch.object(
+        attacker, "_validate_dataset_availability", return_value=mock_test_data
+    ) as mock_validate:
+        result = attacker._select_data_partition(mock_train_data, mock_test_data)
+
+        # Should prefer test data when no splits specified
+        mock_validate.assert_called_once_with(mock_test_data, "test")
+        assert result == mock_test_data
+
+
+@pytest.mark.cli
+@pytest.mark.essential
+@patch("cli.logic.attack.attacker.get_datasets")
+@patch("cli.logic.attack.attacker.resolve_dataset_config")
+@patch("cli.logic.attack.attacker.CLIAttacker._prepare_dataset")
+def test_select_data_partition_no_available_splits_no_test_data(
+    mock_prepare_dataset, mock_resolve_config, mock_get_datasets, attacker_config
+):
+    """Test _select_data_partition when no splits are available and no test data."""
+    # Mock resolved config with empty splits
+    mock_resolved_config = MagicMock()
+    mock_resolved_config.splits.keys.return_value = []  # No available splits
+    mock_resolve_config.return_value = mock_resolved_config
+
+    # Mock datasets - no test data
+    mock_train_data = MagicMock()
+    mock_test_data = None
+    mock_get_datasets.return_value = (mock_train_data, mock_test_data)
+
+    attacker = CLIAttacker(attacker_config, AttackType.FGSM)
+
+    result = attacker._select_data_partition(mock_train_data, mock_test_data)
+
+    # Should fallback to train data when no test data available
+    assert result == mock_train_data

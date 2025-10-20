@@ -1,0 +1,81 @@
+model:
+  model_name: microsoft/resnet-18
+  pretrained: true
+  trust_remote_code: false
+  architecture:
+    num_classes: 10
+  is_external: false
+  random_seed:
+  path_configs:
+    model_arch_path:
+    model_weights_path:
+  norm_config:
+    add_norm_layer: false
+    norm_mean:
+    - 0.5
+    - 0.5
+    - 0.5
+    norm_std:
+    - 0.5
+    - 0.5
+    - 0.5
+dataset:
+  dataset_name: cifar10
+  num_classes: 10
+  train_dataset_path:
+  test_dataset_path:
+  preprocessing:
+    steps:
+    - name: ToImage
+      params:
+    - name: ToDtype
+      params:
+        dtype: torch.float32
+        scale: true
+dataloader:
+  train:
+    num_workers: 4
+    shuffle: true
+    drop_last: false
+    pin_memory: true
+    batch_size: 32
+  test:
+    num_workers: 4
+    shuffle: true
+    drop_last: false
+    pin_memory: true
+    batch_size: 32
+device:
+  use_ddp: false
+  processor: cpu
+  gpu_ids:
+training:
+  training_hyperparameter:
+    epochs: 10
+    learning_rate: 0.001
+    criterion: cross_entropy
+    verbose: false
+  optimization:
+    optimizer: adam
+    optimizer_kwargs:
+      weight_decay: 0.0001
+    scheduler: LINEAR_LR
+    scheduler_kwargs:
+    criterion: cross_entropy
+  final_model:
+    save_final_model: true
+    save_model_path:
+    save_model_name:
+  checkpoint:
+    save_checkpoint: false
+    save_checkpoint_path:
+    save_checkpoint_name:
+    checkpoint_interval: 1
+    load_checkpoint: false
+    load_checkpoint_path:
+  differential_privacy:
+    enable: true
+    noise_multiplier: 1.2
+    max_grad_norm: 1.0
+    delta: 0.0001
+    kwargs:

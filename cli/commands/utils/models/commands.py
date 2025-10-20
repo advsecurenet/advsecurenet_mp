@@ -71,10 +71,7 @@ def layers(model_name: str, normalization: bool):
     help="Hugging Face model URL (e.g., 'https://huggingface.co/bert-base-uncased') .",
 )
 @click.option(
-    "-p",
-    "--pretrained",
-    is_flag=True,
-    type=click.BOOL,
+    "--pretrained/--no-pretrained",
     default=True,
     help="Whether to use pretrained weights. Default is True.",
 )

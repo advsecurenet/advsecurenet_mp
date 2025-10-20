@@ -42,12 +42,7 @@ setup(
         "yolov5",
         "huggingface-hub==0.24.1",  # Ensure compatibility with YOLOv5
         "pycocotools",
-        "pandas",
-        "numpy",    
-        "soundfile>=0.12,<0.14",  
-        "safetensors>=0.4",     # commonly needed with HF models
-        "accelerate>=0.33",
-        "peft>=0.12",
+        "opacus"
     ],
     entry_points={
         "console_scripts": [

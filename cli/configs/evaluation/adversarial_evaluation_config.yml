@@ -1,6 +1,6 @@
 # Description: Configuration file for the evaluation
 evaluation_config:
-  attack:  
+  attack:
     name: "cw" # Name of the attack.
     config: "../attacks/cw_attack_config.yml" # Path to the attack configuration file.
   evaluators: # list of strings

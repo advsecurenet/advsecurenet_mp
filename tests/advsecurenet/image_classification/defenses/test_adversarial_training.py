@@ -14,6 +14,56 @@ from advsecurenet.models.base_model import BaseModel
 from advsecurenet.shared.types.configs.defense_configs.adversarial_training_config import (
     AdversarialTrainingConfig,
 )
+from advsecurenet.shared.types.configs.train_config import TrainConfig
+
+from advsecurenet.shared.types.configs.train_config import (
+    ModelConfig,
+    TrainingProcessConfig,
+)
+from advnet_common.types.configs.base import (
+    OptimizationBase,
+    CheckpointBase,
+    FinalModelBase,
+)
+
+from advsecurenet.shared.types.configs.device_config import DeviceConfig
+
+
+def create_adversarial_training_config(
+    models, attacks, train_loader, target_model=None
+):
+    """Helper function to create AdversarialTrainingConfig with proper nested structure."""
+
+    # Use the specified target_model, or find the first valid model as the main model
+    if target_model is not None:
+        main_model = target_model
+    else:
+        main_model = None
+        for model in models:
+            if hasattr(model, "forward"):  # Check if it's a valid model
+                main_model = model
+                break
+
+        if main_model is None and models:
+            main_model = models[
+                0
+            ]  # Fall back to first model even if invalid for error testing
+
+    # Create a TrainConfig with the new nested structure
+    train_config = TrainConfig(
+        model_config=ModelConfig(model=main_model),
+        training_process_config=TrainingProcessConfig(
+            train_loader=train_loader, epochs=1
+        ),
+        optimization_config=OptimizationBase(optimizer="adam"),
+        checkpoint_config=CheckpointBase(save_checkpoint=False),
+        final_model_config=FinalModelBase(save_final_model=False),
+        device_config=DeviceConfig(processor="cpu"),
+    )
+
+    return AdversarialTrainingConfig(
+        train_config=train_config, models=models, attacks=attacks
+    )
 
 
 @pytest.fixture
@@ -64,15 +114,11 @@ def mock_data_loader():
 
 @pytest.fixture
 def mock_config(mock_model, mock_attack, mock_data_loader):
-
-    config = AdversarialTrainingConfig(
-        model=mock_model,
+    return create_adversarial_training_config(
         models=[mock_model],
         attacks=[mock_attack],
         train_loader=mock_data_loader,
     )
-
-    return config
 
 
 @pytest.fixture
@@ -136,11 +182,23 @@ def test_check_config(adversarial_training, mock_config):
 @pytest.mark.advsecurenet
 @pytest.mark.essential
 def test_check_config_target_not_base_model(mock_model, mock_attack, mock_data_loader):
+    # Directly create a config with invalid model for testing
+
+    train_config = TrainConfig(
+        model_config=ModelConfig(model=1),  # Invalid model  # type: ignore
+        training_process_config=TrainingProcessConfig(
+            train_loader=mock_data_loader, epochs=1
+        ),
+        optimization_config=OptimizationBase(optimizer="adam"),
+        checkpoint_config=CheckpointBase(save_checkpoint=False),
+        final_model_config=FinalModelBase(save_final_model=False),
+        device_config=DeviceConfig(processor="cpu"),
+    )
+
     config = AdversarialTrainingConfig(
-        model=1,
+        train_config=train_config,
         models=[mock_model],
         attacks=[mock_attack],
-        train_loader=mock_data_loader,
     )
 
     with pytest.raises(
@@ -152,11 +210,11 @@ def test_check_config_target_not_base_model(mock_model, mock_attack, mock_data_l
 @pytest.mark.advsecurenet
 @pytest.mark.essential
 def test_check_config_models_not_base_model(mock_model, mock_attack, mock_data_loader):
-    config = AdversarialTrainingConfig(
-        model=mock_model,
-        models=[1],
+    config = create_adversarial_training_config(
+        models=[1],  # Invalid model
         attacks=[mock_attack],
         train_loader=mock_data_loader,
+        target_model=mock_model,  # Use valid target model
     )
 
     with pytest.raises(ValueError, match="All models must be a subclass of BaseModel!"):
@@ -168,11 +226,11 @@ def test_check_config_models_not_base_model(mock_model, mock_attack, mock_data_l
 def test_check_config_models_not_base_model_mix(
     mock_model, mock_attack, mock_data_loader
 ):
-    config = AdversarialTrainingConfig(
-        model=mock_model,
+    config = create_adversarial_training_config(
         models=[mock_model, 1],
         attacks=[mock_attack],
         train_loader=mock_data_loader,
+        target_model=mock_model,  # Use valid target model
     )
 
     with pytest.raises(ValueError, match="All models must be a subclass of BaseModel!"):
@@ -182,8 +240,7 @@ def test_check_config_models_not_base_model_mix(
 @pytest.mark.advsecurenet
 @pytest.mark.essential
 def test_check_config_attacks_not_adv(mock_model, mock_data_loader):
-    config = AdversarialTrainingConfig(
-        model=mock_model,
+    config = create_adversarial_training_config(
         models=[mock_model],
         attacks=[1],
         train_loader=mock_data_loader,
@@ -198,8 +255,7 @@ def test_check_config_attacks_not_adv(mock_model, mock_data_loader):
 @pytest.mark.advsecurenet
 @pytest.mark.essential
 def test_check_config_attacks_not_adv_mix(mock_model, mock_attack, mock_data_loader):
-    config = AdversarialTrainingConfig(
-        model=mock_model,
+    config = create_adversarial_training_config(
         models=[mock_model],
         attacks=[1, mock_attack],
         train_loader=mock_data_loader,
@@ -214,8 +270,21 @@ def test_check_config_attacks_not_adv_mix(mock_model, mock_attack, mock_data_loa
 @pytest.mark.advsecurenet
 @pytest.mark.essential
 def test_check_config_train_loader_not_instance_of_dataloader(mock_model, mock_attack):
+    train_config = TrainConfig(
+        model_config=ModelConfig(model=mock_model),
+        training_process_config=TrainingProcessConfig(
+            train_loader=1, epochs=1  # Invalid train_loader  # type: ignore
+        ),
+        optimization_config=OptimizationBase(optimizer="adam"),
+        checkpoint_config=CheckpointBase(save_checkpoint=False),
+        final_model_config=FinalModelBase(save_final_model=False),
+        device_config=DeviceConfig(processor="cpu"),
+    )
+
     config = AdversarialTrainingConfig(
-        model=mock_model, models=[mock_model], attacks=[mock_attack], train_loader=1
+        train_config=train_config,
+        models=[mock_model],
+        attacks=[mock_attack],
     )
 
     with pytest.raises(ValueError, match="train_dataloader must be a DataLoader!"):
@@ -230,8 +299,7 @@ def test_check_config_targeted_attack_with_non_adversarial_dataset(
     targeted_attack = mock_attack
     targeted_attack.targeted = True
 
-    config = AdversarialTrainingConfig(
-        model=mock_model,
+    config = create_adversarial_training_config(
         models=[mock_model],
         attacks=[targeted_attack],
         train_loader=mock_data_loader,
@@ -252,8 +320,7 @@ def test_check_config_targeted_attack_with_adversarial_dataset(
     targeted_attack = mock_attack
     targeted_attack.targeted = True
 
-    config = AdversarialTrainingConfig(
-        model=mock_model,
+    config = create_adversarial_training_config(
         models=[mock_model],
         attacks=[targeted_attack],
         train_loader=mock_adversarial_dataset_loader,
@@ -273,8 +340,7 @@ def test_check_config_lots_attack_with_non_adversarial_dataset(
     lots_attack = mock_attack
     lots_attack.name = "LOTS"
 
-    config = AdversarialTrainingConfig(
-        model=mock_model,
+    config = create_adversarial_training_config(
         models=[mock_model],
         attacks=[lots_attack],
         train_loader=mock_data_loader,
@@ -295,8 +361,7 @@ def test_check_config_lots_attack_with_adversarial_dataset(
     lots_attack = mock_attack
     lots_attack.name = "LOTS"
 
-    config = AdversarialTrainingConfig(
-        model=mock_model,
+    config = create_adversarial_training_config(
         models=[mock_model],
         attacks=[lots_attack],
         train_loader=mock_adversarial_dataset_loader,
@@ -339,7 +404,10 @@ def test_pre_training(adversarial_training):
 def test_pre_training_no_models(adversarial_training, mock_config):
     adversarial_training.config.models = []
     adversarial_training._pre_training()
-    assert mock_config.model in adversarial_training.config.models
+    assert (
+        mock_config.train_config.model_config.model
+        in adversarial_training.config.models
+    )
 
 
 @pytest.mark.advsecurenet
@@ -371,23 +439,8 @@ def test_move_to_device(adversarial_training):
         source, targets
     )
 
-    assert device_source.device.type == adversarial_training._device
-    assert device_targets.device.type == adversarial_training._device
-
-
-@pytest.mark.advsecurenet
-@pytest.mark.essential
-@patch(
-    "advsecurenet.computer_vision.image_classification.defenses.adversarial_training.AdversarialTraining._perform_attack",
-    return_value=torch.randn(3, 3, 32, 32),
-)
-@patch(
-    "advsecurenet.computer_vision.image_classification.defenses.adversarial_training.AdversarialTraining._prepare_data",
-    return_value=(torch.randn(3, 3, 32, 32), torch.tensor([0, 1, 2])),
-)
-def test_run_epoch(mock_perform_attack, adversarial_training):
-    adversarial_training._run_epoch(1)
-    assert True  # If no exceptions are raised, the test passes.
+    assert device_source.device.type == adversarial_training._device.type
+    assert device_targets.device.type == adversarial_training._device.type
 
 
 @pytest.mark.advsecurenet
@@ -407,15 +460,17 @@ def test_prepare_data(adversarial_training):
         source, targets
     )
 
-    assert prepared_source.device.type == adversarial_training._device
-    assert prepared_targets.device.type == adversarial_training._device
+    assert prepared_source.device.type == adversarial_training._device.type
+    assert prepared_targets.device.type == adversarial_training._device.type
 
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
 def test_get_loss_divisor(adversarial_training):
     divisor = adversarial_training._get_loss_divisor()
-    assert divisor == len(adversarial_training.config.train_loader)
+    assert divisor == len(
+        adversarial_training.config.train_config.training_process_config.train_loader
+    )
 
 
 @pytest.mark.advsecurenet
@@ -486,9 +541,9 @@ def test_perform_attack_lots(
 @patch.object(AdversarialTraining, "_prepare_data")
 @patch.object(AdversarialTraining, "_generate_adversarial_batch")
 @patch.object(AdversarialTraining, "_combine_clean_and_adversarial_data")
-@patch.object(AdversarialTraining, "_run_batch")
+@patch("advsecurenet.trainer.trainer_logic.run_batch")
 @patch.object(AdversarialTraining, "_get_loss_divisor", return_value=1)
-@patch.object(AdversarialTraining, "_log_loss")
+@patch("advsecurenet.trainer.trainer_logic.log_loss")
 def test_run_epoch(
     mock_log_loss,
     mock_get_loss_divisor,
@@ -539,9 +594,9 @@ def test_run_epoch(
 @patch.object(AdversarialTraining, "_prepare_data")
 @patch.object(AdversarialTraining, "_generate_adversarial_batch")
 @patch.object(AdversarialTraining, "_combine_clean_and_adversarial_data")
-@patch.object(AdversarialTraining, "_run_batch")
+@patch("advsecurenet.trainer.trainer_logic.run_batch")
 @patch.object(AdversarialTraining, "_get_loss_divisor", return_value=1)
-@patch.object(AdversarialTraining, "_log_loss")
+@patch("advsecurenet.trainer.trainer_logic.log_loss")
 def test_run_epoch_no_target_data(
     mock_log_loss,
     mock_get_loss_divisor,
