@@ -44,7 +44,7 @@ setup(
         "pycocotools",
         "opacus",
         "numpy>=1.21.0,<1.25.0",
-        "bitsandbytes"
+        "bitsandbytes",
     ],
     entry_points={
         "console_scripts": [

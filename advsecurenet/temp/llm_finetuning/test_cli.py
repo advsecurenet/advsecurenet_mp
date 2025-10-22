@@ -21,8 +21,9 @@ def test_cli_with_yaml_invokes_training(tmp_path):
         peft=cli_mod.PEFTConfig(enabled=False),
     )
 
-    with patch("advsecurenet.llm_finetuning.cli.load_yaml", return_value=cfg_obj) as load, \
-         patch("advsecurenet.llm_finetuning.cli.run_training") as run:
+    with patch(
+        "advsecurenet.llm_finetuning.cli.load_yaml", return_value=cfg_obj
+    ) as load, patch("advsecurenet.llm_finetuning.cli.run_training") as run:
         run.return_value = {"output_dir": "outputs/run"}
 
         r = CliRunner().invoke(app, ["train", "--config", str(cfg_path)])
@@ -41,11 +42,16 @@ def test_cli_flags_only_builds_typed_config(tmp_path):
         run.return_value = {"output_dir": "o"}
         r = CliRunner().invoke(
             app,
-            ["train",
-             "--model-name","gpt2",
-             "--train-file", str(train_file),
-             "--output-dir","o",
-             "--no-peft"]
+            [
+                "train",
+                "--model-name",
+                "gpt2",
+                "--train-file",
+                str(train_file),
+                "--output-dir",
+                "o",
+                "--no-peft",
+            ],
         )
         assert r.exit_code == 0, r.output
         # ensure overrides reached the config
@@ -53,6 +59,7 @@ def test_cli_flags_only_builds_typed_config(tmp_path):
         assert called_cfg.train.model_name == "gpt2"
         assert called_cfg.data.train_file == str(train_file)
         assert called_cfg.peft.enabled is False
+
 
 def test_cli_no_yaml_missing_flags_errors():
     r = CliRunner().invoke(app, ["train"])

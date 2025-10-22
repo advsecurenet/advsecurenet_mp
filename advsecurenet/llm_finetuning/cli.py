@@ -47,12 +47,25 @@ def _apply_overrides(cfg: Config, **kw) -> Config:
 
 
 @app.command()
-@click.option("--config", "config_path", type=click.Path(exists=True), help="Path to YAML config.")
-@click.option("--model-name", type=str, help="HF model id or local path (flags-only mode).")
-@click.option("--train-file", type=str, help="Path to JSONL train file (flags-only mode).")
-@click.option("--eval-file", type=str, default=None, help="Optional JSONL eval file (flags-only mode).")
+@click.option(
+    "--config", "config_path", type=click.Path(exists=True), help="Path to YAML config."
+)
+@click.option(
+    "--model-name", type=str, help="HF model id or local path (flags-only mode)."
+)
+@click.option(
+    "--train-file", type=str, help="Path to JSONL train file (flags-only mode)."
+)
+@click.option(
+    "--eval-file",
+    type=str,
+    default=None,
+    help="Optional JSONL eval file (flags-only mode).",
+)
 @click.option("--output-dir", type=str, help="Where to save outputs/checkpoints.")
-@click.option("--peft/--no-peft", "peft", default=None, help="Enable/disable LoRA/QLoRA.")
+@click.option(
+    "--peft/--no-peft", "peft", default=None, help="Enable/disable LoRA/QLoRA."
+)
 def train(config_path, **overrides):
     """Fine-tune a causal LM."""
     if config_path:

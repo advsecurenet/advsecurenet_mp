@@ -6,9 +6,14 @@ from advsecurenet.llm_finetuning.data import load_tokenized_datasets
 
 import torch, random, numpy as np
 
+
 def _set_seed(seed: int):
-    random.seed(seed); np.random.seed(seed); torch.manual_seed(seed)
-    if torch.cuda.is_available(): torch.cuda.manual_seed_all(seed)
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+
 
 def run_training(cfg: Config):
     _set_seed(cfg.train.seed)
@@ -16,10 +21,7 @@ def run_training(cfg: Config):
     dsets = load_tokenized_datasets(cfg.data, tok)
     model = load_model(cfg)
 
-    data_collator = DataCollatorForLanguageModeling(
-        tokenizer=tok,
-        mlm=False
-    )
+    data_collator = DataCollatorForLanguageModeling(tokenizer=tok, mlm=False)
 
     args = TrainingArguments(
         output_dir=cfg.train.output_dir,
@@ -47,12 +49,13 @@ def run_training(cfg: Config):
         train_dataset=dsets["train"],
         eval_dataset=dsets.get("validation"),
         tokenizer=tok,
-        data_collator=data_collator
+        data_collator=data_collator,
     )
     trainer.train()
     trainer.save_model(cfg.train.output_dir)
     tok.save_pretrained(cfg.train.output_dir)
     return {"output_dir": cfg.train.output_dir}
+
 
 if __name__ == "__main__":
     from advsecurenet.llm_finetuning.config import load_yaml
@@ -63,6 +66,3 @@ if __name__ == "__main__":
 
     cfg = load_yaml(str(cfg_path))
     run_training(cfg)
-
-
-    
