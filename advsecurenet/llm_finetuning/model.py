@@ -57,4 +57,7 @@ def load_model(cfg: Config):
         )
         model = get_peft_model(model, lora)
 
+        if hasattr(model, "enable_input_require_grads"):
+            model.enable_input_require_grads()
+
     return model

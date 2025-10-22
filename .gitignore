@@ -136,3 +136,4 @@ Qwen/
 # Project-specific
 outputs/
 dev/
+myenv/
