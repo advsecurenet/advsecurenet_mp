@@ -7,9 +7,15 @@ import torch
 
 def load_tokenizer(cfg: Config):
     tok = AutoTokenizer.from_pretrained(cfg.train.model_name, use_fast=True)
-    if getattr(tok, "pad_token", None) is None and getattr(tok, "eos_token", None) is not None:
+    if (
+        getattr(tok, "pad_token", None) is None
+        and getattr(tok, "eos_token", None) is not None
+    ):
         tok.pad_token = tok.eos_token
-        if getattr(tok, "pad_token_id", None) in (None, -1) and getattr(tok, "eos_token_id", None) is not None:
+        if (
+            getattr(tok, "pad_token_id", None) in (None, -1)
+            and getattr(tok, "eos_token_id", None) is not None
+        ):
             tok.pad_token_id = tok.eos_token_id
     tok.padding_side = "right"
     return tok
@@ -21,6 +27,7 @@ def _in_distributed() -> bool:
         return True
     try:
         import torch.distributed as dist  # local import to avoid hard dependency at import time
+
         return dist.is_available() and dist.is_initialized()
     except Exception:
         return False

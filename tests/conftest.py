@@ -16,6 +16,7 @@ try:
     utils_pkg = sys.modules.get("torch.utils")
     if utils_pkg is None:
         import torch.utils as utils_pkg  # noqa: F401
+
         utils_pkg = sys.modules.get("torch.utils")
 except Exception:
     utils_pkg = None
@@ -24,6 +25,7 @@ except Exception:
 if utils_pkg is not None and not hasattr(utils_pkg, "utils"):
     try:
         import torchvision.utils as tvutils
+
         # Mirror torchvision.utils into a module at torch.utils.utils
         tv_mod = types.ModuleType("torch.utils.utils")
         for name in dir(tvutils):
@@ -31,7 +33,10 @@ if utils_pkg is not None and not hasattr(utils_pkg, "utils"):
     except Exception:
         # Fallback stub if torchvision isn't available for some reason
         tv_mod = types.ModuleType("torch.utils.utils")
-        def _noop(*a, **k): return None
+
+        def _noop(*a, **k):
+            return None
+
         for fn in ("save_image", "make_grid"):
             setattr(tv_mod, fn, _noop)
 
@@ -63,7 +68,11 @@ else:
     # Keep torch.distributed attribute pointing at the module in sys.modules
     setattr(torch, "distributed", dist_mod)
 
-def _noop(*a, **k): return None
+
+def _noop(*a, **k):
+    return None
+
+
 _defaults = {
     "init_process_group": _noop,
     "destroy_process_group": _noop,
@@ -82,11 +91,20 @@ for name, fn in _defaults.items():
 # 1) Make CPU/Mac test env safe: dummy DistributedSampler
 # ======================================================================================
 
+
 class _DummyDistributedSampler:
-    def __init__(self, dataset): self.dataset = dataset
-    def set_epoch(self, epoch): pass
-    def __iter__(self): return iter(range(len(self.dataset)))
-    def __len__(self): return len(self.dataset)
+    def __init__(self, dataset):
+        self.dataset = dataset
+
+    def set_epoch(self, epoch):
+        pass
+
+    def __iter__(self):
+        return iter(range(len(self.dataset)))
+
+    def __len__(self):
+        return len(self.dataset)
+
 
 @pytest.fixture(autouse=True)
 def _neutralize_torch(monkeypatch):
@@ -98,13 +116,27 @@ def _neutralize_torch(monkeypatch):
     )
     # Keep distributed helpers as no-ops even if code touches them
     import torch as _t
-    monkeypatch.setattr(_t.distributed, "init_process_group", dist_mod.init_process_group, raising=False)
-    monkeypatch.setattr(_t.distributed, "destroy_process_group", dist_mod.destroy_process_group, raising=False)
-    monkeypatch.setattr(_t.distributed, "is_initialized",     dist_mod.is_initialized,     raising=False)
-    monkeypatch.setattr(_t.distributed, "get_world_size",     dist_mod.get_world_size,     raising=False)
-    monkeypatch.setattr(_t.distributed, "get_rank",           dist_mod.get_rank,           raising=False)
-    monkeypatch.setattr(_t.distributed, "barrier",            dist_mod.barrier,            raising=False)
-    monkeypatch.setattr(_t.distributed, "all_reduce",         dist_mod.all_reduce,         raising=False)
+
+    monkeypatch.setattr(
+        _t.distributed, "init_process_group", dist_mod.init_process_group, raising=False
+    )
+    monkeypatch.setattr(
+        _t.distributed,
+        "destroy_process_group",
+        dist_mod.destroy_process_group,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        _t.distributed, "is_initialized", dist_mod.is_initialized, raising=False
+    )
+    monkeypatch.setattr(
+        _t.distributed, "get_world_size", dist_mod.get_world_size, raising=False
+    )
+    monkeypatch.setattr(_t.distributed, "get_rank", dist_mod.get_rank, raising=False)
+    monkeypatch.setattr(_t.distributed, "barrier", dist_mod.barrier, raising=False)
+    monkeypatch.setattr(
+        _t.distributed, "all_reduce", dist_mod.all_reduce, raising=False
+    )
     yield
 
 
@@ -113,6 +145,7 @@ def _neutralize_torch(monkeypatch):
 try:
     import cli.shared.utils.dataloader as dl
     from torch.utils.data.distributed import DistributedSampler as _RealDS
+
     defaults = list(dl.get_dataloader.__defaults__ or ())
     for i, d in enumerate(defaults):
         if d is _RealDS:
@@ -127,6 +160,7 @@ except Exception:
 # 2) HF tests: align module identity + lenient AutoModel.from_config for MockHFConfig
 # ======================================================================================
 
+
 @pytest.fixture(autouse=True)
 def _align_hf_module_identity_and_lenient_automodel(monkeypatch):
     """
@@ -136,13 +170,18 @@ def _align_hf_module_identity_and_lenient_automodel(monkeypatch):
     """
     import transformers as tf  # real module
     import advsecurenet.models.huggingface_model as hf_mod
+
     monkeypatch.setattr(hf_mod, "transformers", tf, raising=False)
 
     try:
-        from tests.advsecurenet.models.test_huggingface_model import MockHFModel  # provided by tests
+        from tests.advsecurenet.models.test_huggingface_model import (
+            MockHFModel,
+        )  # provided by tests
     except Exception:  # pragma: no cover
+
         class MockHFModel(torch.nn.Module):
-            def __init__(self, *a, **k): super().__init__()
+            def __init__(self, *a, **k):
+                super().__init__()
 
     original_from_config = tf.AutoModel.from_config
 
@@ -151,4 +190,6 @@ def _align_hf_module_identity_and_lenient_automodel(monkeypatch):
             return MockHFModel()
         return original_from_config.__func__(cls, config, **kwargs)
 
-    monkeypatch.setattr(tf.AutoModel, "from_config", classmethod(_lenient_from_config), raising=False)
+    monkeypatch.setattr(
+        tf.AutoModel, "from_config", classmethod(_lenient_from_config), raising=False
+    )

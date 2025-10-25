@@ -17,7 +17,9 @@ def _load_cli_with_stubbed_train(run_return: dict | None = None):
     Then import the cli module safely.
     """
     dummy_train = types.ModuleType("advsecurenet.llm_finetuning.train")
-    dummy_train.run_training = Mock(return_value=run_return or {"output_dir": "outputs/run"})
+    dummy_train.run_training = Mock(
+        return_value=run_return or {"output_dir": "outputs/run"}
+    )
 
     # Ensure the package path exists in sys.modules to support the dotted name.
     # (Usually already present, but harmless to set defensively.)
@@ -55,7 +57,9 @@ def test_cli_with_yaml_invokes_training(tmp_path: Path):
     )
 
     # Patch load_yaml to return our typed config (no YAML parsing needed)
-    with patch("advsecurenet.llm_finetuning.cli.load_yaml", return_value=cfg_obj) as load:
+    with patch(
+        "advsecurenet.llm_finetuning.cli.load_yaml", return_value=cfg_obj
+    ) as load:
         res = CliRunner().invoke(cli.app, ["train", "--config", str(cfg_path)])
 
         assert res.exit_code == 0, res.output

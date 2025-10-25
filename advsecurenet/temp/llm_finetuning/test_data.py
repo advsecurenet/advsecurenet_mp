@@ -6,9 +6,11 @@ import pytest
 # Import the module under test
 from advsecurenet.llm_finetuning import data as data_mod
 
+
 # ------------------ Test doubles ------------------
 class FakeDataset:
     """Minimal in-memory stand-in for a HF Dataset with .map and .column_names."""
+
     def __init__(self, rows):
         self.rows = list(rows)
 
@@ -49,6 +51,7 @@ class FakeDataset:
 
 class FakeDatasetDict:
     """Dict-like stand-in for datasets.DatasetDict with .map across splits."""
+
     def __init__(self, data=None):
         self._data = dict(data or {})
 
@@ -65,12 +68,17 @@ class FakeDatasetDict:
         return self._data.items()
 
     def map(self, func, batched=False, remove_columns=None):
-        return FakeDatasetDict({k: ds.map(func, batched=batched, remove_columns=remove_columns)
-                                for k, ds in self._data.items()})
+        return FakeDatasetDict(
+            {
+                k: ds.map(func, batched=batched, remove_columns=remove_columns)
+                for k, ds in self._data.items()
+            }
+        )
 
 
 class FakeTokenizer:
     """Records calls; returns deterministic token shapes."""
+
     def __init__(self):
         self.calls = []
 
@@ -79,8 +87,8 @@ class FakeTokenizer:
         self.calls.append((list(texts), dict(kwargs)))
         max_len = kwargs.get("max_length", 128)
         lens = [min(max_len, len(t)) for t in texts]
-        input_ids = [[1]*L for L in lens]
-        attention_mask = [[1]*L for L in lens]
+        input_ids = [[1] * L for L in lens]
+        attention_mask = [[1] * L for L in lens]
         return {"input_ids": input_ids, "attention_mask": attention_mask}
 
 
@@ -110,10 +118,12 @@ def test_jsonl_train_and_eval_with_prompt_response(monkeypatch):
         files = kwargs["data_files"]
         out = {}
         for split in files:
-            out[split] = FakeDataset([
-                {"prompt": "P1", "response": "R1"},
-                {"prompt": "P2", "response": "R2"},
-            ])
+            out[split] = FakeDataset(
+                [
+                    {"prompt": "P1", "response": "R1"},
+                    {"prompt": "P2", "response": "R2"},
+                ]
+            )
         return FakeDatasetDict(out)
 
     monkeypatch.setattr(data_mod, "load_dataset", fake_load_dataset_json, raising=True)
@@ -146,13 +156,19 @@ def test_jsonl_train_and_eval_with_prompt_response(monkeypatch):
 def test_jsonl_only_train_with_text_field(monkeypatch):
     def fake_load_dataset_json(name, **kwargs):
         assert name == "json"
-        assert "train" in kwargs["data_files"] and "validation" not in kwargs["data_files"]
-        return FakeDatasetDict({
-            "train": FakeDataset([
-                {"body": "hello"},
-                {"body": "world!"},
-            ])
-        })
+        assert (
+            "train" in kwargs["data_files"] and "validation" not in kwargs["data_files"]
+        )
+        return FakeDatasetDict(
+            {
+                "train": FakeDataset(
+                    [
+                        {"body": "hello"},
+                        {"body": "world!"},
+                    ]
+                )
+            }
+        )
 
     monkeypatch.setattr(data_mod, "load_dataset", fake_load_dataset_json, raising=True)
 
@@ -164,7 +180,10 @@ def test_jsonl_only_train_with_text_field(monkeypatch):
     texts, kwargs = tok.calls[0]
     assert texts == ["hello", "world!"]
     assert kwargs["truncation"] is True and kwargs["max_length"] == 10
-    assert all(set(r.keys()) == {"input_ids", "attention_mask"} for r in tokenized["train"].rows)
+    assert all(
+        set(r.keys()) == {"input_ids", "attention_mask"}
+        for r in tokenized["train"].rows
+    )
 
 
 def test_hub_gsm8k_builds_QA_text(monkeypatch):

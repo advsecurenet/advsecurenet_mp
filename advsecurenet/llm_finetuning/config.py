@@ -3,6 +3,7 @@ from typing import Optional, Literal, List
 import yaml
 from pathlib import Path
 
+
 class PEFTConfig(BaseModel):
     enabled: bool = True
     quantization: Optional[Literal["qlora", "bnb-4bit"]] = "qlora"
@@ -10,6 +11,7 @@ class PEFTConfig(BaseModel):
     lora_alpha: int = 16
     lora_dropout: float = 0.05
     target_modules: List[str] = Field(default_factory=lambda: ["q_proj", "v_proj"])
+
 
 class DataConfig(BaseModel):
     # Local JSONL option
@@ -22,9 +24,9 @@ class DataConfig(BaseModel):
     max_seq_len: int = 2048
 
     # HF Hub option
-    hub_name: Optional[str] = None        # e.g., "gsm8k"
-    hub_config: Optional[str] = None      # e.g., "main"
-    hub_train_split: Optional[str] = None # e.g., "train[:200]"
+    hub_name: Optional[str] = None  # e.g., "gsm8k"
+    hub_config: Optional[str] = None  # e.g., "main"
+    hub_train_split: Optional[str] = None  # e.g., "train[:200]"
     hub_eval_split: Optional[str] = None  # e.g., "test[:50]"
 
     @model_validator(mode="after")
@@ -32,6 +34,7 @@ class DataConfig(BaseModel):
         if not self.train_file and not self.hub_name:
             raise ValueError("Provide either data.train_file or data.hub_name")
         return self
+
 
 class TrainConfig(BaseModel):
     model_name: str
@@ -53,13 +56,16 @@ class TrainConfig(BaseModel):
     push_to_hub: bool = False
     seed: int = 42
 
+
 class Config(BaseModel):
     train: TrainConfig
     data: DataConfig
     peft: PEFTConfig = PEFTConfig()
 
+
 def load_yaml(path: str) -> Config:
     return Config(**yaml.safe_load(Path(path).read_text()))
+
 
 def merge(base: Config, override: dict) -> Config:
     # override can come from CLI kwargs; ignore Nones

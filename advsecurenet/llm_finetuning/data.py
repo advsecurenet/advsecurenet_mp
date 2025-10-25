@@ -2,7 +2,10 @@ from datasets import load_dataset, DatasetDict
 from transformers import PreTrainedTokenizerBase
 from .config import DataConfig
 
-def load_tokenized_datasets(cfg: DataConfig, tokenizer: PreTrainedTokenizerBase) -> DatasetDict:
+
+def load_tokenized_datasets(
+    cfg: DataConfig, tokenizer: PreTrainedTokenizerBase
+) -> DatasetDict:
     if cfg.train_file and cfg.train_file.endswith(".jsonl"):
         files = {"train": cfg.train_file}
         if cfg.eval_file:
@@ -11,11 +14,17 @@ def load_tokenized_datasets(cfg: DataConfig, tokenizer: PreTrainedTokenizerBase)
     elif getattr(cfg, "hub_name", None):
         # e.g., hub_name="gsm8k", hub_config="main", hub_train_split="train", hub_eval_split="test"
         raw = DatasetDict()
-        raw["train"] = load_dataset(cfg.hub_name, cfg.hub_config or None, split=cfg.hub_train_split or "train")
+        raw["train"] = load_dataset(
+            cfg.hub_name, cfg.hub_config or None, split=cfg.hub_train_split or "train"
+        )
         if cfg.hub_eval_split:
-            raw["validation"] = load_dataset(cfg.hub_name, cfg.hub_config or None, split=cfg.hub_eval_split)
+            raw["validation"] = load_dataset(
+                cfg.hub_name, cfg.hub_config or None, split=cfg.hub_eval_split
+            )
     else:
-        raise ValueError("Provide either JSONL files or a hub dataset via data.hub_name")
+        raise ValueError(
+            "Provide either JSONL files or a hub dataset via data.hub_name"
+        )
 
     def to_text(ex):
         if cfg.prompt_field and cfg.response_field:

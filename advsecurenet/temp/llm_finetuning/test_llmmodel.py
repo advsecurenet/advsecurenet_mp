@@ -16,6 +16,7 @@ def import_model_module():
 # load_tokenizer tests
 # -----------------------------
 
+
 def test_load_tokenizer_sets_pad_and_side(monkeypatch):
     m = import_model_module()
 
@@ -91,6 +92,7 @@ def test_in_distributed_via_env_local_rank(monkeypatch):
 
 def test_in_distributed_via_torch_dist(monkeypatch):
     import importlib
+
     m = importlib.import_module("advsecurenet.llm_finetuning.model")
 
     # Force the environment-driven branch to report "distributed"
@@ -106,7 +108,9 @@ def test_in_distributed_via_torch_dist(monkeypatch):
 def test_in_distributed_exception_path(monkeypatch):
     m = import_model_module()
     # Put an object without the expected attributes; calling is_available will raise
-    sys.modules["torch.distributed"] = object()  # attribute error triggers except -> False
+    sys.modules["torch.distributed"] = (
+        object()
+    )  # attribute error triggers except -> False
     monkeypatch.delenv("WORLD_SIZE", raising=False)
     monkeypatch.delenv("LOCAL_RANK", raising=False)
     assert m._in_distributed() is False
@@ -132,6 +136,7 @@ def test_select_device_map_variants(monkeypatch):
 # -----------------------------
 # load_model tests
 # -----------------------------
+
 
 def _fake_cfg(peft_enabled=False, quant="qlora"):
     train = SimpleNamespace(model_name="tiny-model")
@@ -163,7 +168,10 @@ def test_load_model_single_process_no_peft_auto_device(monkeypatch):
         @staticmethod
         def from_pretrained(model_name, device_map=None, load_in_4bit=False):
             captured["args"] = (model_name,)
-            captured["kwargs"] = {"device_map": device_map, "load_in_4bit": load_in_4bit}
+            captured["kwargs"] = {
+                "device_map": device_map,
+                "load_in_4bit": load_in_4bit,
+            }
             return _DummyModel("base")
 
     monkeypatch.setattr(m, "AutoModelForCausalLM", FakeAutoModel, raising=True)
@@ -212,7 +220,9 @@ def test_load_model_distributed_peft_with_qlora(monkeypatch):
         # Return final wrapped model
         return _DummyModel("wrapped")
 
-    monkeypatch.setattr(m, "prepare_model_for_kbit_training", fake_prepare, raising=True)
+    monkeypatch.setattr(
+        m, "prepare_model_for_kbit_training", fake_prepare, raising=True
+    )
     monkeypatch.setattr(m, "LoraConfig", FakeLoraConfig, raising=True)
     monkeypatch.setattr(m, "get_peft_model", fake_get_peft_model, raising=True)
 
@@ -255,7 +265,9 @@ def test_load_model_peft_without_quantization(monkeypatch):
         calls["get_peft"] += 1
         return _DummyModel("wrapped-noq")
 
-    monkeypatch.setattr(m, "prepare_model_for_kbit_training", fake_prepare, raising=True)
+    monkeypatch.setattr(
+        m, "prepare_model_for_kbit_training", fake_prepare, raising=True
+    )
     monkeypatch.setattr(m, "get_peft_model", fake_get_peft, raising=True)
 
     cfg = _fake_cfg(peft_enabled=True, quant="none")

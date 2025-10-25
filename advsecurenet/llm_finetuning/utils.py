@@ -36,6 +36,7 @@ def set_seed_all(seed: int = 42, deterministic: bool = False) -> None:
                 pass
             try:
                 import torch.backends.cudnn as cudnn  # type: ignore
+
                 cudnn.deterministic = True
                 cudnn.benchmark = False
             except Exception:
@@ -51,6 +52,7 @@ def dist_info() -> dict:
     }
     try:
         import torch.distributed as dist  # type: ignore
+
         if dist.is_available() and dist.is_initialized():
             info["world_size"] = int(dist.get_world_size())
             info["rank"] = int(dist.get_rank())
@@ -108,10 +110,16 @@ def device_map_auto() -> str | dict:
 
 def ensure_padding_token(tokenizer) -> None:
     """Set pad_token (and id) to eos_token if missing (common for causal LMs)."""
-    if getattr(tokenizer, "pad_token", None) is None and getattr(tokenizer, "eos_token", None) is not None:
+    if (
+        getattr(tokenizer, "pad_token", None) is None
+        and getattr(tokenizer, "eos_token", None) is not None
+    ):
         tokenizer.pad_token = tokenizer.eos_token
         # Also set pad_token_id if available/needed.
-        if getattr(tokenizer, "pad_token_id", None) in (None, -1) and getattr(tokenizer, "eos_token_id", None) is not None:
+        if (
+            getattr(tokenizer, "pad_token_id", None) in (None, -1)
+            and getattr(tokenizer, "eos_token_id", None) is not None
+        ):
             tokenizer.pad_token_id = tokenizer.eos_token_id
     tokenizer.padding_side = "right"
 
@@ -159,6 +167,7 @@ def save_json(obj: Any, path: str | Path) -> None:
 def save_run_config(cfg_obj, out_dir: str | Path) -> None:
     """Persist the exact config used for reproducibility to 'config.resolved.json'."""
     from pydantic import BaseModel  # lazy import
+
     out = Path(out_dir)
     ensure_dir(out)
     if isinstance(cfg_obj, BaseModel):
@@ -204,7 +213,13 @@ def cuda_mem() -> Dict[str, float]:
 
 def count_trainable_params(model) -> Tuple[int, float]:
     total = int(sum(int(p.numel()) for p in model.parameters()))
-    trainable = int(sum(int(p.numel()) for p in model.parameters() if getattr(p, "requires_grad", False)))
+    trainable = int(
+        sum(
+            int(p.numel())
+            for p in model.parameters()
+            if getattr(p, "requires_grad", False)
+        )
+    )
     pct = 100.0 * trainable / total if total else 0.0
     return trainable, pct
 
