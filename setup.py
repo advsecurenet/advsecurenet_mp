@@ -45,7 +45,7 @@ setup(
         "opacus",
         "numpy>=1.21.0,<1.25.0",
         "peft",
-        "bitsandbytes"
+        "bitsandbytes",
     ],
     entry_points={
         "console_scripts": [
