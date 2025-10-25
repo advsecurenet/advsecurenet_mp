@@ -44,6 +44,7 @@ setup(
         "pycocotools",
         "opacus",
         "numpy>=1.21.0,<1.25.0",
+        "peft",
         "bitsandbytes"
     ],
     entry_points={
