@@ -79,7 +79,11 @@ class ODWrapper:
             self.model.train()  # ensure we get raw preds, not autoshaped outputs
             if self._should_freeze_bn():
                 self._freeze_bn()
-        preds = self.model.predict(x_pre, training=training)
+        is_yolov5 = bool(getattr(self.model, "expects_numpy_images", False))
+        if is_yolov5:
+            preds = self.model.predict_raw(x_pre)
+        else:
+            preds = self.model.predict(x_pre, training=training)
         loss = self.model.calculate_loss(preds, target_val=0.0)
         self.model.zero_grad()
         grad_tensor = torch.autograd.grad(
@@ -142,7 +146,11 @@ class ODWrapper:
             self.model.train()
             if self._should_freeze_bn():
                 self._freeze_bn()
-        preds = self.model.predict(x_pre, training=training)
+        is_yolov5 = bool(getattr(self.model, "expects_numpy_images", False))
+        if is_yolov5:
+            preds = self.model.predict_raw(x_pre)
+        else:
+            preds = self.model.predict(x_pre, training=training)
         loss = self.model.calculate_loss(preds, target_val=1.0)
         self.model.zero_grad()
         grad_tensor = torch.autograd.grad(
@@ -155,6 +163,8 @@ class ODWrapper:
         grads = grad_tensor.cpu().numpy()
         if self.clip_values is not None:
             grads = grads / self.clip_values[1]  # Undo scaling
+        if is_yolov5:
+            return grads * (-1)
         return grads
 
     def compute_object_mislabeling_gradient(

@@ -36,7 +36,10 @@ class AdversarialODTraining(BaseAdversarialTraining):
         for p in self._trainable.parameters():
             p.requires_grad_(True)
         try:
-            self._od_wrapper = get_object_detector(existing_model=self._trainable)
+            object_detector_config = {}
+            if hasattr(config, "processor"):
+                object_detector_config["device_type"] = config.processor
+            self._od_wrapper = get_object_detector(config=object_detector_config, existing_model=self._trainable)
         except Exception as e:
             raise RuntimeError(
                 f"Failed to load detector wrapper: {e}"
@@ -201,13 +204,13 @@ class AdversarialODTraining(BaseAdversarialTraining):
                 raise TypeError(f"Unexpected patched output type: {type(patched)}")
         elif attack_name == "TOG":
             images_np = images.detach().cpu().numpy()
-            tog_variant = getattr(attack, "attack_type", TOGAttackType.UNTARGETED)
+            tog_variant = getattr(attack, "object_detection_attack_type", TOGAttackType.UNTARGETED)
             if isinstance(tog_variant, str):
                 tog_variant = TOGAttackType(tog_variant.lower())
             adv_np = attack.attack(
                 x=images_np,
                 tog_variant=tog_variant,
-                tog_mislabeling_mode=getattr(attack, "tog_mislabeling_mode", "ml"),
+                tog_mislabeling_mode=getattr(attack, "object_detection_mislabeling_mode", "ml"),
             )
             return torch.from_numpy(adv_np).to(self._device)
         # Default: leave grads enabled so gradient-based attacks work

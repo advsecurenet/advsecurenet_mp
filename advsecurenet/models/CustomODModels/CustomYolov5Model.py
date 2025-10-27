@@ -184,7 +184,11 @@ class CustomYolov5Model(CustomODBaseModel):
         """
         Predicts raw logits without applying NMS.
         """
-        return self._model(x)
+        was_training = self._model.training
+        self._model.train()
+        preds = self._model(x)
+        self._model.train(was_training)
+        return preds
 
     def predict_per_batch(self, imgs, inference_model, clip_values):
         imgs = imgs.detach().cpu().numpy()
@@ -369,6 +373,8 @@ class CustomYolov5Model(CustomODBaseModel):
                     resolved_device = f"cuda:{torch.cuda.current_device()}"
                 except Exception:
                     resolved_device = "cuda:0"
+            elif getattr(torch.backends, "mps", None) and torch.backends.mps.is_available():
+                resolved_device = "mps"
             else:
                 resolved_device = "cpu"
         self.device = resolved_device

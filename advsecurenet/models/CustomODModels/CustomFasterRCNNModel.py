@@ -288,7 +288,6 @@ class CustomFasterRCNNModel(CustomODBaseModel):
                             dtype=np.int32)
             keep = mapped >= 0
             boxes, scores, mapped = boxes[keep], scores[keep], mapped[keep]
-            mapped = mapped + FASTERRCNN_COCO_LABEL_OFFSET
             keep = (mapped >= 0) & (mapped < self.num_classes)
             boxes, scores, mapped = boxes[keep], scores[keep], mapped[keep]
             pred = {

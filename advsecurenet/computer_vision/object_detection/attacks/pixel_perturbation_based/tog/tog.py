@@ -274,6 +274,8 @@ class TOG(AdversarialAttack):
             names = getattr(obj, "names", None)
             if isinstance(names, (list, tuple)) and len(names) > 0:
                 return len(names)
+            if isinstance(names, dict) and len(names) > 0:
+                return len(names.keys())
         for attr_owner in [self._object_detector, inf]:
             if attr_owner is None:
                 continue
@@ -349,7 +351,7 @@ class TOG(AdversarialAttack):
         )
         x_adv = self._initialise_x_adv(x_query, eps)
         for _ in range(n_iter):
-            grad = self._object_detector.compute_object_fabrication_gradient(x_adv)
+            grad = self._object_detector.compute_object_fabrication_gradient(x_adv, training=False)
             x_adv = self._update_x_adv(grad, eps_iter, x_query, x_adv, eps)
         return x_adv
 

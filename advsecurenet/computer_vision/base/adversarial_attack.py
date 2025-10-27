@@ -6,6 +6,9 @@ import torch
 from advsecurenet.models.base_model import BaseModel
 from advsecurenet.shared.types.configs.attack_configs.attack_config import AttackConfig
 from advsecurenet.utils.device_manager import DeviceManager
+from advsecurenet.shared.types.configs.attack_configs.tog_attack_config import (
+    TOGAttackConfig,
+)
 
 
 class AdversarialAttack(ABC):
@@ -19,6 +22,12 @@ class AdversarialAttack(ABC):
         )
         self.name: str = self.__class__.__name__
         self.targeted: bool = config.targeted
+        # TOG specific attributes
+        if isinstance(config, TOGAttackConfig):
+            if hasattr(config, "attack_type"):
+                self.object_detection_attack_type: str = config.attack_type
+            if hasattr(config, "mislabeling_mode"):
+                self.object_detection_mislabeling_mode: str = config.mislabeling_mode
 
     @abstractmethod
     def attack(
