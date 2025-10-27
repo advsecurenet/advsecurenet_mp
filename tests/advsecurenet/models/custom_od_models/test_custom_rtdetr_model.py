@@ -260,3 +260,162 @@ def test__to_image_list_and_errors(patched_module):
         model._to_image_list(torch.zeros(3, 16, 16))
     lst = model._to_image_list(torch.zeros(2, 3, 8, 8))
     assert isinstance(lst, list) and lst[0].shape == (3, 8, 8)
+
+@pytest.mark.advsecurenet
+def test_adapter_forward_with_pixel_values_and_mask_and_labels(patched_module):
+    CustomRTDetrModel = patched_module.CustomRTDetrModel
+    model = CustomRTDetrModel(model_name="dummy", device="cpu")
+    adapter = model.initialize_inference_model(model._model, device=model.device)
+    pv = torch.rand(2, 3, 16, 16)
+    pm = torch.ones(2, 16, 16, dtype=torch.bool)
+    out = adapter(pixel_values=pv, pixel_mask=pm, labels=[{"a": 1}])
+    # When labels are present DummyHFModel returns an object with `.loss`
+    assert hasattr(out, "loss")
+
+
+@pytest.mark.advsecurenet
+def test_adapter_forward_errors_and_4d_singleton_list_item(patched_module):
+    CustomRTDetrModel = patched_module.CustomRTDetrModel
+    model = CustomRTDetrModel(model_name="dummy", device="cpu")
+    adapter = model.initialize_inference_model(model._model, device=model.device)
+
+    # x=None and no pixel_values -> ValueError branch
+    with pytest.raises(ValueError):
+        _ = adapter()
+
+    # Wrong input type -> TypeError branch
+    with pytest.raises(TypeError):
+        _ = adapter(x=123)
+
+    # Wrong dims inside list item -> ValueError branch
+    with pytest.raises(ValueError):
+        _ = adapter(x=[torch.zeros(2, 2)])  # 2D instead of 3D
+
+    # 5D tensor path -> ValueError branch
+    with pytest.raises(ValueError):
+        _ = adapter(x=torch.zeros(1, 3, 4, 4, 1))
+
+    # 4D with singleton batch in list gets squeezed to 3D
+    x = [torch.zeros(1, 3, 8, 8)]
+    out = adapter(x=x)
+    assert isinstance(out, list) and isinstance(out[0], dict)
+
+
+@pytest.mark.advsecurenet
+def test_forward_raises_on_nan_input(patched_module):
+    CustomRTDetrModel = patched_module.CustomRTDetrModel
+    model = CustomRTDetrModel(model_name="dummy", device="cpu")
+    model.eval()
+    x = torch.zeros(1, 3, 4, 4)
+    x[0, 0, 0, 0] = float("nan")
+    with pytest.raises(ValueError, match="NaN/Inf detected"):
+        _ = model.forward(x)
+
+
+@pytest.mark.advsecurenet
+def test_load_model_weights_warn_message(tmp_path, patched_module, monkeypatch, capsys):
+    """
+    Triggers the '[WARN] ... did not change model parameters.' branch.
+    """
+    CustomRTDetrModel = patched_module.CustomRTDetrModel
+    pth = tmp_path / "rt_same.pth"
+    torch.save({"model": {"k": torch.tensor(1)}}, pth)
+
+    # Force same before/after hashes
+    monkeypatch.setattr(CustomRTDetrModel, "_parameters_sha256", lambda self: "CONST_HASH")
+    _ = CustomRTDetrModel(model_name="dummy", device="cpu", model_weights_path=str(pth))
+    out = capsys.readouterr().out
+    assert "[WARN] Loading" in out and "did not change model parameters" in out
+
+
+@pytest.mark.advsecurenet
+def test_predict_per_batch_type_error_and_empty_results(patched_module):
+    CustomRTDetrModel = patched_module.CustomRTDetrModel
+    model = CustomRTDetrModel(model_name="dummy", device="cpu")
+
+    # Wrong type input
+    with pytest.raises(TypeError):
+        _ = model.predict_per_batch([np.zeros((1, 3, 8, 8))], model._model, clip_values=(0, 255))
+
+    # Inference model that returns empty detections (list branch + empty arrays path)
+    class EmptyListModel:
+        def __call__(self, pixel_values=None, pixel_mask=None):
+            return [{"boxes": torch.empty((0, 4)), "scores": torch.empty((0,)), "labels": torch.empty((0,), dtype=torch.int64)}]
+
+    imgs = torch.zeros((1, 3, 8, 8))
+    preds = model.predict_per_batch(imgs, EmptyListModel(), clip_values=(0, 255))
+    assert isinstance(preds, list) and preds[0]["boxes"].shape == (0, 4)
+    assert preds[0]["scores"].shape == (0,)
+    assert preds[0]["labels"].shape == (0,)
+
+
+@pytest.mark.advsecurenet
+def test_translate_predictions_for_map_evaluator_pascal_mapping(monkeypatch, patched_module):
+    """
+    Covers the 'pascal_voc' mapping branch with keep mask (unmapped_value = -1).
+    """
+    CustomRTDetrModel = patched_module.CustomRTDetrModel
+    model = CustomRTDetrModel(model_name="dummy", device="cpu")
+
+    # Monkeypatch the imported symbol inside the module
+    def fake_map(ids, assume_contiguous=True, unmapped_value=-1):
+        # Map 2 -> 1, 99 -> -1 to test keep filtering
+        mapping = {2: 1}
+        return [mapping.get(i, -1) for i in ids]
+
+    monkeypatch.setattr(patched_module, "coco_label_ids_to_pascal", fake_map, raising=True)
+
+    outs = [
+        {
+            "boxes": torch.tensor([[0.1, 0.2, 0.3, 0.4], [0.5, 0.6, 0.7, 0.8]]),
+            "scores": torch.tensor([0.9, 0.1]),
+            "labels": torch.tensor([2, 99], dtype=torch.int64),
+        }
+    ]
+    preds = model.translate_predictions_for_map_evaluator(outs, dataset_name="pascal_voc")
+    # Only first survives mapping (label 2 -> 1); second dropped (-> -1)
+    assert preds[0]["boxes"].shape == (1, 4)
+    assert preds[0]["labels"][0] == 1
+
+
+@pytest.mark.advsecurenet
+def test__to_image_list_training_no_detach(patched_module):
+    CustomRTDetrModel = patched_module.CustomRTDetrModel
+    model = CustomRTDetrModel(model_name="dummy", device="cpu")
+    model.train()
+    x = torch.zeros(2, 3, 8, 8, requires_grad=True)
+    lst = model._to_image_list(x)
+    assert isinstance(lst, list) and lst[0].requires_grad is True  # not detached in training
+
+
+@pytest.mark.advsecurenet
+def test_translate_labels_various_cleanups_and_empty(patched_module):
+    CustomRTDetrModel = patched_module.CustomRTDetrModel
+    model = CustomRTDetrModel(model_name="dummy", device="cpu")
+    model.input_shape = (3, 32, 48)  # C, H, W
+    model.channels_first = True
+
+    # Include invalid box (x2==x1) to trigger filtering, and valid box
+    labels = [
+        {"boxes": np.array([[10, 10, 10, 20], [0, 0, 16, 16]], dtype=np.float32), "labels": np.array([1, 2])},
+        {},  # empty -> empty path
+    ]
+    out = model.translate_labels(labels, batch_size=3)
+    assert len(out) == 3
+    # First image: one invalid filtered out -> only one remains
+    assert out[0]["boxes"].shape == (1, 4)
+    # Second image: empty
+    assert out[1]["boxes"].numel() == 0
+    # Third image: padding added to match batch size
+    assert out[2]["boxes"].numel() == 0
+
+
+@pytest.mark.advsecurenet
+def test_preprocess_x_for_loss_calculation_detach_and_range(patched_module):
+    CustomRTDetrModel = patched_module.CustomRTDetrModel
+    model = CustomRTDetrModel(model_name="dummy", device="cpu")
+    t = torch.randn(1, 3, 4, 4, requires_grad=True) * 10.0  # some >1 values
+    out = model.preprocess_x_for_loss_calculation(t, requires_grad=False)
+    assert isinstance(out, torch.Tensor) and out.requires_grad is False
+    # Should be clamped to [0,1] or [0,255]/255.
+    assert out.max() <= 1.0 + 1e-6
