@@ -154,17 +154,9 @@ class CustomYolov5Model(CustomODBaseModel):
             x = x.float()
         except Exception as e:
             pass
-        try:
-            x_dev = x.device
-            for p in self._model.parameters():
-                param_dev = p.device
-                break
-            else:
-                param_dev = x_dev
-            if param_dev != x_dev:
-                self._model.to(x_dev)
-        except Exception:
-            pass
+        dev = self._module_device()
+        if x.device != dev:
+            x = x.to(dev, non_blocking=True)
         if self.training and targets is not None:
             outputs = self._model(x)  # raw logits, pre-nms
             loss, loss_items = self.compute_loss(outputs, targets)
@@ -184,6 +176,11 @@ class CustomYolov5Model(CustomODBaseModel):
         """
         Predicts raw logits without applying NMS.
         """
+        dev = self._module_device()
+        if isinstance(x, np.ndarray):
+            x = torch.from_numpy(x).float().to(dev)
+        elif x.device != dev:
+            x = x.to(dev)
         was_training = self._model.training
         self._model.train()
         preds = self._model(x)
@@ -378,3 +375,37 @@ class CustomYolov5Model(CustomODBaseModel):
             else:
                 resolved_device = "cpu"
         self.device = resolved_device
+
+    def _module_device(self) -> torch.device:
+        try:
+            return next(self._model.parameters()).device
+        except Exception:
+            try:
+                return next(self.parameters()).device
+            except Exception:
+                return torch.device('cpu')
+
+    def to(self, *args, **kwargs):
+        # Let nn.Module move all registered submodules/buffers (incl. _model and _autoshape)
+        super().to(*args, **kwargs)
+        # Derive device from the inner model (single source of truth)
+        try:
+            dev = next(self._model.parameters()).device
+            self.device = str(dev)
+        except Exception:
+            # Fallback keeps existing self.device if _model not ready yet
+            dev = torch.device(self.device) if hasattr(self, "device") else torch.device("cpu")
+        # Ensure AutoShape points at the moved model and is moved too
+        if getattr(self, "_autoshape", None) is not None:
+            try:
+                self._autoshape.model = self._model
+                self._autoshape.to(dev)
+            except Exception:
+                # If anything odd, just recreate it on the new device
+                self._autoshape = AutoShape(self._model)
+                self._autoshape.to(dev)
+        # Rebuild ComputeLoss so its tensors live on the new device
+        if getattr(self, "_model", None) is not None:
+            self.compute_loss = ComputeLoss(self._model)
+        return self
+
