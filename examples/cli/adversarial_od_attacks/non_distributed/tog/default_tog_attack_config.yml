@@ -10,7 +10,7 @@ model:
   path_configs:
     model_weights_path: model_weights/yolov5s.pt
     model_arch_path: 
-      ../../../advsecurenet/models/CustomModels/CustomYolov5Model.py
+      ../../../../advsecurenet/models/CustomODModels/CustomYolov5Model.py
   norm_config:
     add_norm_layer: false
     norm_mean:

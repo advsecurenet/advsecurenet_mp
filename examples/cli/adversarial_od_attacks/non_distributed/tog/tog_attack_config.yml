@@ -2,7 +2,7 @@ model:
   model_name: CustomFasterRCNNModel
   num_input_channels: 3
   architecture:
-    num_classes: 91  # COCO dataset classes defined by FasterRCNN
+    num_classes: 91 # FasterRCNN has different number of classes defined for COCO
   pretrained: false
   weights: DEFAULT
   is_external: true
@@ -10,7 +10,7 @@ model:
   path_configs:
     model_weights_path: ""
     model_arch_path: 
-      ../../../../advsecurenet/models/CustomModels/CustomFasterRCNNModel.py
+      ../../../../advsecurenet/models/CustomODModels/CustomFasterRCNNModel.py
   norm_config:
     add_norm_layer: false
     norm_mean:
@@ -73,8 +73,8 @@ device.processor: cuda:0
 attack_procedure:
   verbose: true
   save_result_images: true
-  result_images_dir: attack_dpatch
-  result_images_prefix: dpatch_adv
+  result_images_dir: attack_tog_mislabeling_ml
+  result_images_prefix: tog_mislabeling_ml_adv
 attack_config:
   target_parameters:
     targeted: false
@@ -82,11 +82,14 @@ attack_config:
       target_labels: []
   attack_parameters:
     object_detector: fasterrcnn_resnet50_fpn
+    attack_type: untargeted
+    mislabeling_mode: ml
     patch_shape:
     - 3
     - 200
     - 200
-    learning_rate: 1.5
-    max_iter: 2
+    learning_rate: 1.99
+    max_iter: 5
+    eps: 0.1
+    eps_iter: 0.01
     random_location: false
-    target_label: 20
