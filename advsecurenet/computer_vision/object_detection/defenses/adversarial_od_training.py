@@ -165,6 +165,7 @@ class AdversarialODTraining(BaseAdversarialTraining):
         Runs a detection-friendly attack and returns adversarial images (same shape as images).
         """
         attack_name = attack.__class__.__name__
+        self._trainable.to(self._device)
         if (
             (not getattr(attack, "_detector_resolved", False))
             and hasattr(attack, "_object_detector")
@@ -174,7 +175,10 @@ class AdversarialODTraining(BaseAdversarialTraining):
             )
         ):
             try:
-                detector_wrapper = get_object_detector(existing_model=self._trainable)
+                object_detector_config = {
+                    "device_type": self._config.processor,
+                }
+                detector_wrapper = get_object_detector(config=object_detector_config, existing_model=self._trainable)
                 attack._object_detector = detector_wrapper
                 attack._detector_resolved = True
             except Exception:

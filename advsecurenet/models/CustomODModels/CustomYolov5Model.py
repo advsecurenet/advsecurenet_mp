@@ -159,6 +159,8 @@ class CustomYolov5Model(CustomODBaseModel):
             x = x.to(dev, non_blocking=True)
         if self.training and targets is not None:
             outputs = self._model(x)  # raw logits, pre-nms
+            if isinstance(targets, torch.Tensor) and targets.device != outputs[0].device:
+                targets = targets.to(outputs[0].device)
             loss, loss_items = self.compute_loss(outputs, targets)
             loss_components_dict = {"loss_total": loss}
             loss_components_dict["loss_box"] = loss_items[0]
