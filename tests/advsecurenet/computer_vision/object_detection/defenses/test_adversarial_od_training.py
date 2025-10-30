@@ -108,6 +108,7 @@ def _make_detection_like_loader(num: int = 3):
 def base_instance():
     inst = object.__new__(AdversarialODTraining)
     inst.config = SimpleNamespace(train_loader=_make_detection_like_loader())
+    inst._config = SimpleNamespace(processor=None)
     inst._device = torch.device("cpu")
     inst._trainable = MockModel()
     inst._model = inst._trainable

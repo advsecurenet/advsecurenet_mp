@@ -27,7 +27,7 @@ class DummyObjectDetector:
     def compute_object_vanishing_gradient(self, x_adv, training=False):
         return np.ones_like(x_adv)
 
-    def compute_object_fabrication_gradient(self, x_adv):
+    def compute_object_fabrication_gradient(self, x_adv, training=False):
         return np.ones_like(x_adv)
 
     def compute_object_mislabeling_gradient(self, *args, **kwargs):

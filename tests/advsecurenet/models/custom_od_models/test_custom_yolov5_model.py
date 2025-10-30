@@ -4,17 +4,37 @@ import torch.nn as nn
 from unittest.mock import patch, MagicMock, ANY
 import numpy as np
 import sys, types
+from types import SimpleNamespace
 
 # Provide a minimal "transformers" stub so that importing advsecurenet.models.* does not fail
 if "transformers" not in sys.modules:
     transformers_stub = types.ModuleType("transformers")
+    transformers_stub.__path__ = []  # mark as package
+    utils_stub = types.ModuleType("transformers.utils")
     class _DummyAutoModel:
         pass
     class _DummyAutoConfig:
         pass
+    class _DummyRTDetrImageProcessor:
+        pass
+    class _DummyModelOutput(dict):
+        """Minimal stand-in for transformers.utils.ModelOutput."""
+
+    utils_stub.logging = SimpleNamespace(
+        get_logger=lambda name: SimpleNamespace(
+            setLevel=lambda *a, **k: None,
+            info=lambda *a, **k: None,
+            warning=lambda *a, **k: None,
+            error=lambda *a, **k: None,
+        )
+    )
+    utils_stub.ModelOutput = _DummyModelOutput
     transformers_stub.AutoModel = _DummyAutoModel
     transformers_stub.AutoConfig = _DummyAutoConfig
+    transformers_stub.RTDetrImageProcessor = _DummyRTDetrImageProcessor
+    transformers_stub.utils = utils_stub
     sys.modules["transformers"] = transformers_stub
+    sys.modules["transformers.utils"] = utils_stub
 
 """Tests for CustomYolov5Model.
 
@@ -38,6 +58,7 @@ class MinimalYoloModel:
             "fl_gamma": 0.0,
         }
         self.model = [MagicMock()]  # mimic a list of layers
+        self.training = True
 
     def parameters(self):
         return iter([self._param])
@@ -46,9 +67,11 @@ class MinimalYoloModel:
         return "raw_logits"
 
     def eval(self):
+        self.training = False
         return self
 
     def train(self, mode=True):
+        self.training = mode
         return self
 
     def to(self, device):
