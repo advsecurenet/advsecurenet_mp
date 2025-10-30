@@ -8,9 +8,9 @@ model:
   is_external: true
   random_seed:
   path_configs:
-    model_weights_path: ""
+    model_weights_path: model_weights/yolov5s.pt
     model_arch_path: 
-      ../../../../advsecurenet/models/CustomODModels/CustomYolov5Model.py
+      ../../../../../advsecurenet/models/CustomODModels/CustomYolov5Model.py
   norm_config:
     add_norm_layer: false
     norm_mean:
@@ -42,7 +42,7 @@ dataset:
   dataset_part: test
   train_dataset_path: advsecurenet/data/train2017
   test_dataset_path: advsecurenet/data/val2017
-  random_sample_size: 5
+  random_sample_size: 90
   preprocessing:
     steps:
     - name: Resize
@@ -61,16 +61,16 @@ dataloader:
     shuffle: true
     drop_last: false
     pin_memory: true
-    batch_size: 32
+    batch_size: 5
   default.batch_size: 16
   default.num_workers: 0
 device:
-  use_ddp: false
-  processor: cuda
+  use_ddp: true
+  processor:
   gpu_ids:
-    - 0
-    - 1
-    - 2
+    - 5
+    - 6
+    - 7
 attack_procedure:
   verbose: true
   save_result_images: true
