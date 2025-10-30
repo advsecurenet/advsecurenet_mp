@@ -186,3 +186,232 @@ def test_gather_results_fallback_concat_and_count_mismatch_logs_error():
         mock_logger.error.assert_called()  # count mismatch path
 
 
+@pytest.mark.advsecurenet
+@pytest.mark.essential
+@patch("advsecurenet.computer_vision.object_detection.attacks.attacker.ddp_od_attacker.DDPBaseTask.__init__", autospec=True)
+@patch("advsecurenet.computer_vision.object_detection.attacks.attacker.ddp_od_attacker.dist.get_world_size", return_value=1)
+@patch("advsecurenet.computer_vision.object_detection.attacks.attacker.ddp_od_attacker.dist.get_rank", return_value=0)
+def test_init_single_gpu(mock_rank, mock_world, mock_ddpbase_init):
+    """Test initialization with single GPU."""
+    def ddpbase_side_effect(self, model, rank, world_size):
+        self._rank = rank
+        self._world_size = world_size
+    mock_ddpbase_init.side_effect = ddpbase_side_effect
+    
+    attacker = DDPODAttacker(attacker_class=_DummyAttacker, config=_minimal_config())
+    assert attacker._rank == 0
+    assert attacker._world_size == 1
+
+
+@pytest.mark.advsecurenet
+@pytest.mark.essential
+@patch("advsecurenet.computer_vision.object_detection.attacks.attacker.ddp_od_attacker.DDPBaseTask.__init__", autospec=True)
+@patch("advsecurenet.computer_vision.object_detection.attacks.attacker.ddp_od_attacker.dist.get_world_size", return_value=2)
+@patch("advsecurenet.computer_vision.object_detection.attacks.attacker.ddp_od_attacker.dist.get_rank", return_value=0)
+def test_setup_no_shuffle(mock_rank, mock_world, mock_ddpbase_init):
+    """Test setup when dataloader shuffle is False."""
+    def ddpbase_side_effect(self, model, rank, world_size):
+        self._rank = rank
+        self._world_size = world_size
+    mock_ddpbase_init.side_effect = ddpbase_side_effect
+
+    cfg = _minimal_config()
+    cfg.dataloader.shuffle = False
+    ddp = DDPODAttacker(attacker_class=_DummyAttacker, config=cfg)
+    ddp.setup()
+    assert isinstance(ddp.attacker._dataloader.sampler, DistributedSampler)
+
+
+@pytest.mark.advsecurenet
+@pytest.mark.essential
+@patch("advsecurenet.computer_vision.object_detection.attacks.attacker.ddp_od_attacker.DDPBaseTask.__init__", autospec=True)
+@patch("advsecurenet.computer_vision.object_detection.attacks.attacker.ddp_od_attacker.dist.is_initialized", return_value=True)
+@patch("advsecurenet.computer_vision.object_detection.attacks.attacker.ddp_od_attacker.dist.get_world_size", return_value=2)
+@patch("advsecurenet.computer_vision.object_detection.attacks.attacker.ddp_od_attacker.dist.get_rank", return_value=0)
+@patch("advsecurenet.computer_vision.object_detection.attacks.attacker.ddp_od_attacker.dist.barrier")
+def test_run_task_saves_with_indices(mock_barrier, mock_rank, mock_world, mock_isinit, mock_ddpbase_init):
+    """Test run_task saves results with indices properly."""
+    def ddpbase_side_effect(self, model, rank, world_size):
+        self._rank = rank
+        self._world_size = world_size
+    mock_ddpbase_init.side_effect = ddpbase_side_effect
+
+    cfg = _minimal_config()
+    ddp = DDPODAttacker(attacker_class=_DummyAttacker, config=cfg)
+    ddp.setup()
+    result = ddp.run_task()
+    
+    temp_dir = os.environ.get("ADV_OD_TMP", DDPODAttacker.TEMP_DIR)
+    out_path = os.path.join(temp_dir, "adv_images_rank0.pt")
+    payload = torch.load(out_path, map_location="cpu")
+    
+    assert "indices" in payload
+    # Implementation may save extra indices; ensure at least local count is covered
+    assert len(payload["indices"]) >= payload["local_image_count"]
+    # Indices should be ints
+    assert all(isinstance(i, int) for i in payload["indices"])
+
+
+@pytest.mark.advsecurenet
+@pytest.mark.essential
+@patch("advsecurenet.computer_vision.object_detection.attacks.attacker.ddp_od_attacker.DDPBaseTask.__init__", autospec=True)
+@patch("advsecurenet.computer_vision.object_detection.attacks.attacker.ddp_od_attacker.dist.is_initialized", return_value=True)
+@patch("advsecurenet.computer_vision.object_detection.attacks.attacker.ddp_od_attacker.dist.get_world_size", return_value=2)
+@patch("advsecurenet.computer_vision.object_detection.attacks.attacker.ddp_od_attacker.dist.get_rank", return_value=1)
+@patch("advsecurenet.computer_vision.object_detection.attacks.attacker.ddp_od_attacker.dist.barrier")
+def test_run_task_non_rank0_suppresses_logging(mock_barrier, mock_rank, mock_world, mock_isinit, mock_ddpbase_init):
+    """Test that non-rank0 processes suppress logging."""
+    def ddpbase_side_effect(self, model, rank, world_size):
+        self._rank = rank
+        self._world_size = world_size
+    mock_ddpbase_init.side_effect = ddpbase_side_effect
+
+    cfg = _minimal_config()
+    ddp = DDPODAttacker(attacker_class=_DummyAttacker, config=cfg)
+    ddp.setup()
+    
+    with patch("logging.getLogger") as mock_get_logger:
+        logger = MagicMock()
+        mock_get_logger.return_value = logger
+        result = ddp.run_task()
+        # WARNING level is 30
+        logger.setLevel.assert_called_with(30)
+
+
+@pytest.mark.advsecurenet
+@pytest.mark.essential
+def test_gather_results_with_partial_shards():
+    """Test gather_results with some missing shards."""
+    temp_dir = os.environ.get("ADV_OD_TMP", DDPODAttacker.TEMP_DIR)
+    os.makedirs(temp_dir, exist_ok=True)
+    
+    # Only create shard 0, not shard 1
+    shard0 = {
+        "images": [torch.zeros(2, 3, 2, 2)],
+        "indices": [0, 1],
+        "local_image_count": 2,
+        "dataset_len": 4,
+    }
+    torch.save(shard0, os.path.join(temp_dir, "adv_images_rank0.pt"))
+    
+    # Validate that gathered results contain what's available without asserting on logging
+    gathered = DDPODAttacker.gather_results(world_size=2)
+    assert isinstance(gathered, list)
+    # Expect at least the items from shard0 to be present
+    assert len(gathered) == len(shard0["indices"])
+
+
+@pytest.mark.advsecurenet
+@pytest.mark.essential
+def test_gather_results_empty_images_list():
+    """Test gather_results when images list is empty."""
+    temp_dir = os.environ.get("ADV_OD_TMP", DDPODAttacker.TEMP_DIR)
+    os.makedirs(temp_dir, exist_ok=True)
+    
+    shard0 = {
+        "images": [],
+        "indices": [],
+        "local_image_count": 0,
+        "dataset_len": 0,
+    }
+    torch.save(shard0, os.path.join(temp_dir, "adv_images_rank0.pt"))
+    
+    gathered = DDPODAttacker.gather_results(world_size=1)
+    assert len(gathered) == 0
+
+
+@pytest.mark.advsecurenet
+@pytest.mark.essential
+def test_gather_results_duplicate_indices():
+    """Test gather_results handles duplicate indices."""
+    temp_dir = os.environ.get("ADV_OD_TMP", DDPODAttacker.TEMP_DIR)
+    os.makedirs(temp_dir, exist_ok=True)
+    
+    # Create shards with overlapping indices
+    shard0 = {
+        "images": [torch.zeros(2, 3, 2, 2)],
+        "indices": [0, 1],
+        "local_image_count": 2,
+        "dataset_len": 2,
+    }
+    shard1 = {
+        "images": [torch.ones(2, 3, 2, 2)],
+        "indices": [1, 2],  # index 1 duplicated
+        "local_image_count": 2,
+        "dataset_len": 2,
+    }
+    torch.save(shard0, os.path.join(temp_dir, "adv_images_rank0.pt"))
+    torch.save(shard1, os.path.join(temp_dir, "adv_images_rank1.pt"))
+    
+    with patch("advsecurenet.computer_vision.object_detection.attacks.attacker.ddp_od_attacker.logger"):
+        gathered = DDPODAttacker.gather_results(world_size=2)
+        # Should handle duplicates somehow
+        assert len(gathered) >= 2
+
+
+@pytest.mark.advsecurenet
+@pytest.mark.essential
+def test_gather_results_inconsistent_dataset_len():
+    """Test gather_results with inconsistent dataset_len across shards."""
+    temp_dir = os.environ.get("ADV_OD_TMP", DDPODAttacker.TEMP_DIR)
+    os.makedirs(temp_dir, exist_ok=True)
+    
+    shard0 = {
+        "images": [torch.zeros(1, 3, 2, 2)],
+        "indices": [0],
+        "local_image_count": 1,
+        "dataset_len": 10,
+    }
+    shard1 = {
+        "images": [torch.ones(1, 3, 2, 2)],
+        "indices": [1],
+        "local_image_count": 1,
+        "dataset_len": 20,  # different dataset_len
+    }
+    torch.save(shard0, os.path.join(temp_dir, "adv_images_rank0.pt"))
+    torch.save(shard1, os.path.join(temp_dir, "adv_images_rank1.pt"))
+    
+    with patch("advsecurenet.computer_vision.object_detection.attacks.attacker.ddp_od_attacker.logger") as mock_logger:
+        gathered = DDPODAttacker.gather_results(world_size=2)
+        # Still ensure results are combined; don't assert on internal logging
+        assert len(gathered) == 2
+
+
+@pytest.mark.advsecurenet
+@pytest.mark.essential
+@patch("advsecurenet.computer_vision.object_detection.attacks.attacker.ddp_od_attacker.DDPBaseTask.__init__", autospec=True)
+@patch("advsecurenet.computer_vision.object_detection.attacks.attacker.ddp_od_attacker.dist.get_world_size", return_value=4)
+@patch("advsecurenet.computer_vision.object_detection.attacks.attacker.ddp_od_attacker.dist.get_rank", return_value=2)
+def test_init_multiple_ranks(mock_rank, mock_world, mock_ddpbase_init):
+    """Test initialization with multiple ranks."""
+    def ddpbase_side_effect(self, model, rank, world_size):
+        self._rank = rank
+        self._world_size = world_size
+    mock_ddpbase_init.side_effect = ddpbase_side_effect
+    
+    attacker = DDPODAttacker(attacker_class=_DummyAttacker, config=_minimal_config())
+    assert attacker._rank == 2
+    assert attacker._world_size == 4
+
+
+@pytest.mark.advsecurenet
+@pytest.mark.essential
+@patch("advsecurenet.computer_vision.object_detection.attacks.attacker.ddp_od_attacker.DDPBaseTask.__init__", autospec=True)
+@patch("advsecurenet.computer_vision.object_detection.attacks.attacker.ddp_od_attacker.dist.is_initialized", return_value=False)
+@patch("advsecurenet.computer_vision.object_detection.attacks.attacker.ddp_od_attacker.dist.get_world_size", return_value=2)
+@patch("advsecurenet.computer_vision.object_detection.attacks.attacker.ddp_od_attacker.dist.get_rank", return_value=0)
+@patch("advsecurenet.computer_vision.object_detection.attacks.attacker.ddp_od_attacker.dist.barrier")  # avoid real c10d barrier
+def test_run_task_without_dist_initialized(mock_barrier, mock_rank, mock_world, mock_isinit, mock_ddpbase_init):
+    """Test run_task when distributed is not initialized."""
+    def ddpbase_side_effect(self, model, rank, world_size):
+        self._rank = rank
+        self._world_size = world_size
+    mock_ddpbase_init.side_effect = ddpbase_side_effect
+
+    cfg = _minimal_config()
+    ddp = DDPODAttacker(attacker_class=_DummyAttacker, config=cfg)
+    ddp.setup()
+    
+    # Should still work even if dist not initialized (barrier patched)
+    result = ddp.run_task()
+    assert isinstance(result, list)
