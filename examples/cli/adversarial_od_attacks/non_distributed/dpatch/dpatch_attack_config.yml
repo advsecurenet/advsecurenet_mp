@@ -10,7 +10,7 @@ model:
   path_configs:
     model_weights_path: ""
     model_arch_path: 
-      ../../../../advsecurenet/models/CustomODModels/CustomFasterRCNNModel.py
+      ../../../../../advsecurenet/models/CustomODModels/CustomFasterRCNNModel.py
   norm_config:
     add_norm_layer: false
     norm_mean:
@@ -43,7 +43,7 @@ dataset:
   dataset_part: test
   train_dataset_path: advsecurenet/data/train2017
   test_dataset_path: advsecurenet/data/val2017
-  random_sample_size: 5
+  random_sample_size: 20
   preprocessing:
     steps:
     - name: Resize

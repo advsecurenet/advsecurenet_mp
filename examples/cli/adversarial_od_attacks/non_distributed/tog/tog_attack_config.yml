@@ -1,16 +1,16 @@
 model:
-  model_name: CustomFasterRCNNModel
+  model_name: CustomYolov5Model
   num_input_channels: 3
   architecture:
-    num_classes: 91 # FasterRCNN has different number of classes defined for COCO
+    num_classes: 80
   pretrained: false
   weights: DEFAULT
   is_external: true
   random_seed:
   path_configs:
-    model_weights_path: ""
+    model_weights_path: model_weights/yolov5s.pt
     model_arch_path: 
-      ../../../../advsecurenet/models/CustomODModels/CustomFasterRCNNModel.py
+      ../../../../../advsecurenet/models/CustomODModels/CustomYolov5Model.py
   norm_config:
     add_norm_layer: false
     norm_mean:
@@ -22,7 +22,6 @@ model:
     - 0.224
     - 0.225
   object_detector_config:
-    type: CustomFasterRCNNODWrapper
     conf_thresh: 0.25
     input_shape:
     - 3
@@ -62,7 +61,7 @@ dataloader:
     shuffle: true
     drop_last: false
     pin_memory: true
-    batch_size: 32
+    batch_size: 5
   default.batch_size: 16
   default.num_workers: 0
 device:
@@ -81,7 +80,6 @@ attack_config:
     target_labels_config:
       target_labels: []
   attack_parameters:
-    object_detector: fasterrcnn_resnet50_fpn
     attack_type: untargeted
     mislabeling_mode: ml
     patch_shape:
