@@ -138,13 +138,10 @@ class PascalVOCDataset(BaseDataset):
         # # 4) target_transform: VOC dict → COCO-style detection target
         def target_transform(target_dict):
             anns = voc_to_coco_anns(target_dict)
-            if len(anns) == 0:
-                boxes = torch.empty((0, 4), dtype=torch.float32)
-                labels = torch.empty((0,), dtype=torch.int64)
-            else:
-                boxes = torch.as_tensor([a["bbox"] for a in anns], dtype=torch.float32)
-                labels = torch.as_tensor([a["category_id"] for a in anns], dtype=torch.int64)
-            return {"boxes": boxes, "labels": labels}
+            return [
+                {"bbox": ann["bbox"], "category_id": ann["category_id"]}
+                for ann in anns
+            ]
 
         # 5) instantiate
         with temporarily_disable_ssl_verification():
