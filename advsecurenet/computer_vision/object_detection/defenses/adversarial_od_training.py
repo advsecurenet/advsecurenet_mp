@@ -1,5 +1,6 @@
 import logging
 import random
+import click
 from typing import Optional, Union
 import torch
 import numpy as np
@@ -234,6 +235,9 @@ class AdversarialODTraining(BaseAdversarialTraining):
             loss = self._run_batch(combined_images, combined_targets)
             total_loss += loss
         total_loss /= self._get_loss_divisor()
+        click.echo(
+            click.style(f"Epoch {epoch} - Average loss: {total_loss:.4f}", fg="blue")
+        )
         self._log_loss(epoch, total_loss)
 
     def _run_batch(self, source: torch.Tensor, targets: list[dict]) -> float:
