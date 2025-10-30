@@ -1,0 +1,101 @@
+task: detection
+training:
+  model:
+    model_name: CustomFasterRCNNModel
+    num_input_channels: 3
+    architecture:
+      num_classes: 91
+    pretrained: false
+    weights: DEFAULT
+    is_external: true
+    random_seed:
+    path_configs:
+      model_weights_path:
+      model_arch_path: 
+        ../../../../../advsecurenet/models/CustomODModels/CustomFasterRCNNModel.py
+    norm_config:
+      add_norm_layer: false
+      norm_mean:
+      - 0.485
+      - 0.456
+      - 0.406
+      norm_std:
+      - 0.229
+      - 0.224
+      - 0.225
+    object_detector_config:
+      conf_thresh: 0.25
+      input_shape:
+      - 3
+      - 640
+      - 640
+      clip_values:
+      - 0
+      - 255
+      attack_losses:
+      - loss_total
+      - loss_cls
+      - loss_box
+      - loss_obj
+  dataset:
+    dataset_name: coco
+    download: true
+    num_classes: 91
+    split: test
+    path: advsecurenet/data
+    random_sample_size: 8
+    preprocessing:
+      steps:
+      - name: Resize
+        params:
+          size:
+          - 640
+          - 640
+      - name: ToTensor
+        params: {}
+      - name: ToDtype
+        params:
+          dtype: torch.float32
+  dataloader:
+    train:
+      num_workers: 4
+      shuffle: false
+      drop_last: false
+      pin_memory: true
+      batch_size: 2
+    test:
+      num_workers: 4
+      shuffle: false
+      drop_last: false
+      pin_memory: true
+      batch_size: 2
+  device:
+    use_ddp: false
+    processor: cuda:0
+    gpu_ids:
+  training:
+    epochs: 1
+    learning_rate: 0.0025
+    optimizer: sgd
+    optimizer_kwargs:
+      weight_decay: 0.0005
+      momentum: 0.9
+    scheduler: COSINE_ANNEALING_LR
+    scheduler_kwargs:
+      T_max: 2000
+      eta_min: 0.00025
+    criterion: cross_entropy
+    save_final_model: true
+    save_model_path:
+    save_model_name:
+    save_checkpoint: false
+    save_checkpoint_path:
+    save_checkpoint_name:
+    checkpoint_interval: 1
+    load_checkpoint: false
+    load_checkpoint_path:
+    verbose: true
+adversarial_training:
+  models: []
+  attacks:
+  - dpatch: dpatch_attack_config.yml
