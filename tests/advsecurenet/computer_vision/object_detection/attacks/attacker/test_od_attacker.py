@@ -243,3 +243,72 @@ def test_preprocess_targets_dict_and_process_batch(config, monkeypatch):
     assert isinstance(images_np, np.ndarray)
     assert isinstance(targets_np, list) and isinstance(targets_np[0]["boxes"], np.ndarray)
     assert isinstance(original_images, torch.Tensor)
+
+
+def test_init_dataloader_len_exception(config, monkeypatch):
+    """Test __init__ handles exception when len(dataloader) fails."""
+    def raise_on_len():
+        raise RuntimeError("len failed")
+    monkeypatch.setattr(DummyDataset, "__len__", raise_on_len)
+    from torch.utils.data import DataLoader
+    config.dataloader = DataLoader(DummyDataset())
+    attacker = DummyODAttacker(config)
+    assert attacker._dataloader is not None
+
+
+def test_preprocess_images_no_transform(config):
+    """Test preprocess_images with no transform."""
+    from torch.utils.data import DataLoader
+    ds = _DatasetWithTransform(with_normalize=False)
+    config.dataloader = DataLoader(ds)
+    attacker = DummyODAttacker(config)
+    imgs = torch.rand(1, 3, 8, 8)
+    arr = attacker.preprocess_images(imgs)
+    assert isinstance(arr, np.ndarray)
+    assert arr.max() <= 255.0
+
+
+def test_preprocess_images_transform_without_mean_std(config):
+    """Test preprocess_images with transform that doesn't have mean/std."""
+    import types
+    class DatasetWithoutMeanStd(TorchDataset):
+        def __init__(self):
+            self.transform = types.SimpleNamespace(transforms=[types.SimpleNamespace()])
+        def __len__(self):
+            return 1
+        def __getitem__(self, idx):
+            return torch.zeros(3, 8, 8), {"boxes": [torch.tensor([[0.0, 0.0, 1.0, 1.0]])], "labels": [torch.tensor([1])]}
+    
+    from torch.utils.data import DataLoader
+    config.dataloader = DataLoader(DatasetWithoutMeanStd())
+    attacker = DummyODAttacker(config)
+    imgs = torch.rand(1, 3, 8, 8)
+    arr = attacker.preprocess_images(imgs)
+    assert isinstance(arr, np.ndarray)
+
+
+def test_preprocess_images_vmax_gt_11(config):
+    """Test preprocess_images when vmax > 1.1 (pass-through branch)."""
+    from torch.utils.data import DataLoader
+    ds = _DatasetWithTransform(with_normalize=False)
+    config.dataloader = DataLoader(ds)
+    attacker = DummyODAttacker(config)
+    # Values > 1.1 should pass through (not be scaled), then clip to [0, 255]
+    imgs = torch.full((1, 3, 8, 8), 1.5)
+    arr = attacker.preprocess_images(imgs)
+    assert isinstance(arr, np.ndarray)
+    # When vmax > 1.1, it passes through, then gets clipped to 255
+    assert arr.max() <= 255.0
+    assert arr.min() >= 0.0
+
+
+def test_preprocess_targets_dict_empty(config):
+    """Test preprocess_targets_dict with empty boxes/labels."""
+    attacker = DummyODAttacker(config)
+    targets_dict = {
+        "boxes": [torch.tensor([]).reshape(0, 4), torch.tensor([]).reshape(0, 4)],
+        "labels": [torch.tensor([], dtype=torch.int64), torch.tensor([], dtype=torch.int64)],
+    }
+    targets = attacker.preprocess_targets_dict(targets_dict)
+    assert len(targets) == 2
+    assert len(targets[0]["labels"]) == 0

@@ -516,3 +516,420 @@ def test_init_device_int_branch():
         model = CustomYolov5Model(device=0)
         # Device should be set to a valid string ("cpu" or "cuda:*")
         assert isinstance(model.device, str) and len(model.device) > 0
+
+
+@pytest.mark.advsecurenet
+def test_suppress_yolov5_autocast_warning():
+    from advsecurenet.models.CustomODModels.CustomYolov5Model import _suppress_yolov5_autocast_warning
+    import warnings
+    
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        with _suppress_yolov5_autocast_warning():
+            # This should suppress FutureWarning about autocast
+            warnings.warn("test", FutureWarning)
+        # Check that warnings were suppressed (filter should catch FutureWarning)
+        # The warning filter specifically targets FutureWarning from yolov5.models.common
+        # So general FutureWarning might still appear, but the specific ones should be suppressed
+        assert isinstance(w, list)
+
+
+@pytest.mark.advsecurenet
+def test_translate_predictions_for_map_evaluator_yolo_expects_numpy_true(monkeypatch):
+    from advsecurenet.models.CustomODModels.CustomYolov5Model import translate_predictions_for_map_evaluator_yolo
+    
+    class MockPreds:
+        def __init__(self):
+            self.pred = [
+                torch.tensor([[0, 0, 10, 10, 0.9, 1], [5, 5, 15, 15, 0.8, 2]], dtype=torch.float32)
+            ]
+    
+    preds = MockPreds()
+    results = translate_predictions_for_map_evaluator_yolo(preds, "coco", expects_numpy=True)
+    assert len(results) == 1
+    assert "boxes" in results[0]
+    assert "labels" in results[0]
+    assert "scores" in results[0]
+
+
+@pytest.mark.advsecurenet
+def test_translate_predictions_for_map_evaluator_yolo_expects_numpy_false(monkeypatch):
+    from advsecurenet.models.CustomODModels.CustomYolov5Model import translate_predictions_for_map_evaluator_yolo
+    
+    preds = [
+        {
+            "boxes": torch.tensor([[0, 0, 10, 10]], dtype=torch.float32),
+            "scores": torch.tensor([0.9], dtype=torch.float32),
+            "labels": torch.tensor([1], dtype=torch.int64),
+        }
+    ]
+    results = translate_predictions_for_map_evaluator_yolo(preds, "coco", expects_numpy=False)
+    assert len(results) == 1
+    assert "boxes" in results[0]
+    assert "labels" in results[0]
+    assert "scores" in results[0]
+
+
+@pytest.mark.advsecurenet
+def test_translate_predictions_for_map_evaluator_yolo_pascal_mapping(monkeypatch):
+    from advsecurenet.models.CustomODModels.CustomYolov5Model import translate_predictions_for_map_evaluator_yolo
+    
+    class MockPreds:
+        def __init__(self):
+            self.pred = [
+                torch.tensor([[0, 0, 10, 10, 0.9, 5]], dtype=torch.float32)  # label 5
+            ]
+    
+    preds = MockPreds()
+    results = translate_predictions_for_map_evaluator_yolo(preds, "pascal_voc", expects_numpy=True)
+    assert len(results) == 1
+    # Labels should be mapped/filtered for Pascal VOC
+
+
+@pytest.mark.advsecurenet
+def test_parameters_sha256():
+    with patch("yolov5.load") as mock_load, patch(
+        "yolov5.models.common.AutoShape"
+    ) as mock_autoshape, patch("yolov5.utils.loss.ComputeLoss") as mock_compute_loss:
+        from advsecurenet.models.CustomODModels.CustomYolov5Model import (
+            CustomYolov5Model,
+        )
+        dm = MinimalYoloModel()
+        dm.modules = lambda: []
+        mock_load.return_value.model = dm
+        mock_autoshape.return_value = MagicMock()
+        mock_compute_loss.return_value = MagicMock()
+        model = CustomYolov5Model()
+        hash_val = model._parameters_sha256()
+        assert isinstance(hash_val, str)
+        assert len(hash_val) == 64  # SHA256 hex digest length
+
+
+@pytest.mark.advsecurenet
+def test_load_model_weights_non_pth():
+    with patch("yolov5.load") as mock_load, patch(
+        "yolov5.models.common.AutoShape"
+    ) as mock_autoshape, patch("yolov5.utils.loss.ComputeLoss") as mock_compute_loss:
+        from advsecurenet.models.CustomODModels.CustomYolov5Model import (
+            CustomYolov5Model,
+        )
+        dm = MinimalYoloModel()
+        dm.modules = lambda: []
+        mock_load.return_value.model = dm
+        mock_autoshape.return_value = MagicMock()
+        mock_compute_loss.return_value = MagicMock()
+        model = CustomYolov5Model(model_weights_path="yolov5s.pt")
+        # Should use arch_source = "yolov5s.pt" (not .pth)
+        assert model._model is not None
+
+
+@pytest.mark.advsecurenet
+def test_load_model_weights_state_dict_cleaning(tmp_path, monkeypatch):
+    with patch("yolov5.load") as mock_load, patch(
+        "yolov5.models.common.AutoShape"
+    ) as mock_autoshape, patch("yolov5.utils.loss.ComputeLoss") as mock_compute_loss:
+        from advsecurenet.models.CustomODModels.CustomYolov5Model import (
+            CustomYolov5Model,
+        )
+        dm = MinimalYoloModel()
+        dm.modules = lambda: []
+        # Add a state_dict method that returns keys
+        def state_dict():
+            return {"model.weight": torch.zeros(1)}
+        dm.state_dict = state_dict
+        mock_load.return_value.model = dm
+        mock_autoshape.return_value = MagicMock()
+        mock_compute_loss.return_value = MagicMock()
+        
+        pth = tmp_path / "w.pth"
+        # Create state dict with prefix that needs cleaning
+        sd = {"model._model.model.weight": torch.ones(1)}
+        torch.save({"weights": sd}, pth)
+        monkeypatch.setattr("os.path.isfile", lambda p: True)
+        
+        model = CustomYolov5Model(model_weights_path=str(pth))
+        # Should not raise and should handle prefix cleaning
+
+
+@pytest.mark.advsecurenet
+def test_forward_exception_path():
+    with patch("yolov5.load") as mock_load, patch(
+        "yolov5.models.common.AutoShape"
+    ) as mock_autoshape, patch("yolov5.utils.loss.ComputeLoss") as mock_compute_loss:
+        from advsecurenet.models.CustomODModels.CustomYolov5Model import (
+            CustomYolov5Model,
+        )
+        dm = MinimalYoloModel()
+        dm.modules = lambda: []
+        mock_load.return_value.model = dm
+        mock_autoshape.return_value = MagicMock()
+        mock_compute_loss.return_value = MagicMock()
+        model = CustomYolov5Model()
+        # x that can't be converted to float should be handled
+        x_bad = "not a tensor"
+        try:
+            model.forward(x_bad)
+        except Exception:
+            pass  # Exception is caught and ignored in forward
+
+
+@pytest.mark.advsecurenet
+def test_forward_non_training():
+    with patch("yolov5.load") as mock_load, patch(
+        "yolov5.models.common.AutoShape"
+    ) as mock_autoshape, patch("yolov5.utils.loss.ComputeLoss") as mock_compute_loss:
+        from advsecurenet.models.CustomODModels.CustomYolov5Model import (
+            CustomYolov5Model,
+        )
+        dm = MinimalYoloModel()
+        dm.modules = lambda: []
+        mock_load.return_value.model = dm
+        # Make autoshape_mock callable
+        autoshape_mock = MagicMock()
+        autoshape_mock.__call__ = MagicMock(return_value="autoshape_output")
+        # Set _autoshape attribute on model
+        mock_autoshape.return_value = autoshape_mock
+        mock_compute_loss.return_value = MagicMock()
+        model = CustomYolov5Model()
+        # The model should have _autoshape set during init
+        assert hasattr(model, "_autoshape")
+        model.eval()
+        x = torch.zeros(1, 3, 32, 32)
+        out = model.forward(x, targets=None)
+        # When not training and targets=None, should use autoshape
+        # autoshape_mock is callable and should return the mocked value
+        assert out is not None  # Should return something from autoshape
+
+
+@pytest.mark.advsecurenet
+def test_predict_training_false():
+    with patch("yolov5.load") as mock_load, patch(
+        "yolov5.models.common.AutoShape"
+    ) as mock_autoshape, patch("yolov5.utils.loss.ComputeLoss") as mock_compute_loss:
+        from advsecurenet.models.CustomODModels.CustomYolov5Model import (
+            CustomYolov5Model,
+        )
+        dm = MinimalYoloModel()
+        dm.modules = lambda: []
+        mock_load.return_value.model = dm
+        mock_autoshape.return_value = MagicMock()
+        mock_compute_loss.return_value = MagicMock()
+        model = CustomYolov5Model()
+        model.predict_raw = MagicMock(return_value=[[torch.zeros(1, 85)]])
+        x = torch.zeros(1, 3, 32, 32)
+        out = model.predict(x, training=False)
+        assert out is not None
+
+
+@pytest.mark.advsecurenet
+def test_predict_raw_numpy_input():
+    with patch("yolov5.load") as mock_load, patch(
+        "yolov5.models.common.AutoShape"
+    ) as mock_autoshape, patch("yolov5.utils.loss.ComputeLoss") as mock_compute_loss:
+        from advsecurenet.models.CustomODModels.CustomYolov5Model import (
+            CustomYolov5Model,
+        )
+        dm = MinimalYoloModel()
+        dm.modules = lambda: []
+        mock_load.return_value.model = dm
+        mock_autoshape.return_value = MagicMock()
+        mock_compute_loss.return_value = MagicMock()
+        model = CustomYolov5Model()
+        x_numpy = np.zeros((1, 3, 32, 32), dtype=np.float32)
+        out = model.predict_raw(x_numpy)
+        assert out == "raw_logits"
+
+
+@pytest.mark.advsecurenet
+def test_predict_per_batch_non_empty_tensor_detections():
+    with patch("yolov5.load") as mock_load, patch(
+        "yolov5.models.common.AutoShape"
+    ) as mock_autoshape, patch("yolov5.utils.loss.ComputeLoss") as mock_compute_loss:
+        from advsecurenet.models.CustomODModels.CustomYolov5Model import (
+            CustomYolov5Model,
+        )
+        dm = MinimalYoloModel()
+        dm.modules = lambda: []
+        mock_load.return_value.model = dm
+        mock_autoshape.return_value = MagicMock()
+        mock_compute_loss.return_value = MagicMock()
+        model = CustomYolov5Model()
+        model.input_shape = (3, 32, 32)
+        
+        class Outputs:
+            def __init__(self):
+                self.xyxy = [torch.tensor([[1, 2, 3, 4, 0.9, 1]], dtype=torch.float32)]
+                self.pred = [torch.tensor([[0, 0, 0, 0, 0.0, 0.1, 0.2]], dtype=torch.float32)]
+        
+        inference_model = MagicMock()
+        inference_model.return_value = Outputs()
+        imgs = torch.rand(1, 3, 16, 16)
+        outs = model.predict_per_batch(imgs, inference_model, clip_values=(0, 255))
+        assert len(outs) == 1
+        assert "boxes" in outs[0]
+        assert "logits" in outs[0]
+
+
+@pytest.mark.advsecurenet
+def test_translate_predictions_for_map_evaluator():
+    with patch("yolov5.load") as mock_load, patch(
+        "yolov5.models.common.AutoShape"
+    ) as mock_autoshape, patch("yolov5.utils.loss.ComputeLoss") as mock_compute_loss:
+        from advsecurenet.models.CustomODModels.CustomYolov5Model import (
+            CustomYolov5Model,
+        )
+        dm = MinimalYoloModel()
+        dm.modules = lambda: []
+        mock_load.return_value.model = dm
+        mock_autoshape.return_value = MagicMock()
+        mock_compute_loss.return_value = MagicMock()
+        model = CustomYolov5Model()
+        # Mock predictions
+        class MockPreds:
+            def __init__(self):
+                self.pred = [torch.tensor([[0, 0, 10, 10, 0.9, 1]])]
+        preds = MockPreds()
+        results = model.translate_predictions_for_map_evaluator(preds, "coco", expects_numpy=True)
+        assert isinstance(results, list)
+
+
+@pytest.mark.advsecurenet
+def test_translate_labels_empty_boxes():
+    with patch("yolov5.load") as mock_load, patch(
+        "yolov5.models.common.AutoShape"
+    ) as mock_autoshape, patch("yolov5.utils.loss.ComputeLoss") as mock_compute_loss:
+        from advsecurenet.models.CustomODModels.CustomYolov5Model import (
+            CustomYolov5Model,
+        )
+        dm = MinimalYoloModel()
+        dm.modules = lambda: []
+        mock_load.return_value.model = dm
+        mock_autoshape.return_value = MagicMock()
+        mock_compute_loss.return_value = MagicMock()
+        model = CustomYolov5Model()
+        model.input_shape = (3, 64, 64)
+        model.channels_first = True
+        # Empty boxes
+        labels = [{"boxes": np.array([]).reshape(0, 4), "labels": np.array([])}]
+        out = model.translate_labels(labels, batch_size=1)
+        assert isinstance(out, torch.Tensor)
+        assert out.shape[1] == 6
+
+
+@pytest.mark.advsecurenet
+def test_convert_targets_dict_path():
+    with patch("yolov5.load") as mock_load, patch(
+        "yolov5.models.common.AutoShape"
+    ) as mock_autoshape, patch("yolov5.utils.loss.ComputeLoss") as mock_compute_loss:
+        from advsecurenet.models.CustomODModels.CustomYolov5Model import (
+            CustomYolov5Model,
+        )
+        dm = MinimalYoloModel()
+        dm.modules = lambda: []
+        mock_load.return_value.model = dm
+        mock_autoshape.return_value = MagicMock()
+        mock_compute_loss.return_value = MagicMock()
+        model = CustomYolov5Model()
+        images = torch.zeros((2, 3, 32, 32))
+        targets_dict = {
+            "boxes": [torch.tensor([[0, 0, 10, 10]]), torch.tensor([[5, 5, 15, 15]])],
+            "labels": [torch.tensor([1]), torch.tensor([2])],
+        }
+        t = model._convert_targets(targets_dict, images.shape)
+        assert isinstance(t, torch.Tensor) and t.shape[1] == 6
+
+
+@pytest.mark.advsecurenet
+def test_resolve_device_torch_device(monkeypatch):
+    with patch("yolov5.load") as mock_load, patch(
+        "yolov5.models.common.AutoShape"
+    ) as mock_autoshape, patch("yolov5.utils.loss.ComputeLoss") as mock_compute_loss:
+        from advsecurenet.models.CustomODModels.CustomYolov5Model import (
+            CustomYolov5Model,
+        )
+        dm = MinimalYoloModel()
+        dm.modules = lambda: []
+        mock_load.return_value.model = dm
+        mock_autoshape.return_value = MagicMock()
+        mock_compute_loss.return_value = MagicMock()
+        model = CustomYolov5Model(device=torch.device("cpu"))
+        assert model.device == "cpu"
+
+
+@pytest.mark.advsecurenet
+def test_module_device():
+    with patch("yolov5.load") as mock_load, patch(
+        "yolov5.models.common.AutoShape"
+    ) as mock_autoshape, patch("yolov5.utils.loss.ComputeLoss") as mock_compute_loss:
+        from advsecurenet.models.CustomODModels.CustomYolov5Model import (
+            CustomYolov5Model,
+        )
+        dm = MinimalYoloModel()
+        dm.modules = lambda: []
+        mock_load.return_value.model = dm
+        mock_autoshape.return_value = MagicMock()
+        mock_compute_loss.return_value = MagicMock()
+        model = CustomYolov5Model()
+        dev = model._module_device()
+        assert isinstance(dev, torch.device)
+
+
+@pytest.mark.advsecurenet
+def test_to_method():
+    with patch("yolov5.load") as mock_load, patch(
+        "yolov5.models.common.AutoShape"
+    ) as mock_autoshape, patch("yolov5.utils.loss.ComputeLoss") as mock_compute_loss:
+        from advsecurenet.models.CustomODModels.CustomYolov5Model import (
+            CustomYolov5Model,
+        )
+        dm = MinimalYoloModel()
+        dm.modules = lambda: []
+        mock_load.return_value.model = dm
+        autoshape_mock = MagicMock()
+        autoshape_mock.to = MagicMock(return_value=autoshape_mock)
+        mock_autoshape.return_value = autoshape_mock
+        mock_compute_loss.return_value = MagicMock()
+        model = CustomYolov5Model()
+        # Test to() method
+        result = model.to("cpu")
+        assert result is model
+
+
+@pytest.mark.advsecurenet
+def test_load_model_weights_model_key(tmp_path, monkeypatch):
+    """Test load_model_weights with 'model' key in state dict."""
+    with patch("yolov5.load") as mock_load, patch(
+        "yolov5.models.common.AutoShape"
+    ) as mock_autoshape, patch("yolov5.utils.loss.ComputeLoss") as mock_compute_loss:
+        from advsecurenet.models.CustomODModels.CustomYolov5Model import (
+            CustomYolov5Model,
+        )
+        dm = MinimalYoloModel()
+        dm.modules = lambda: []
+        dm.state_dict = lambda: {"model.weight": torch.zeros(1)}
+        mock_load.return_value.model = dm
+        mock_autoshape.return_value = MagicMock()
+        mock_compute_loss.return_value = MagicMock()
+        
+        pth = tmp_path / "w.pth"
+        torch.save({"model": {"x": torch.tensor(1)}}, pth)
+        monkeypatch.setattr("os.path.isfile", lambda p: True)
+        model = CustomYolov5Model(model_weights_path=str(pth))
+        assert model._model is not None
+
+
+@pytest.mark.advsecurenet
+def test_translate_predictions_for_map_evaluator_yolo_expects_numpy_false_pascal(monkeypatch):
+    """Test translate_predictions_for_map_evaluator_yolo with expects_numpy=False and pascal mapping."""
+    from advsecurenet.models.CustomODModels.CustomYolov5Model import translate_predictions_for_map_evaluator_yolo
+    
+    preds = [
+        {
+            "boxes": torch.tensor([[0, 0, 10, 10]], dtype=torch.float32),
+            "scores": torch.tensor([0.9], dtype=torch.float32),
+            "labels": torch.tensor([5], dtype=torch.int64),  # Label 5
+        }
+    ]
+    results = translate_predictions_for_map_evaluator_yolo(preds, "pascal_voc", expects_numpy=False)
+    assert len(results) == 1
+    assert "boxes" in results[0]

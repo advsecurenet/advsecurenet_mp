@@ -292,3 +292,199 @@ def test_compute_object_mislabeling_gradient_paths(wrapper):
         )
         assert isinstance(grad, np.ndarray)
         assert grad.shape == x.shape
+
+
+@pytest.mark.advsecurenet
+def test_wrapper_init_without_num_classes(dummy_model):
+    del dummy_model.num_classes
+    w = ODWrapper(
+        model=dummy_model,
+        input_shape=(3, 224, 224),
+        device_type="cpu",
+        clip_values=(0, 255),
+        attack_losses=("loss_total",),
+        conf_thresh=0.7,
+    )
+    assert w.num_classes == 91  # default
+
+
+@pytest.mark.advsecurenet
+def test_filter_boxes_with_label_names(wrapper):
+    preds = {
+        "boxes": np.array([[1, 2, 3, 4]], dtype=np.float32),
+        "scores": np.array([0.9], dtype=np.float32),
+        "labels": np.array([1], dtype=np.int64),
+        "label_names": np.array(["person"], dtype=object),
+    }
+    out = wrapper.filter_boxes(preds, conf_thresh=0.5)
+    assert "label_names" in out
+    assert len(out["label_names"]) == 1
+
+
+@pytest.mark.advsecurenet
+def test_filter_boxes_label_names_empty(wrapper):
+    preds = {
+        "boxes": np.empty((0, 4), dtype=np.float32),
+        "scores": np.empty((0,), dtype=np.float32),
+        "labels": np.empty((0,), dtype=np.int64),
+        "label_names": np.array([], dtype=object),
+    }
+    out = wrapper.filter_boxes(preds, conf_thresh=0.5)
+    assert "label_names" in out
+    assert len(out["label_names"]) == 0
+
+
+@pytest.mark.advsecurenet
+def test_compute_object_vanishing_gradient_training_false(wrapper):
+    x = np.zeros((1, 3, 224, 224), dtype=np.float32)
+    with patch("torch.autograd.grad", return_value=[torch.zeros_like(torch.from_numpy(x))]):
+        grad = wrapper.compute_object_vanishing_gradient(x, training=False)
+        assert isinstance(grad, np.ndarray)
+        assert grad.shape == x.shape
+
+
+@pytest.mark.advsecurenet
+def test_compute_object_vanishing_gradient_non_yolov5(wrapper, dummy_model):
+    dummy_model.expects_numpy_images = False
+    dummy_model.predict = MagicMock(return_value={"dummy": True})
+    wrapper.model = dummy_model
+    x = np.zeros((1, 3, 224, 224), dtype=np.float32)
+    with patch("torch.autograd.grad", return_value=[torch.zeros_like(torch.from_numpy(x))]):
+        grad = wrapper.compute_object_vanishing_gradient(x, training=False)
+        assert isinstance(grad, np.ndarray)
+
+
+@pytest.mark.advsecurenet
+def test_compute_object_vanishing_gradient_no_clip_values(wrapper):
+    wrapper.clip_values = None
+    x = np.zeros((1, 3, 224, 224), dtype=np.float32)
+    with patch("torch.autograd.grad", return_value=[torch.zeros_like(torch.from_numpy(x))]):
+        grad = wrapper.compute_object_vanishing_gradient(x, training=False)
+        assert isinstance(grad, np.ndarray)
+
+
+@pytest.mark.advsecurenet
+def test_compute_object_untargeted_gradient_training_false(wrapper):
+    x = np.zeros((1, 3, 224, 224), dtype=np.float32)
+    det = [{"boxes": np.zeros((1, 4)), "labels": np.zeros((1,), dtype=np.int64)}]
+    with patch.object(wrapper, "compute_loss", return_value=torch.tensor(1.0, requires_grad=True)):
+        with patch("torch.autograd.grad", return_value=[torch.zeros_like(torch.from_numpy(x))]):
+            grad = wrapper.compute_object_untargeted_gradient(x, detections=det, training=False)
+            assert isinstance(grad, np.ndarray)
+
+
+@pytest.mark.advsecurenet
+def test_compute_object_untargeted_gradient_no_clip_values(wrapper):
+    wrapper.clip_values = None
+    x = np.zeros((1, 3, 224, 224), dtype=np.float32)
+    det = [{"boxes": np.zeros((1, 4)), "labels": np.zeros((1,), dtype=np.int64)}]
+    with patch.object(wrapper, "compute_loss", return_value=torch.tensor(1.0, requires_grad=True)):
+        with patch("torch.autograd.grad", return_value=[torch.zeros_like(torch.from_numpy(x))]):
+            grad = wrapper.compute_object_untargeted_gradient(x, detections=det, training=True)
+            assert isinstance(grad, np.ndarray)
+
+
+@pytest.mark.advsecurenet
+def test_compute_object_fabrication_gradient_training_true(wrapper):
+    x = np.zeros((1, 3, 224, 224), dtype=np.float32)
+    with patch("torch.autograd.grad", return_value=[torch.zeros_like(torch.from_numpy(x))]):
+        grad = wrapper.compute_object_fabrication_gradient(x, training=True)
+        assert isinstance(grad, np.ndarray)
+
+
+@pytest.mark.advsecurenet
+def test_compute_object_fabrication_gradient_non_yolov5(wrapper, dummy_model):
+    dummy_model.expects_numpy_images = False
+    dummy_model.predict = MagicMock(return_value={"dummy": True})
+    wrapper.model = dummy_model
+    x = np.zeros((1, 3, 224, 224), dtype=np.float32)
+    with patch("torch.autograd.grad", return_value=[torch.zeros_like(torch.from_numpy(x))]):
+        grad = wrapper.compute_object_fabrication_gradient(x, training=False)
+        assert isinstance(grad, np.ndarray)
+
+
+@pytest.mark.advsecurenet
+def test_compute_object_fabrication_gradient_no_clip_values(wrapper):
+    wrapper.clip_values = None
+    x = np.zeros((1, 3, 224, 224), dtype=np.float32)
+    with patch("torch.autograd.grad", return_value=[torch.zeros_like(torch.from_numpy(x))]):
+        grad = wrapper.compute_object_fabrication_gradient(x, training=False)
+        assert isinstance(grad, np.ndarray)
+
+
+@pytest.mark.advsecurenet
+def test_compute_object_mislabeling_gradient_no_targets(wrapper):
+    x = np.zeros((1, 3, 224, 224), dtype=np.float32)
+    det = [{"boxes": np.zeros((1, 4)), "labels": np.zeros((1,), dtype=np.int64)}]
+    grad = wrapper.compute_object_mislabeling_gradient(detections=det, x=x, target_labels_list=None)
+    assert np.all(grad == 0)
+
+
+@pytest.mark.advsecurenet
+def test_compute_object_mislabeling_gradient_empty_labels(wrapper):
+    x = np.zeros((1, 3, 224, 224), dtype=np.float32)
+    det = [{"boxes": np.zeros((1, 4)), "labels": np.array([], dtype=np.int64)}]
+    grad = wrapper.compute_object_mislabeling_gradient(detections=det, x=x, target_labels_list=None)
+    assert np.all(grad == 0)
+
+
+@pytest.mark.advsecurenet
+def test_compute_object_mislabeling_gradient_training_false(wrapper):
+    x = np.zeros((1, 3, 224, 224), dtype=np.float32)
+    target_labels_list = [{"boxes": np.zeros((1, 4)), "labels": np.array([2], dtype=np.int64)}]
+    
+    class DummyGradTensor(torch.Tensor):
+        @property
+        def grad(self):
+            return torch.zeros_like(torch.from_numpy(x))
+
+    with patch.object(wrapper, "_get_losses", return_value=({"loss_total": torch.tensor(1.0, requires_grad=True)}, DummyGradTensor())):
+        grad = wrapper.compute_object_mislabeling_gradient(
+            detections=[{"boxes": np.zeros((1, 4)), "labels": np.array([1], dtype=np.int64)}],
+            x=x,
+            target_labels_list=target_labels_list,
+            training=False,
+        )
+        assert isinstance(grad, np.ndarray)
+
+
+@pytest.mark.advsecurenet
+def test_compute_object_mislabeling_gradient_no_clip_values(wrapper):
+    wrapper.clip_values = None
+    x = np.zeros((1, 3, 224, 224), dtype=np.float32)
+    target_labels_list = [{"boxes": np.zeros((1, 4)), "labels": np.array([2], dtype=np.int64)}]
+    
+    class DummyGradTensor(torch.Tensor):
+        @property
+        def grad(self):
+            return torch.zeros_like(torch.from_numpy(x))
+
+    with patch.object(wrapper, "_get_losses", return_value=({"loss_total": torch.tensor(1.0, requires_grad=True)}, DummyGradTensor())):
+        grad = wrapper.compute_object_mislabeling_gradient(
+            detections=[{"boxes": np.zeros((1, 4)), "labels": np.array([1], dtype=np.int64)}],
+            x=x,
+            target_labels_list=target_labels_list,
+            training=True,
+        )
+        assert isinstance(grad, np.ndarray)
+
+
+@pytest.mark.advsecurenet
+def test_compute_loss_weight_dict_path(wrapper, dummy_model):
+    wrapper.weight_dict = {"loss_total": 2.0, "loss_box": 0.5}
+    dummy_model.return_value = {
+        "loss_total": torch.tensor(1.0, requires_grad=True),
+        "loss_box": torch.tensor(0.5),
+    }
+    x = torch.zeros((1, 3, 224, 224))
+    y = [{"boxes": torch.zeros((1, 4)), "labels": torch.zeros((1,), dtype=torch.long)}]
+    loss = wrapper.compute_loss(x, y)
+    assert isinstance(loss, torch.Tensor)
+
+
+@pytest.mark.advsecurenet
+def test_predict_no_clip_values(wrapper, dummy_model):
+    wrapper.clip_values = None
+    x = np.zeros((2, 3, 224, 224), dtype=np.float32)
+    preds = wrapper.predict(x, batch_size=1)
+    assert isinstance(preds, list)
