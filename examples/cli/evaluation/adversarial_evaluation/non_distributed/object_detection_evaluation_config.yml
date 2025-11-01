@@ -1,0 +1,9 @@
+evaluation_config:
+  attack:
+    name: tog
+    config: ../attacks/tog_attack_config.yml
+  evaluators:
+  - mean_average_precision
+  target_models:
+  - name: custom_yolov5_model
+    config: ../shared/od_model_config.yml
