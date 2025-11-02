@@ -12,13 +12,38 @@ from advsecurenet.llm_finetuning.train import run_training
 
 @click.group()
 def app():
-    """LLM fine-tuning CLI"""
+    """AdvSecureNet LLM Fine-tuning CLI.
+    
+    Command-line interface for fine-tuning language models with support for
+    parameter-efficient training methods like LoRA and QLoRA.
+    """
+
 
 
 def _apply_overrides(cfg: Config, **kw) -> Config:
-    """
-    Safely apply flat CLI flags onto nested Pydantic models
-    without downgrading them to dicts.
+    """Safely apply flat CLI flags onto nested Pydantic models.
+    
+    Updates configuration values from command-line overrides while preserving
+    the nested Pydantic model structure instead of converting to dictionaries.
+    
+    Args:
+        cfg (Config): Base configuration object to update.
+        **kw: Keyword arguments containing override values from CLI flags.
+            Supported keys:
+                - model_name (str): HuggingFace model identifier
+                - output_dir (str): Output directory path
+                - train_file (str): Training file path
+                - eval_file (str): Evaluation file path  
+                - peft (bool): Whether to enable PEFT training
+    
+    Returns:
+        Config: Updated configuration object with CLI overrides applied,
+            maintaining proper Pydantic model types for all nested objects.
+            
+    Example:
+        >>> base_config = load_yaml("config.yaml")
+        >>> updated = _apply_overrides(base_config, model_name="gpt2", peft=True)
+        >>> print(updated.train.model_name)  # "gpt2"
     """
     train_upd, data_upd, peft_upd = {}, {}, {}
 
@@ -67,7 +92,33 @@ def _apply_overrides(cfg: Config, **kw) -> Config:
     "--peft/--no-peft", "peft", default=None, help="Enable/disable LoRA/QLoRA."
 )
 def train(config_path, **overrides):
-    """Fine-tune a causal LM."""
+    """Start fine-tuning a language model.
+    
+    Supports two modes of operation:
+    1. Config file mode: Load settings from YAML and optionally override with CLI flags
+    2. Flags-only mode: Specify all required settings via command-line arguments
+    
+    Args:
+        config_path (str, optional): Path to YAML configuration file. If not provided,
+            must specify --model-name and --train-file as minimum requirements.
+        **overrides: Command-line override arguments:
+            - model_name (str): HuggingFace model identifier or local path
+            - train_file (str): Path to JSONL training data file
+            - eval_file (str, optional): Path to JSONL evaluation data file
+            - output_dir (str, optional): Directory to save model and checkpoints
+            - peft (bool, optional): Enable/disable parameter-efficient fine-tuning
+            
+    Raises:
+        click.UsageError: If required arguments are missing in flags-only mode.
+        FileNotFoundError: If specified config file doesn't exist.
+        ValidationError: If configuration values are invalid.
+        
+    Examples:
+        Config file mode:
+        >>> $ python -m advsecurenet.llm_finetuning.cli train \\
+        ...     --config configs/instruction.yaml \\
+        ...     --output-dir outputs/my-model
+        """
     if config_path:
         # Load a fully-typed Config from YAML
         cfg = load_yaml(config_path)
