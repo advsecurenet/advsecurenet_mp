@@ -4,8 +4,19 @@ from .config import DataConfig
 
 
 def load_tokenized_datasets(
-    cfg: DataConfig, tokenizer: PreTrainedTokenizerBase
-) -> DatasetDict:
+    cfg: DataConfig, tokenizer: PreTrainedTokenizerBase) -> DatasetDict:
+    """Load and tokenize datasets for language model fine-tuning.
+
+    Supports local JSONL files and HuggingFace Hub datasets with automatic
+    text formatting and tokenization.
+
+    Args:
+        cfg (DataConfig): Dataset configuration specifying source and preprocessing options.
+        tokenizer (PreTrainedTokenizerBase): Tokenizer for text processing.
+
+    Returns:
+        DatasetDict: Tokenized datasets with 'train' and optionally 'validation' splits.
+    """
     if cfg.train_file and cfg.train_file.endswith(".jsonl"):
         files = {"train": cfg.train_file}
         if cfg.eval_file:
@@ -27,6 +38,7 @@ def load_tokenized_datasets(
         )
 
     def to_text(ex):
+        """Convert dataset examples to text format for language modeling."""
         if cfg.prompt_field and cfg.response_field:
             return {"text": f"{ex[cfg.prompt_field]}\n{ex[cfg.response_field]}"}
         if cfg.text_field:
@@ -39,6 +51,7 @@ def load_tokenized_datasets(
     raw = raw.map(to_text)
 
     def tok(batch):
+        """Tokenize text batch with truncation."""
         return tokenizer(batch["text"], truncation=True, max_length=cfg.max_seq_len)
 
     tokenized = raw.map(tok, batched=True, remove_columns=raw["train"].column_names)
