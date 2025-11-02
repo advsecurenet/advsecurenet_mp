@@ -137,3 +137,5 @@ Qwen/
 outputs/
 dev/
 myenv/
+
+wandb/
