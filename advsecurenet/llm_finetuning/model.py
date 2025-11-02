@@ -6,6 +6,14 @@ import torch
 
 
 def load_tokenizer(cfg: Config):
+    """Load and configure a tokenizer for the specified model.
+
+    Args:
+        cfg (Config): Configuration object containing model settings.
+
+    Returns:
+        AutoTokenizer: Configured tokenizer with proper padding settings.
+    """
     tok = AutoTokenizer.from_pretrained(cfg.train.model_name, use_fast=True)
     if (
         getattr(tok, "pad_token", None) is None
@@ -22,7 +30,11 @@ def load_tokenizer(cfg: Config):
 
 
 def _in_distributed() -> bool:
-    """Detect if we're in a distributed/multi-process context (Accelerate/DDP)."""
+    """Detect if we're in a distributed/multi-process context (Accelerate/DDP).
+    
+    Returns:
+        bool: True if running in distributed mode, False otherwise.
+    """
     if int(os.environ.get("WORLD_SIZE", "1")) > 1 or "LOCAL_RANK" in os.environ:
         return True
     try:
@@ -34,9 +46,13 @@ def _in_distributed() -> bool:
 
 
 def _select_device_map():
-    """
-    Use 'auto' only in single-process mode.
-    In distributed training, let Accelerator/Trainer handle placement (device_map=None).
+    """Select appropriate device mapping strategy for model loading.
+
+    Use 'auto' only in single-process mode. In distributed training, 
+    let Accelerator/Trainer handle device placement.
+
+    Returns:
+        str | None: Device mapping strategy ("auto", "cpu", or None for distributed).
     """
     if _in_distributed():
         return None
@@ -44,15 +60,26 @@ def _select_device_map():
 
 
 def load_model(cfg: Config):
-    q4 = cfg.peft.enabled and (cfg.peft.quantization in {"qlora", "bnb-4bit"})
+    """Load and configure a language model for fine-tuning.
+
+    Handles model loading with optional quantization and PEFT configuration.
+    Supports both full fine-tuning and parameter-efficient methods like LoRA.
+
+    Args:
+        cfg (Config): Configuration object with model and PEFT settings.
+
+    Returns:
+        torch.nn.Module: Configured model ready for training, optionally wrapped with PEFT adapters.
+    """
+    use_4bit_quantization = cfg.peft.enabled and (cfg.peft.quantization in {"qlora", "bnb-4bit"})
     model = AutoModelForCausalLM.from_pretrained(
         cfg.train.model_name,
         device_map=_select_device_map(),
-        load_in_4bit=q4,
+        load_in_4bit=use_4bit_quantization,
     )
 
     if cfg.peft.enabled:
-        if q4:
+        if use_4bit_quantization:
             model = prepare_model_for_kbit_training(model)
         lora = LoraConfig(
             r=cfg.peft.r,
