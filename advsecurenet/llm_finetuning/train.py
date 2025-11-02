@@ -8,6 +8,11 @@ import torch, random, numpy as np
 
 
 def _set_seed(seed: int):
+    """Set random seeds for reproducible training.
+
+    Args:
+        seed (int): Random seed value for Python, NumPy, and PyTorch.
+    """
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -16,6 +21,17 @@ def _set_seed(seed: int):
 
 
 def run_training(cfg: Config):
+    """Execute the complete fine-tuning pipeline.
+
+    Orchestrates model loading, data preparation, training setup, and execution.
+    Handles both regular fine-tuning and parameter-efficient fine-tuning (PEFT).
+
+    Args:
+        cfg (Config): Complete configuration object with training, data, and PEFT settings.
+
+    Returns:
+        dict: Training results containing the output directory path.
+    """
     _set_seed(cfg.train.seed)
     tok = load_tokenizer(cfg)
     dsets = load_tokenized_datasets(cfg.data, tok)
