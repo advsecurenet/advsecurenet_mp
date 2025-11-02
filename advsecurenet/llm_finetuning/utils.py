@@ -224,26 +224,4 @@ def count_trainable_params(model) -> Tuple[int, float]:
     return trainable, pct
 
 
-# ---------- Safety checks ----------
 
-
-def require_bitsandbytes_if_needed(qlora_enabled: bool) -> None:
-    if qlora_enabled:
-        try:
-            import bitsandbytes  # noqa: F401
-        except Exception as e:
-            raise RuntimeError(
-                "QLoRA requested but bitsandbytes is not installed. "
-                "Install with: pip install bitsandbytes"
-            ) from e
-
-
-def maybe_torch_compile(model, enabled: bool = False):
-    """Optional PyTorch 2.x compile gate."""
-    if enabled and hasattr(torch, "compile"):
-        try:
-            model = torch.compile(model)  # type: ignore[attr-defined]
-        except Exception:
-            # Fallback silently; compile can be finicky depending on ops
-            pass
-    return model
