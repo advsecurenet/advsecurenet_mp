@@ -46,6 +46,7 @@ setup(
         "numpy>=1.21.0,<1.25.0",
         "peft",
         "bitsandbytes",
+        "accelerate",
     ],
     entry_points={
         "console_scripts": [

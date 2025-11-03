@@ -75,7 +75,8 @@ def load_model(cfg: Config):
     model = AutoModelForCausalLM.from_pretrained(
         cfg.train.model_name,
         device_map=_select_device_map(),
-        load_in_4bit=use_4bit_quantization,
+        torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
+        load_in_4bit=use_4bit_quantization
     )
 
     if cfg.peft.enabled:

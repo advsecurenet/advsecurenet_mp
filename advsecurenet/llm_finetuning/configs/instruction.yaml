@@ -22,7 +22,7 @@ train:
   dataloader_num_workers: 4
   disable_tqdm: false
   seed: 42
-  report_to: ["tensorboard"]     # or [] to silence external loggers
+  report_to: []     # or [] to silence external loggers
 
 data:
   hub_name: yahma/alpaca-cleaned
