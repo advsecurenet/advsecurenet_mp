@@ -246,7 +246,10 @@ class TestLoadModel:
 
         # Verify
         mock_auto_model.from_pretrained.assert_called_once_with(
-            "test-model", device_map="auto", load_in_4bit=False
+            "test-model",
+            device_map="auto",
+            torch_dtype=torch.float16,
+            load_in_4bit=False,
         )
         mock_prepare_model.assert_not_called()
         mock_lora_config.assert_not_called()
@@ -290,7 +293,10 @@ class TestLoadModel:
 
         # Verify
         mock_auto_model.from_pretrained.assert_called_once_with(
-            "test-model", device_map="auto", load_in_4bit=False
+            "test-model",
+            device_map="auto",
+            torch_dtype=torch.float16,
+            load_in_4bit=False,
         )
         mock_prepare_model.assert_not_called()
         mock_lora_config.assert_called_once_with(
@@ -343,7 +349,10 @@ class TestLoadModel:
 
         # Verify
         mock_auto_model.from_pretrained.assert_called_once_with(
-            "test-model", device_map="auto", load_in_4bit=True
+            "test-model",
+            device_map="auto",
+            torch_dtype=torch.float16,
+            load_in_4bit=True,
         )
         mock_prepare_model.assert_called_once_with(mock_model)
         mock_lora_config.assert_called_once_with(
@@ -396,7 +405,7 @@ class TestLoadModel:
 
         # Verify
         mock_auto_model.from_pretrained.assert_called_once_with(
-            "test-model", device_map="cpu", load_in_4bit=True
+            "test-model", device_map="cpu", torch_dtype=torch.float16, load_in_4bit=True
         )
         mock_prepare_model.assert_called_once_with(mock_model)
         mock_lora_config.assert_called_once_with(
@@ -449,6 +458,7 @@ class TestLoadModel:
         mock_auto_model.from_pretrained.assert_called_once_with(
             "test-model",
             device_map=None,
+            torch_dtype=torch.float16,
             load_in_4bit=False,  # Should be False since quantization is not qlora or bnb-4bit
         )
         mock_prepare_model.assert_not_called()  # Should not be called for non-4bit quantization
