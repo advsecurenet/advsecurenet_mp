@@ -41,7 +41,7 @@ coverage.xml
 
 # results
 examples/*/**.csv
-
+advsecurenet/llm/GCG/experiments/results
 # sonarqube
 .scannerwork/
 
@@ -51,3 +51,5 @@ attack/
 .venv
 .venv-mp20
 examples/advsecurenet/adversarial_attacks/*.pt
+
+clean_venv

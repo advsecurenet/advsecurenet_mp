@@ -1444,7 +1444,7 @@ class ModelWorker(object):
     def __init__(self, model_path, model_kwargs, tokenizer, conv_template, device):
         self.model = AutoModelForCausalLM.from_pretrained(
             model_path,
-            torch_dtype=torch.float16,
+            torch_dtype=torch.float32,
             trust_remote_code=True,
             **model_kwargs
         ).to(device).eval()
