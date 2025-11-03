@@ -203,7 +203,7 @@ class TestCliApp:
         result = runner.invoke(app, ["--help"])
 
         assert result.exit_code == 0
-        assert "LLM fine-tuning CLI" in result.output
+        assert "AdvSecureNet LLM Fine-tuning CLI" in result.output
         assert "train" in result.output
 
     def test_train_command_help(self):
@@ -212,7 +212,7 @@ class TestCliApp:
         result = runner.invoke(app, ["train", "--help"])
 
         assert result.exit_code == 0
-        assert "Fine-tune a causal LM" in result.output
+        assert "Start fine-tuning a language model" in result.output
         assert "--config" in result.output
         assert "--model-name" in result.output
         assert "--train-file" in result.output
