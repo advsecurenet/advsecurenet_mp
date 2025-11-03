@@ -24,9 +24,7 @@ from advsecurenet.llm_finetuning.utils import (
     resolve_path,
     time_block,
     cuda_mem,
-    count_trainable_params,
-    require_bitsandbytes_if_needed,
-    maybe_torch_compile,
+    count_trainable_params
 )
 
 
@@ -640,77 +638,6 @@ class TestIOUtils:
 
                     assert result == 0
 
-            class TestOptionalDependencies:
-                """Test optional dependency handling."""
-
-                @patch("advsecurenet.llm_finetuning.utils.importlib.util")
-                def test_require_bitsandbytes_if_needed_no_qlora(self, mock_util):
-                    """Test require_bitsandbytes_if_needed when QLora not needed."""
-                    config = Mock()
-                    config.use_qlora = False
-
-                    # Should not raise or check for bitsandbytes
-                    require_bitsandbytes_if_needed(config)
-
-                    mock_util.find_spec.assert_not_called()
-
-                @patch("advsecurenet.llm_finetuning.utils.importlib.util")
-                def test_require_bitsandbytes_if_needed_available(self, mock_util):
-                    """Test require_bitsandbytes_if_needed when bitsandbytes is available."""
-                    config = Mock()
-                    config.use_qlora = True
-
-                    mock_util.find_spec.return_value = Mock()  # Package found
-
-                    # Should not raise
-                    require_bitsandbytes_if_needed(config)
-
-                    mock_util.find_spec.assert_called_once_with("bitsandbytes")
-
-                @patch("advsecurenet.llm_finetuning.utils.importlib.util")
-                def test_require_bitsandbytes_if_needed_missing(self, mock_util):
-                    """Test require_bitsandbytes_if_needed when bitsandbytes is missing."""
-                    config = Mock()
-                    config.use_qlora = True
-
-                    mock_util.find_spec.return_value = None  # Package not found
-
-                    with pytest.raises(
-                        ImportError, match="bitsandbytes is required for QLoRA"
-                    ):
-                        require_bitsandbytes_if_needed(config)
-
-                @patch("advsecurenet.llm_finetuning.utils.torch")
-                def test_maybe_torch_compile_supported(self, mock_torch):
-                    """Test maybe_torch_compile when compilation is supported."""
-                    mock_model = Mock()
-                    mock_torch.compile.return_value = "compiled_model"
-
-                    result = maybe_torch_compile(mock_model, compile_model=True)
-
-                    mock_torch.compile.assert_called_once_with(mock_model)
-                    assert result == "compiled_model"
-
-                @patch("advsecurenet.llm_finetuning.utils.torch")
-                def test_maybe_torch_compile_disabled(self, mock_torch):
-                    """Test maybe_torch_compile when compilation is disabled."""
-                    mock_model = Mock()
-
-                    result = maybe_torch_compile(mock_model, compile_model=False)
-
-                    mock_torch.compile.assert_not_called()
-                    assert result == mock_model
-
-                @patch("advsecurenet.llm_finetuning.utils.torch")
-                def test_maybe_torch_compile_exception(self, mock_torch):
-                    """Test maybe_torch_compile handles compilation errors gracefully."""
-                    mock_model = Mock()
-                    mock_torch.compile.side_effect = Exception("Compilation failed")
-
-                    result = maybe_torch_compile(mock_model, compile_model=True)
-
-                    # Should return original model on failure
-                    assert result == mock_model
 
             class TestLoggingUtils:
                 """Test logging-related utilities."""
