@@ -13,19 +13,18 @@ from advsecurenet.llm_finetuning.train import run_training
 @click.group()
 def app():
     """AdvSecureNet LLM Fine-tuning CLI.
-    
+
     Command-line interface for fine-tuning language models with support for
     parameter-efficient training methods like LoRA and QLoRA.
     """
 
 
-
 def _apply_overrides(cfg: Config, **kw) -> Config:
     """Safely apply flat CLI flags onto nested Pydantic models.
-    
+
     Updates configuration values from command-line overrides while preserving
     the nested Pydantic model structure instead of converting to dictionaries.
-    
+
     Args:
         cfg (Config): Base configuration object to update.
         **kw: Keyword arguments containing override values from CLI flags.
@@ -33,13 +32,13 @@ def _apply_overrides(cfg: Config, **kw) -> Config:
                 - model_name (str): HuggingFace model identifier
                 - output_dir (str): Output directory path
                 - train_file (str): Training file path
-                - eval_file (str): Evaluation file path  
+                - eval_file (str): Evaluation file path
                 - peft (bool): Whether to enable PEFT training
-    
+
     Returns:
         Config: Updated configuration object with CLI overrides applied,
             maintaining proper Pydantic model types for all nested objects.
-            
+
     Example:
         >>> base_config = load_yaml("config.yaml")
         >>> updated = _apply_overrides(base_config, model_name="gpt2", peft=True)

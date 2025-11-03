@@ -222,6 +222,3 @@ def count_trainable_params(model) -> Tuple[int, float]:
     )
     pct = 100.0 * trainable / total if total else 0.0
     return trainable, pct
-
-
-

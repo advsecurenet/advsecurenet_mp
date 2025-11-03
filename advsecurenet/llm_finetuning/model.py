@@ -31,7 +31,7 @@ def load_tokenizer(cfg: Config):
 
 def _in_distributed() -> bool:
     """Detect if we're in a distributed/multi-process context (Accelerate/DDP).
-    
+
     Returns:
         bool: True if running in distributed mode, False otherwise.
     """
@@ -48,7 +48,7 @@ def _in_distributed() -> bool:
 def _select_device_map():
     """Select appropriate device mapping strategy for model loading.
 
-    Use 'auto' only in single-process mode. In distributed training, 
+    Use 'auto' only in single-process mode. In distributed training,
     let Accelerator/Trainer handle device placement.
 
     Returns:
@@ -71,12 +71,14 @@ def load_model(cfg: Config):
     Returns:
         torch.nn.Module: Configured model ready for training, optionally wrapped with PEFT adapters.
     """
-    use_4bit_quantization = cfg.peft.enabled and (cfg.peft.quantization in {"qlora", "bnb-4bit"})
+    use_4bit_quantization = cfg.peft.enabled and (
+        cfg.peft.quantization in {"qlora", "bnb-4bit"}
+    )
     model = AutoModelForCausalLM.from_pretrained(
         cfg.train.model_name,
         device_map=_select_device_map(),
         torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
-        load_in_4bit=use_4bit_quantization
+        load_in_4bit=use_4bit_quantization,
     )
 
     if cfg.peft.enabled:

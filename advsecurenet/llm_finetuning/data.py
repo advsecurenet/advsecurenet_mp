@@ -5,11 +5,11 @@ from .config import DataConfig
 
 def _format_example_to_text(example: dict, cfg: DataConfig) -> dict:
     """Convert dataset examples to text format for language modeling.
-    
+
     Args:
         example (dict): Raw example from the dataset.
         cfg (DataConfig): Configuration specifying field mappings and formatting.
-        
+
     Returns:
         dict: Formatted example with 'text' field ready for tokenization.
     """
@@ -23,14 +23,16 @@ def _format_example_to_text(example: dict, cfg: DataConfig) -> dict:
     return {"text": str(example)}
 
 
-def _tokenize_batch(batch: dict, tokenizer: PreTrainedTokenizerBase, max_length: int) -> dict:
+def _tokenize_batch(
+    batch: dict, tokenizer: PreTrainedTokenizerBase, max_length: int
+) -> dict:
     """Tokenize text batch with truncation.
-    
+
     Args:
         batch (dict): Batch of examples with 'text' field.
         tokenizer (PreTrainedTokenizerBase): Tokenizer for text processing.
         max_length (int): Maximum sequence length for truncation.
-        
+
     Returns:
         dict: Tokenized batch with input_ids, attention_mask, etc.
     """
@@ -38,7 +40,8 @@ def _tokenize_batch(batch: dict, tokenizer: PreTrainedTokenizerBase, max_length:
 
 
 def load_tokenized_datasets(
-    cfg: DataConfig, tokenizer: PreTrainedTokenizerBase) -> DatasetDict:
+    cfg: DataConfig, tokenizer: PreTrainedTokenizerBase
+) -> DatasetDict:
     """Load and tokenize datasets for language model fine-tuning.
 
     Supports local JSONL files and HuggingFace Hub datasets with automatic
@@ -79,7 +82,7 @@ def load_tokenized_datasets(
     tokenized = formatted.map(
         lambda batch: _tokenize_batch(batch, tokenizer, cfg.max_seq_len),
         batched=True,
-        remove_columns=formatted["train"].column_names
+        remove_columns=formatted["train"].column_names,
     )
-    
+
     return tokenized
