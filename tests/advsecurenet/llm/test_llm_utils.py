@@ -24,7 +24,7 @@ from advsecurenet.llm_finetuning.utils import (
     resolve_path,
     time_block,
     cuda_mem,
-    count_trainable_params
+    count_trainable_params,
 )
 
 
@@ -637,7 +637,6 @@ class TestIOUtils:
                     result = count_trainable_params(model)
 
                     assert result == 0
-
 
             class TestLoggingUtils:
                 """Test logging-related utilities."""
