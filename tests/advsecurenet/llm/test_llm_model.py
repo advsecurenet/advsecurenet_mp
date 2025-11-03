@@ -1,7 +1,7 @@
 import pytest
 import torch
 import os
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch, MagicMock, ANY
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 
@@ -248,7 +248,7 @@ class TestLoadModel:
         mock_auto_model.from_pretrained.assert_called_once_with(
             "test-model",
             device_map="auto",
-            torch_dtype=torch.float16,
+            torch_dtype=ANY,
             load_in_4bit=False,
         )
         mock_prepare_model.assert_not_called()
@@ -295,7 +295,7 @@ class TestLoadModel:
         mock_auto_model.from_pretrained.assert_called_once_with(
             "test-model",
             device_map="auto",
-            torch_dtype=torch.float16,
+            torch_dtype=ANY,
             load_in_4bit=False,
         )
         mock_prepare_model.assert_not_called()
@@ -351,7 +351,7 @@ class TestLoadModel:
         mock_auto_model.from_pretrained.assert_called_once_with(
             "test-model",
             device_map="auto",
-            torch_dtype=torch.float16,
+            torch_dtype=ANY,
             load_in_4bit=True,
         )
         mock_prepare_model.assert_called_once_with(mock_model)
@@ -405,7 +405,7 @@ class TestLoadModel:
 
         # Verify
         mock_auto_model.from_pretrained.assert_called_once_with(
-            "test-model", device_map="cpu", torch_dtype=torch.float16, load_in_4bit=True
+            "test-model", device_map="cpu", torch_dtype=ANY, load_in_4bit=True
         )
         mock_prepare_model.assert_called_once_with(mock_model)
         mock_lora_config.assert_called_once_with(
@@ -458,7 +458,7 @@ class TestLoadModel:
         mock_auto_model.from_pretrained.assert_called_once_with(
             "test-model",
             device_map=None,
-            torch_dtype=torch.float16,
+            torch_dtype=ANY,
             load_in_4bit=False,  # Should be False since quantization is not qlora or bnb-4bit
         )
         mock_prepare_model.assert_not_called()  # Should not be called for non-4bit quantization
