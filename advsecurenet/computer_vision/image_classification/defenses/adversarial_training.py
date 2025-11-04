@@ -14,7 +14,10 @@ from advsecurenet.shared.types.configs.defense_configs.adversarial_training_conf
 from advsecurenet.computer_vision.base.base_adversarial_training import (
     BaseAdversarialTraining,
 )
+from advsecurenet.trainer import trainer_logic
 from advsecurenet.utils.adversarial_target_generator import AdversarialTargetGenerator
+
+import advsecurenet.trainer.trainer_logic
 
 
 class AdversarialTraining(BaseAdversarialTraining):
@@ -40,10 +43,22 @@ class AdversarialTraining(BaseAdversarialTraining):
         return data[permutation], target[permutation]
 
     def _check_config(self, config: AdversarialTrainingConfig) -> None:
-        self._check_config_base(config)
+        # Check configuration validity
+        if not isinstance(config.train_config.model_config.model, BaseModel):
+            raise ValueError("Target model must be a subclass of BaseModel!")
+        if not all(isinstance(model, BaseModel) for model in config.models):
+            raise ValueError("All models must be a subclass of BaseModel!")
+        if not all(isinstance(attack, AdversarialAttack) for attack in config.attacks):
+            raise ValueError("All attacks must be a subclass of AdversarialAttack!")
+        if not isinstance(
+            config.train_config.training_process_config.train_loader, DataLoader
+        ):
+            raise ValueError("train_dataloader must be a DataLoader!")
+
         # check if any of the attacks are targeted and if so, check if the dataloader dataset is an instance of AdversarialDataset
         if any(attack.targeted for attack in config.attacks) and not isinstance(
-            config.train_loader.dataset, AdversarialDataset
+            config.train_config.training_process_config.train_loader.dataset,
+            AdversarialDataset,
         ):
             raise ValueError(
                 "If any of the attacks are targeted, the train_loader dataset must be an instance of AdversarialDataset!"
@@ -51,8 +66,11 @@ class AdversarialTraining(BaseAdversarialTraining):
         # if any of the attacks is LOTS, check if the dataset contains target images and target labels
         if (
             any(attack.name == "LOTS" for attack in config.attacks)
-            and not isinstance(config.train_loader.dataset, AdversarialDataset)
-            and len(config.train_loader) != 4
+            and not isinstance(
+                config.train_config.training_process_config.train_loader.dataset,
+                AdversarialDataset,
+            )
+            and len(config.train_config.training_process_config.train_loader) != 4
         ):
             raise ValueError(
                 "If the LOTS attack is used, the train_loader dataset must be an instance of AdversarialDataset and must contain target images and target labels!"
@@ -76,6 +94,17 @@ class AdversarialTraining(BaseAdversarialTraining):
             torch.cat([true_labels, adv_targets], dim=0),
         )
         return combined_data, combined_target
+
+    def _pre_training(self):
+        # add target model to list of models if not already present
+        if self.config.train_config.model_config.model not in self.config.models:
+            self.config.models.append(self.config.train_config.model_config.model)
+
+        # set each model to train mode
+        self.config.models = [model.train() for model in self.config.models]
+
+        # move each model to device
+        self.config.models = [model.to(self._device) for model in self.config.models]
 
     def _generate_adversarial_batch(
         self,
@@ -199,14 +228,34 @@ class AdversarialTraining(BaseAdversarialTraining):
                 images, adv_source, true_labels, adv_targets
             )
 
-            loss = self._run_batch(combined_data, combined_targets)
+            loss = trainer_logic.run_batch(
+                combined_data,
+                combined_targets,
+                self.model,
+                self.optimizer,
+                self._loss_fn,
+                self._scheduler,
+            )
             total_loss += loss
 
         total_loss /= self._get_loss_divisor()
-        self._log_loss(epoch, total_loss)
+        trainer_logic.log_loss(epoch, total_loss)
+
+    def _get_train_loader(self, epoch: int):
+        return tqdm(
+            self.config.train_config.training_process_config.train_loader,
+            desc="Adversarial Training",
+            leave=False,
+            position=1,
+            unit="batch",
+            colour="blue",
+        )
 
     def _prepare_data(self, *args):
         """
         Move the required data to the device.
         """
         return [arg.to(self._device) for arg in args if arg is not None]
+
+    def _get_loss_divisor(self):
+        return len(self.config.train_config.training_process_config.train_loader)

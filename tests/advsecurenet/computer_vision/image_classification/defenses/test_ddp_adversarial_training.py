@@ -11,6 +11,41 @@ from advsecurenet.shared.types.configs.defense_configs.adversarial_training_conf
     AdversarialTrainingConfig,
 )
 
+from advsecurenet.shared.types.configs.train_config import (
+    ModelConfig,
+    TrainingProcessConfig,
+)
+from advnet_common.types.configs.base import (
+    OptimizationBase,
+    CheckpointBase,
+    FinalModelBase,
+)
+
+from advsecurenet.shared.types.configs.device_config import DeviceConfig
+from advsecurenet.shared.types.configs.train_config import TrainConfig
+
+
+def create_mock_adversarial_training_config(mock_train_loader):
+    """Helper function to create a properly structured mock config."""
+    mock_model = MagicMock()
+    mock_attack = MagicMock()
+
+    # Create a TrainConfig with the new nested structure
+    train_config = TrainConfig(
+        model_config=ModelConfig(model=mock_model),
+        training_process_config=TrainingProcessConfig(
+            train_loader=mock_train_loader, epochs=1
+        ),
+        optimization_config=OptimizationBase(optimizer="adam"),
+        checkpoint_config=CheckpointBase(save_checkpoint=False),
+        final_model_config=FinalModelBase(save_final_model=False),
+        device_config=DeviceConfig(processor="cpu"),
+    )
+
+    return AdversarialTrainingConfig(
+        train_config=train_config, models=[mock_model], attacks=[mock_attack]
+    )
+
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
@@ -23,10 +58,8 @@ from advsecurenet.shared.types.configs.defense_configs.adversarial_training_conf
 def test_ddp_adversarial_training_init(
     mock_adversarial_training_init, mock_ddp_trainer_init
 ):
-    model = MagicMock()
-    models = []
-    attacks = [MagicMock()]
-    config = AdversarialTrainingConfig(model=model, models=models, attacks=attacks)
+    mock_train_loader = MagicMock(spec=DataLoader)
+    config = create_mock_adversarial_training_config(mock_train_loader)
     rank = 0
     world_size = 1
 
@@ -45,8 +78,7 @@ def test_get_train_loader(mock_ddp_adversarial_training_init):
     mock_train_loader = MagicMock(spec=DataLoader)
     mock_train_loader.sampler = mock_sampler
 
-    mock_config = MagicMock(spec=AdversarialTrainingConfig)
-    mock_config.train_loader = mock_train_loader
+    mock_config = create_mock_adversarial_training_config(mock_train_loader)
 
     # Initialize the DDPAdversarialTraining instance
     ddp_adversarial_training_instance = DDPAdversarialTraining.__new__(
@@ -85,8 +117,7 @@ def test_get_train_loader_non_zero_rank(mock_ddp_adversarial_training_init):
     mock_train_loader = MagicMock(spec=DataLoader)
     mock_train_loader.sampler = mock_sampler
 
-    mock_config = MagicMock(spec=AdversarialTrainingConfig)
-    mock_config.train_loader = mock_train_loader
+    mock_config = create_mock_adversarial_training_config(mock_train_loader)
 
     # Initialize the DDPAdversarialTraining instance
     ddp_adversarial_training_instance = DDPAdversarialTraining.__new__(
@@ -113,8 +144,7 @@ def test_get_loss_divisor(mock_ddp_adversarial_training_init):
     # Mock the length of the train loader
     mock_train_loader.__len__.return_value = 10
 
-    mock_config = MagicMock(spec=AdversarialTrainingConfig)
-    mock_config.train_loader = mock_train_loader
+    mock_config = create_mock_adversarial_training_config(mock_train_loader)
 
     # Initialize the DDPAdversarialTraining instance
     ddp_adversarial_training_instance = DDPAdversarialTraining.__new__(

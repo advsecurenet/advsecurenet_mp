@@ -119,9 +119,57 @@ def _get_identifier(config: CreateDatasetCliConfig) -> str:
 def _get_user_splits(config: CreateDatasetCliConfig) -> List[str]:
     """
     Determines the splits to load based on the user configuration.
-    Defaults to ['train', 'test'] if no splits are specified.
+
+    This function extracts the logical split names that the user wants to load,
+    following a priority order to determine which splits configuration to use.
+    The split names can be any custom names defined by the user.
+
+    Priority Order:
+        1. Keys from `split_config` dictionary (if provided)
+        2. Values from `load_splits` list (if explicitly provided and not empty)
+        3. Default: ['train', 'test']
+
+    Args:
+        config (CreateDatasetCliConfig): The user-facing dataset configuration.
+
+    Returns:
+        List[str]: A list of logical split names to load. These names will be used
+                  as keys in the final ResolvedDatasetConfig.splits dictionary.
+
+    Note:
+        Split Name Flexibility:
+        - The split names can be any custom names (e.g., 'validation', 'holdout', 'custom_split')
+        - However, CLI utilities in `cli/shared/utils/dataset.py` currently only retrieve
+          'train' and 'test' splits by default
+        - When using the API directly (as in `examples/advsecurenet/benign_training/benign_training.ipynb`),
+          any split name works as long as it matches the dictionary key name
+        - For custom split names to work with CLI utilities, the codebase would need updates
+          to handle non-standard split names
+
+    Examples:
+        >>> # Using split_config (highest priority) - typically created by factory
+        >>> # This would normally be populated by load_dataset() factory function
+        >>> config = CreateDatasetCliConfig(
+        ...     dataset_name="cifar10",
+        ...     split_config={"training": UserSplitConfig(), "validation": UserSplitConfig()}
+        ... )
+        >>> _get_user_splits(config)
+        ['training', 'validation']
+
+        >>> # Using load_splits (second priority) - direct API usage
+        >>> config = CreateDatasetCliConfig(
+        ...     dataset_name="cifar10",
+        ...     load_splits=["train", "test", "holdout"]
+        ... )
+        >>> _get_user_splits(config)
+        ['train', 'test', 'holdout']
+
+        >>> # Default case (no configuration provided)
+        >>> config = CreateDatasetCliConfig(dataset_name="cifar10")
+        >>> _get_user_splits(config)
+        ['train', 'test']
     """
-    # First priority: use the keys from split_config if it's provided.
+    # First priority: use the keys from split_config if it's provided and has keys.
     if config.split_config:
         return list(config.split_config.keys())
 
@@ -180,6 +228,13 @@ def resolve_dataset_config(config: CreateDatasetCliConfig) -> ResolvedDatasetCon
     split-specific overrides.
     """
     user_splits_to_process = _get_user_splits(config)
+
+    if not user_splits_to_process:
+        raise ValueError(
+            f"No splits defined for dataset '{config.dataset_name}'. "
+            "Please specify splits in 'split_config' or 'load_splits'."
+        )
+
     final_splits = {}
 
     for split_name in user_splits_to_process:

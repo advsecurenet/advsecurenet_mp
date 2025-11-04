@@ -178,3 +178,26 @@ def test_huggingface_dataset_with_real_data():
     assert y.dtype == torch.long
     # Check that the wrapper's name matches
     assert dataset_wrapper.name == ds.name
+
+
+@pytest.mark.advsecurenet
+@pytest.mark.essential
+def test_huggingface_dataset_get_dataset_class():
+    """Test that get_dataset_class returns None"""
+    ds = HuggingFaceDataset(num_classes=10)
+    result = ds.get_dataset_class()
+    assert result is None
+
+
+@pytest.mark.advsecurenet
+@pytest.mark.essential
+def test_huggingface_dataset_create_dataset_not_implemented():
+    """Test that _create_dataset raises NotImplementedError"""
+    ds = HuggingFaceDataset(num_classes=10)
+    with pytest.raises(NotImplementedError) as excinfo:
+        ds._create_dataset(
+            dataset_class=None, transform=None, root="/tmp", train=True, download=False
+        )
+    assert "_create_dataset is not applicable to HuggingFaceDataset." in str(
+        excinfo.value
+    )

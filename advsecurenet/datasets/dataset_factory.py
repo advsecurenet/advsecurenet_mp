@@ -67,14 +67,52 @@ class DatasetFactory:
         resolved_config: ResolvedDatasetConfig, **runtime_kwargs
     ) -> Dict[str, Optional[BaseDataset]]:
         """
-        The main entry point for loading datasets from a resolved configuration.
+        Loads one or more dataset splits from a resolved configuration.
+
+        This is the main entry point for loading datasets from a fully resolved configuration.
+        It processes each split defined in the configuration, creates appropriate dataset providers,
+        and loads the actual datasets with proper error handling.
+
+        The function performs the following steps for each split:
+        1. Infers dataset type from the identifier (e.g., CIFAR10, HUGGINGFACE)
+        2. Processes the identifier (normalizes Hugging Face URLs, validates format)
+        3. Creates a dataset provider instance with constructor arguments
+        4. Prepares load arguments by merging config kwargs, overrides, and runtime kwargs
+        5. Processes the arguments through the provider's preprocessing
+        6. Loads the actual dataset using the provider
+
+        Args:
+            resolved_config (ResolvedDatasetConfig): A fully resolved dataset configuration
+                containing splits with their identifiers, paths, preprocessing configs, etc.
+            **runtime_kwargs: Additional keyword arguments passed at runtime that can
+                override configuration values. Common examples include batch_size,
+                num_workers, or dataset-specific parameters.
+
+        Returns:
+            Dict[str, Optional[BaseDataset]]: A dictionary mapping logical split names
+                (e.g., 'train', 'test', 'validation') to their corresponding loaded
+                dataset instances. If a split fails to load, its value will be None.
+
+        Raises:
+            No exceptions are raised directly. Individual split loading errors are caught,
+            logged as warnings, and result in None values in the returned dictionary.
+
+        Example:
+            >>> config = resolve_dataset_config(some_config)
+            >>> datasets = DatasetFactory.load_dataset_from_config(
+            ...     config,
+            ...     batch_size=32,
+            ...     num_workers=4
+            ... )
+            >>> train_dataset = datasets['train']
+            >>> test_dataset = datasets['test']
         """
         loaded_datasets: Dict[str, Optional[BaseDataset]] = {}
 
         for logical_name, split_config in resolved_config.splits.items():
             try:
                 # 1. Create the dataset provider instance with constructor args from the config
-                dataset_type = _infner_dataset_type(split_config.identifier)
+                dataset_type = _infer_dataset_type(split_config.identifier)
 
                 identifier = _process_identifier(dataset_type, split_config.identifier)
 
@@ -133,7 +171,7 @@ def _create_provider(
     return dataset_cls(**constructor_args)
 
 
-def _infner_dataset_type(identifier: str) -> DatasetType:
+def _infer_dataset_type(identifier: str) -> DatasetType:
     """
     Infers the dataset type from the identifier.
 
@@ -246,6 +284,26 @@ def _prepare_load_kwargs(
 
 
 def _process_identifier(dataset_type: DatasetType, identifier: str) -> str:
+    """
+    Processes a dataset identifier based on the dataset type.
+
+    For Hugging Face datasets, this function normalizes URLs or validates ID format.
+    For other dataset types, the identifier is returned unchanged.
+
+    Args:
+        dataset_type (DatasetType): The type of dataset being processed.
+        identifier (str): The dataset identifier (e.g., URL, ID, or name).
+
+    Returns:
+        str: The processed identifier. For Hugging Face datasets, this returns
+             a normalized ID in 'user/repo' format. For other types, returns
+             the original identifier unchanged.
+
+    Example:
+        >>> _process_identifier(DatasetType.HUGGINGFACE, "https://huggingface.co/user/repo")
+        "user/repo"
+        >>> _process_identifier(DatasetType.CIFAR10, "cifar10")
+    """
     if dataset_type == DatasetType.HUGGINGFACE:
         return huggingface_general_utils.process_hf_identifier(identifier)
     else:

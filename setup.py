@@ -39,6 +39,7 @@ setup(
         "yolov5",
         "huggingface-hub==0.24.1",  # Ensure compatibility with YOLOv5
         "pycocotools",
+        "opacus",
     ],
     entry_points={
         "console_scripts": [

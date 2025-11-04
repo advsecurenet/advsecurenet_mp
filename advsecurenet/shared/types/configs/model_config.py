@@ -86,7 +86,7 @@ class IdentifierSource(Enum):
 
 
 @staticmethod
-def determine_identifier_and_soruce(config: CreateModelConfig):
+def determine_identifier_and_source(config: CreateModelConfig):
     if config.model_identifier:
         identifier = config.model_identifier
         source = IdentifierSource.MODEL_IDENTIFIER

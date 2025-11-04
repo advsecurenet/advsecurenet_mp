@@ -21,11 +21,13 @@ class DDPAdversarialTraining(DDPTrainer, AdversarialTraining):
     def __init__(
         self, config: AdversarialTrainingConfig, rank: int, world_size: int
     ) -> None:
-        DDPTrainer.__init__(self, config=config, rank=rank, world_size=world_size)
+        DDPTrainer.__init__(
+            self, config=config.train_config, rank=rank, world_size=world_size
+        )
         AdversarialTraining.__init__(self, config=config)
 
     def _get_train_loader(self, epoch: int):
-        sampler = self.config.train_loader.sampler
+        sampler = self.config.train_config.training_process_config.train_loader.sampler
         assert isinstance(
             sampler, DistributedSampler
         ), "Sampler must be a DistributedSampler"
@@ -33,7 +35,7 @@ class DDPAdversarialTraining(DDPTrainer, AdversarialTraining):
 
         if self._rank == 0:
             return tqdm(
-                self.config.train_loader,
+                self.config.train_config.training_process_config.train_loader,
                 desc="Adversarial Training",
                 leave=False,
                 position=1,
@@ -41,7 +43,10 @@ class DDPAdversarialTraining(DDPTrainer, AdversarialTraining):
                 colour="blue",
             )
         else:
-            return self.config.train_loader
+            return self.config.train_config.training_process_config.train_loader
 
     def _get_loss_divisor(self):
-        return len(self.config.train_loader) * self._world_size
+        return (
+            len(self.config.train_config.training_process_config.train_loader)
+            * self._world_size
+        )

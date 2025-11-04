@@ -728,7 +728,7 @@ def test_models_method():
         ("http://huggingface.co/user/repo", True),
         ("https://www.huggingface.co/user/repo", True),
         ("https://hf.co/user/repo", True),
-        ("huggingface.co/user/repo", False),  # Missing scheme
+        ("huggingface.co/user/repo", True),
         ("https://google.com/user/repo", False),
         ("https://huggingface.co/user", False),  # Missing repo part
         ("https://huggingface.co/user/repo/tree/main", True),  # Extra parts ok

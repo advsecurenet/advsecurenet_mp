@@ -21,7 +21,7 @@ class BaseAdversarialTraining(Trainer):
 
     def __init__(self, config: AdversarialTrainingConfig) -> None:
         self.config: AdversarialTrainingConfig = config
-        super().__init__(config)
+        super().__init__(config.train_config)
 
     def _check_config_base(self, config: AdversarialTrainingConfig) -> None:
         # Check configuration validity

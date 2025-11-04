@@ -5,7 +5,9 @@ from torch.utils.data import Subset
 
 import click
 
-from advsecurenet.computer_vision.base.adversarial_attack import AdversarialAttack
+from advsecurenet.computer_vision.base.adversarial_attack import (
+    AdversarialAttack,
+)
 from advsecurenet.computer_vision.image_classification.defenses.adversarial_training import (
     AdversarialTraining,
 )
@@ -190,7 +192,7 @@ class ATCLITrainer(CLITrainer):
         models.append(model)
 
         config = AdversarialTrainingConfig(
-            models=models, attacks=attacks, **asdict(train_config)
+            models=models, attacks=attacks, train_config=train_config
         )
         return config
 

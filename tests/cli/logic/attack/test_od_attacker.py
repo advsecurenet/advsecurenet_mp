@@ -117,10 +117,11 @@ def test_execute_tog(
 
 @pytest.mark.cli
 @pytest.mark.essential
+@patch("cli.logic.attack.od_attacker.get_datasets")
 @patch("cli.logic.attack.od_attacker.DDPCoordinator")
 @patch("cli.logic.attack.od_attacker.DDPODAttacker")
 @patch("cli.logic.attack.od_attacker.set_visible_gpus")
-def test_execute_ddp_flow(mock_set_visible_gpus, mock_ddp_od_attacker, mock_ddp_coord, od_attacker_config):
+def test_execute_ddp_flow(mock_set_visible_gpus, mock_ddp_od_attacker, mock_ddp_coord, mock_get_datasets, od_attacker_config):
     class DummyAttackType:
         name = "DPATCH"
 
@@ -131,11 +132,11 @@ def test_execute_ddp_flow(mock_set_visible_gpus, mock_ddp_od_attacker, mock_ddp_
     od_attacker_config.attack_procedure.save_result_images = True
     mock_ddp_coord.return_value.run.return_value = None
     mock_ddp_od_attacker.gather_results.return_value = ["imgA", "imgB"]
+    mock_get_datasets.return_value = (MagicMock(), MagicMock())
 
     attacker = CLIODAttacker(od_attacker_config, DummyAttackType())
     with patch("click.secho"):
-        with patch.object(attacker, "_prepare_attack_config", return_value=(MagicMock(), {})):
-            attacker.execute()
+        attacker.execute()
     mock_set_visible_gpus.assert_called_once()
     mock_ddp_coord.assert_called_once()
     mock_ddp_od_attacker.gather_results.assert_called_once_with(2)
@@ -249,6 +250,7 @@ def test_sample_data_if_required_no_sampling(od_attacker_config):
         name = "DPATCH"
 
     od_attacker_config.dataset.random_sample_size = None
+    od_attacker_config.dataset.split_config = None
     attacker = CLIODAttacker(od_attacker_config, DummyAttackType())
     mock_data = MagicMock()
     result = attacker._sample_data_if_required(mock_data)
@@ -257,10 +259,11 @@ def test_sample_data_if_required_no_sampling(od_attacker_config):
 
 @pytest.mark.cli
 @pytest.mark.essential
+@patch("cli.logic.attack.od_attacker.get_datasets")
 @patch("cli.logic.attack.od_attacker.create_model")
 @patch("cli.logic.attack.od_attacker.get_object_detector")
 @patch("cli.logic.attack.od_attacker.DPatch")
-def test_prepare_attack_config_builds_configs(mock_dpatch, mock_get_object_detector, mock_create_model, od_attacker_config):
+def test_prepare_attack_config_builds_configs(mock_dpatch, mock_get_object_detector, mock_create_model, mock_get_datasets, od_attacker_config):
     class DummyAttackType:
         name = "DPATCH"
 
@@ -270,6 +273,7 @@ def test_prepare_attack_config_builds_configs(mock_dpatch, mock_get_object_detec
     mock_create_model.return_value = MagicMock(model=model_instance)
     mock_get_object_detector.return_value = MagicMock()
     mock_dpatch.return_value = MagicMock()
+    mock_get_datasets.return_value = (MagicMock(), MagicMock())
 
     attacker = CLIODAttacker(od_attacker_config, DummyAttackType())
     cfg, extras = attacker._prepare_attack_config()
@@ -280,10 +284,11 @@ def test_prepare_attack_config_builds_configs(mock_dpatch, mock_get_object_detec
 
 @pytest.mark.cli
 @pytest.mark.essential
-def test_create_dataloader_config_sets_collate_for_coco(od_attacker_config):
+@patch("cli.logic.attack.od_attacker.get_datasets")
+def test_create_dataloader_config_sets_collate_for_coco(mock_get_datasets, od_attacker_config):
     class DummyAttackType:
         name = "DPATCH"
-
+    mock_get_datasets.return_value = (MagicMock(), MagicMock())
     od_attacker_config.dataset.dataset_name = "COCO"
     attacker = CLIODAttacker(od_attacker_config, DummyAttackType())
     dl_cfg = attacker._create_dataloader_config()
@@ -307,10 +312,11 @@ def test_create_dataloader_config_without_coco(mock_get_datasets, od_attacker_co
 
 @pytest.mark.cli
 @pytest.mark.essential
-def test_build_concrete_attacker_class_unknown_raises(od_attacker_config):
+@patch("cli.logic.attack.od_attacker.get_datasets")
+def test_build_concrete_attacker_class_unknown_raises(mock_get_datasets, od_attacker_config):
     class DummyAttackType:
         name = "UNKNOWN"
-
+    mock_get_datasets.return_value = (MagicMock(), MagicMock())
     attacker = CLIODAttacker(od_attacker_config, DummyAttackType())
     with pytest.raises(ValueError):
         attacker._build_concrete_attacker_class()
