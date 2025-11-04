@@ -18,6 +18,7 @@ def dummy_model():
         class Inference:
             def eval(self):  # mimic nn.Module interface used in wrapper.predict
                 return self
+
         inf = Inference()
         return inf
 
@@ -27,18 +28,30 @@ def dummy_model():
     model.prepare_training_inputs = MagicMock(side_effect=lambda x, y: (x, y))
     model.preprocess_x_for_loss_calculation = MagicMock(
         side_effect=lambda x, requires_grad=False: torch.zeros(
-            (x.shape[0], x.shape[1], x.shape[2], x.shape[3]) if isinstance(x, torch.Tensor) else (1, 3, 224, 224),
+            (
+                (x.shape[0], x.shape[1], x.shape[2], x.shape[3])
+                if isinstance(x, torch.Tensor)
+                else (1, 3, 224, 224)
+            ),
             requires_grad=requires_grad,
             dtype=torch.float32,
         )
     )
     model.translate_labels = MagicMock(side_effect=lambda y, batch_size=None: y)
-    model.predict_per_batch = MagicMock(side_effect=lambda xb, inf, clip: [
-        {"boxes": np.empty((0, 4), dtype=np.float32), "scores": np.empty((0,), dtype=np.float32), "labels": np.empty((0,), dtype=np.int64)}
-        for _ in range(xb.shape[0])
-    ])
+    model.predict_per_batch = MagicMock(
+        side_effect=lambda xb, inf, clip: [
+            {
+                "boxes": np.empty((0, 4), dtype=np.float32),
+                "scores": np.empty((0,), dtype=np.float32),
+                "labels": np.empty((0,), dtype=np.int64),
+            }
+            for _ in range(xb.shape[0])
+        ]
+    )
     model.predict = MagicMock(side_effect=lambda x, training=False: {"dummy": True})
-    model.calculate_loss = MagicMock(side_effect=lambda preds, target_val=0.0: torch.tensor(0.0, requires_grad=True))
+    model.calculate_loss = MagicMock(
+        side_effect=lambda preds, target_val=0.0: torch.tensor(0.0, requires_grad=True)
+    )
     model.train = MagicMock()
     model.zero_grad = MagicMock()
     return model
@@ -104,7 +117,13 @@ def test_extract_total_loss_with_total_key(wrapper):
 
 
 def test_extract_total_loss_sums_components(wrapper):
-    out = wrapper.extract_total_loss({"loss_box": torch.tensor(0.5), "loss_obj": torch.tensor(0.3), "loss_cls": torch.tensor(0.2)})
+    out = wrapper.extract_total_loss(
+        {
+            "loss_box": torch.tensor(0.5),
+            "loss_obj": torch.tensor(0.3),
+            "loss_cls": torch.tensor(0.2),
+        }
+    )
     assert isinstance(out, torch.Tensor)
     assert torch.isclose(out, torch.tensor(1.0))
 
@@ -163,7 +182,12 @@ def test__get_losses_and_compute_loss_numpy(wrapper, dummy_model):
 
 
 def test_compute_loss_with_weight_dict(wrapper, dummy_model):
-    wrapper.weight_dict = {"loss_total": 1.0, "loss_box": 0.5, "loss_obj": 0.5, "loss_cls": 0.5}
+    wrapper.weight_dict = {
+        "loss_total": 1.0,
+        "loss_box": 0.5,
+        "loss_obj": 0.5,
+        "loss_cls": 0.5,
+    }
     dummy_model.return_value = {
         "loss_total": torch.tensor(1.0),
         "loss_box": torch.tensor(0.5),
@@ -185,7 +209,14 @@ def test_loss_gradient_numpy_returns_numpy(wrapper):
         def grad(self):
             return torch.zeros_like(torch.from_numpy(x))
 
-    with patch.object(wrapper, "_get_losses", return_value=({"loss_total": torch.tensor(1.0, requires_grad=True)}, DummyGradTensor())):
+    with patch.object(
+        wrapper,
+        "_get_losses",
+        return_value=(
+            {"loss_total": torch.tensor(1.0, requires_grad=True)},
+            DummyGradTensor(),
+        ),
+    ):
         with patch("builtins.sum", return_value=torch.tensor(1.0, requires_grad=True)):
             out = wrapper.loss_gradient(x, y)
             assert isinstance(out, np.ndarray)
@@ -201,7 +232,14 @@ def test_loss_gradient_torch_returns_tensor(wrapper):
         def grad(self):
             return torch.zeros_like(x)
 
-    with patch.object(wrapper, "_get_losses", return_value=({"loss_total": torch.tensor(1.0, requires_grad=True)}, DummyGradTensor())):
+    with patch.object(
+        wrapper,
+        "_get_losses",
+        return_value=(
+            {"loss_total": torch.tensor(1.0, requires_grad=True)},
+            DummyGradTensor(),
+        ),
+    ):
         with patch("builtins.sum", return_value=torch.tensor(1.0, requires_grad=True)):
             out = wrapper.loss_gradient(x, y)
             assert isinstance(out, torch.Tensor)
@@ -217,9 +255,18 @@ def test_loss_gradient_raises_when_grad_none(wrapper):
         def grad(self):
             return None
 
-    with patch.object(wrapper, "_get_losses", return_value=({"loss_total": torch.tensor(1.0, requires_grad=True)}, DummyGradTensor())):
+    with patch.object(
+        wrapper,
+        "_get_losses",
+        return_value=(
+            {"loss_total": torch.tensor(1.0, requires_grad=True)},
+            DummyGradTensor(),
+        ),
+    ):
         with patch("builtins.sum", return_value=torch.tensor(1.0, requires_grad=True)):
-            with pytest.raises(ValueError, match="Gradient term in PyTorch model is `None`."):
+            with pytest.raises(
+                ValueError, match="Gradient term in PyTorch model is `None`."
+            ):
                 wrapper.loss_gradient(x, y)
 
 
@@ -240,7 +287,9 @@ def test_predict_torch_input(wrapper):
 
 def test_compute_object_vanishing_gradient(wrapper):
     x = np.zeros((1, 3, 224, 224), dtype=np.float32)
-    with patch("torch.autograd.grad", return_value=[torch.zeros_like(torch.from_numpy(x))]):
+    with patch(
+        "torch.autograd.grad", return_value=[torch.zeros_like(torch.from_numpy(x))]
+    ):
         grad = wrapper.compute_object_vanishing_gradient(x, training=True)
         assert isinstance(grad, np.ndarray)
         assert grad.shape == x.shape
@@ -255,8 +304,12 @@ def test_compute_object_untargeted_gradient_no_detections(wrapper):
 def test_compute_object_untargeted_gradient_with_detections(wrapper):
     x = np.zeros((1, 3, 224, 224), dtype=np.float32)
     det = [{"boxes": np.zeros((1, 4)), "labels": np.zeros((1,), dtype=np.int64)}]
-    with patch.object(wrapper, "compute_loss", return_value=torch.tensor(1.0, requires_grad=True)):
-        with patch("torch.autograd.grad", return_value=[torch.zeros_like(torch.from_numpy(x))]):
+    with patch.object(
+        wrapper, "compute_loss", return_value=torch.tensor(1.0, requires_grad=True)
+    ):
+        with patch(
+            "torch.autograd.grad", return_value=[torch.zeros_like(torch.from_numpy(x))]
+        ):
             grad = wrapper.compute_object_untargeted_gradient(x, detections=det)
             assert isinstance(grad, np.ndarray)
             assert grad.shape == x.shape
@@ -264,7 +317,9 @@ def test_compute_object_untargeted_gradient_with_detections(wrapper):
 
 def test_compute_object_fabrication_gradient(wrapper):
     x = np.zeros((1, 3, 224, 224), dtype=np.float32)
-    with patch("torch.autograd.grad", return_value=[torch.zeros_like(torch.from_numpy(x))]):
+    with patch(
+        "torch.autograd.grad", return_value=[torch.zeros_like(torch.from_numpy(x))]
+    ):
         grad = wrapper.compute_object_fabrication_gradient(x, training=False)
         assert isinstance(grad, np.ndarray)
         assert grad.shape == x.shape
@@ -276,16 +331,27 @@ def test_compute_object_mislabeling_gradient_paths(wrapper):
     g0 = wrapper.compute_object_mislabeling_gradient(detections=None, x=x)
     assert np.all(g0 == 0)
     # with targets list -> use _get_losses
-    target_labels_list = [{"boxes": np.zeros((1, 4)), "labels": np.array([2], dtype=np.int64)}]
+    target_labels_list = [
+        {"boxes": np.zeros((1, 4)), "labels": np.array([2], dtype=np.int64)}
+    ]
 
     class DummyGradTensor(torch.Tensor):
         @property
         def grad(self):
             return torch.zeros_like(torch.from_numpy(x))
 
-    with patch.object(wrapper, "_get_losses", return_value=({"loss_total": torch.tensor(1.0, requires_grad=True)}, DummyGradTensor())):
+    with patch.object(
+        wrapper,
+        "_get_losses",
+        return_value=(
+            {"loss_total": torch.tensor(1.0, requires_grad=True)},
+            DummyGradTensor(),
+        ),
+    ):
         grad = wrapper.compute_object_mislabeling_gradient(
-            detections=[{"boxes": np.zeros((1, 4)), "labels": np.array([1], dtype=np.int64)}],
+            detections=[
+                {"boxes": np.zeros((1, 4)), "labels": np.array([1], dtype=np.int64)}
+            ],
             x=x,
             target_labels_list=target_labels_list,
             training=True,
@@ -337,7 +403,9 @@ def test_filter_boxes_label_names_empty(wrapper):
 @pytest.mark.advsecurenet
 def test_compute_object_vanishing_gradient_training_false(wrapper):
     x = np.zeros((1, 3, 224, 224), dtype=np.float32)
-    with patch("torch.autograd.grad", return_value=[torch.zeros_like(torch.from_numpy(x))]):
+    with patch(
+        "torch.autograd.grad", return_value=[torch.zeros_like(torch.from_numpy(x))]
+    ):
         grad = wrapper.compute_object_vanishing_gradient(x, training=False)
         assert isinstance(grad, np.ndarray)
         assert grad.shape == x.shape
@@ -349,7 +417,9 @@ def test_compute_object_vanishing_gradient_non_yolov5(wrapper, dummy_model):
     dummy_model.predict = MagicMock(return_value={"dummy": True})
     wrapper.model = dummy_model
     x = np.zeros((1, 3, 224, 224), dtype=np.float32)
-    with patch("torch.autograd.grad", return_value=[torch.zeros_like(torch.from_numpy(x))]):
+    with patch(
+        "torch.autograd.grad", return_value=[torch.zeros_like(torch.from_numpy(x))]
+    ):
         grad = wrapper.compute_object_vanishing_gradient(x, training=False)
         assert isinstance(grad, np.ndarray)
 
@@ -358,7 +428,9 @@ def test_compute_object_vanishing_gradient_non_yolov5(wrapper, dummy_model):
 def test_compute_object_vanishing_gradient_no_clip_values(wrapper):
     wrapper.clip_values = None
     x = np.zeros((1, 3, 224, 224), dtype=np.float32)
-    with patch("torch.autograd.grad", return_value=[torch.zeros_like(torch.from_numpy(x))]):
+    with patch(
+        "torch.autograd.grad", return_value=[torch.zeros_like(torch.from_numpy(x))]
+    ):
         grad = wrapper.compute_object_vanishing_gradient(x, training=False)
         assert isinstance(grad, np.ndarray)
 
@@ -367,9 +439,15 @@ def test_compute_object_vanishing_gradient_no_clip_values(wrapper):
 def test_compute_object_untargeted_gradient_training_false(wrapper):
     x = np.zeros((1, 3, 224, 224), dtype=np.float32)
     det = [{"boxes": np.zeros((1, 4)), "labels": np.zeros((1,), dtype=np.int64)}]
-    with patch.object(wrapper, "compute_loss", return_value=torch.tensor(1.0, requires_grad=True)):
-        with patch("torch.autograd.grad", return_value=[torch.zeros_like(torch.from_numpy(x))]):
-            grad = wrapper.compute_object_untargeted_gradient(x, detections=det, training=False)
+    with patch.object(
+        wrapper, "compute_loss", return_value=torch.tensor(1.0, requires_grad=True)
+    ):
+        with patch(
+            "torch.autograd.grad", return_value=[torch.zeros_like(torch.from_numpy(x))]
+        ):
+            grad = wrapper.compute_object_untargeted_gradient(
+                x, detections=det, training=False
+            )
             assert isinstance(grad, np.ndarray)
 
 
@@ -378,16 +456,24 @@ def test_compute_object_untargeted_gradient_no_clip_values(wrapper):
     wrapper.clip_values = None
     x = np.zeros((1, 3, 224, 224), dtype=np.float32)
     det = [{"boxes": np.zeros((1, 4)), "labels": np.zeros((1,), dtype=np.int64)}]
-    with patch.object(wrapper, "compute_loss", return_value=torch.tensor(1.0, requires_grad=True)):
-        with patch("torch.autograd.grad", return_value=[torch.zeros_like(torch.from_numpy(x))]):
-            grad = wrapper.compute_object_untargeted_gradient(x, detections=det, training=True)
+    with patch.object(
+        wrapper, "compute_loss", return_value=torch.tensor(1.0, requires_grad=True)
+    ):
+        with patch(
+            "torch.autograd.grad", return_value=[torch.zeros_like(torch.from_numpy(x))]
+        ):
+            grad = wrapper.compute_object_untargeted_gradient(
+                x, detections=det, training=True
+            )
             assert isinstance(grad, np.ndarray)
 
 
 @pytest.mark.advsecurenet
 def test_compute_object_fabrication_gradient_training_true(wrapper):
     x = np.zeros((1, 3, 224, 224), dtype=np.float32)
-    with patch("torch.autograd.grad", return_value=[torch.zeros_like(torch.from_numpy(x))]):
+    with patch(
+        "torch.autograd.grad", return_value=[torch.zeros_like(torch.from_numpy(x))]
+    ):
         grad = wrapper.compute_object_fabrication_gradient(x, training=True)
         assert isinstance(grad, np.ndarray)
 
@@ -398,7 +484,9 @@ def test_compute_object_fabrication_gradient_non_yolov5(wrapper, dummy_model):
     dummy_model.predict = MagicMock(return_value={"dummy": True})
     wrapper.model = dummy_model
     x = np.zeros((1, 3, 224, 224), dtype=np.float32)
-    with patch("torch.autograd.grad", return_value=[torch.zeros_like(torch.from_numpy(x))]):
+    with patch(
+        "torch.autograd.grad", return_value=[torch.zeros_like(torch.from_numpy(x))]
+    ):
         grad = wrapper.compute_object_fabrication_gradient(x, training=False)
         assert isinstance(grad, np.ndarray)
 
@@ -407,7 +495,9 @@ def test_compute_object_fabrication_gradient_non_yolov5(wrapper, dummy_model):
 def test_compute_object_fabrication_gradient_no_clip_values(wrapper):
     wrapper.clip_values = None
     x = np.zeros((1, 3, 224, 224), dtype=np.float32)
-    with patch("torch.autograd.grad", return_value=[torch.zeros_like(torch.from_numpy(x))]):
+    with patch(
+        "torch.autograd.grad", return_value=[torch.zeros_like(torch.from_numpy(x))]
+    ):
         grad = wrapper.compute_object_fabrication_gradient(x, training=False)
         assert isinstance(grad, np.ndarray)
 
@@ -416,7 +506,9 @@ def test_compute_object_fabrication_gradient_no_clip_values(wrapper):
 def test_compute_object_mislabeling_gradient_no_targets(wrapper):
     x = np.zeros((1, 3, 224, 224), dtype=np.float32)
     det = [{"boxes": np.zeros((1, 4)), "labels": np.zeros((1,), dtype=np.int64)}]
-    grad = wrapper.compute_object_mislabeling_gradient(detections=det, x=x, target_labels_list=None)
+    grad = wrapper.compute_object_mislabeling_gradient(
+        detections=det, x=x, target_labels_list=None
+    )
     assert np.all(grad == 0)
 
 
@@ -424,23 +516,36 @@ def test_compute_object_mislabeling_gradient_no_targets(wrapper):
 def test_compute_object_mislabeling_gradient_empty_labels(wrapper):
     x = np.zeros((1, 3, 224, 224), dtype=np.float32)
     det = [{"boxes": np.zeros((1, 4)), "labels": np.array([], dtype=np.int64)}]
-    grad = wrapper.compute_object_mislabeling_gradient(detections=det, x=x, target_labels_list=None)
+    grad = wrapper.compute_object_mislabeling_gradient(
+        detections=det, x=x, target_labels_list=None
+    )
     assert np.all(grad == 0)
 
 
 @pytest.mark.advsecurenet
 def test_compute_object_mislabeling_gradient_training_false(wrapper):
     x = np.zeros((1, 3, 224, 224), dtype=np.float32)
-    target_labels_list = [{"boxes": np.zeros((1, 4)), "labels": np.array([2], dtype=np.int64)}]
-    
+    target_labels_list = [
+        {"boxes": np.zeros((1, 4)), "labels": np.array([2], dtype=np.int64)}
+    ]
+
     class DummyGradTensor(torch.Tensor):
         @property
         def grad(self):
             return torch.zeros_like(torch.from_numpy(x))
 
-    with patch.object(wrapper, "_get_losses", return_value=({"loss_total": torch.tensor(1.0, requires_grad=True)}, DummyGradTensor())):
+    with patch.object(
+        wrapper,
+        "_get_losses",
+        return_value=(
+            {"loss_total": torch.tensor(1.0, requires_grad=True)},
+            DummyGradTensor(),
+        ),
+    ):
         grad = wrapper.compute_object_mislabeling_gradient(
-            detections=[{"boxes": np.zeros((1, 4)), "labels": np.array([1], dtype=np.int64)}],
+            detections=[
+                {"boxes": np.zeros((1, 4)), "labels": np.array([1], dtype=np.int64)}
+            ],
             x=x,
             target_labels_list=target_labels_list,
             training=False,
@@ -452,16 +557,27 @@ def test_compute_object_mislabeling_gradient_training_false(wrapper):
 def test_compute_object_mislabeling_gradient_no_clip_values(wrapper):
     wrapper.clip_values = None
     x = np.zeros((1, 3, 224, 224), dtype=np.float32)
-    target_labels_list = [{"boxes": np.zeros((1, 4)), "labels": np.array([2], dtype=np.int64)}]
-    
+    target_labels_list = [
+        {"boxes": np.zeros((1, 4)), "labels": np.array([2], dtype=np.int64)}
+    ]
+
     class DummyGradTensor(torch.Tensor):
         @property
         def grad(self):
             return torch.zeros_like(torch.from_numpy(x))
 
-    with patch.object(wrapper, "_get_losses", return_value=({"loss_total": torch.tensor(1.0, requires_grad=True)}, DummyGradTensor())):
+    with patch.object(
+        wrapper,
+        "_get_losses",
+        return_value=(
+            {"loss_total": torch.tensor(1.0, requires_grad=True)},
+            DummyGradTensor(),
+        ),
+    ):
         grad = wrapper.compute_object_mislabeling_gradient(
-            detections=[{"boxes": np.zeros((1, 4)), "labels": np.array([1], dtype=np.int64)}],
+            detections=[
+                {"boxes": np.zeros((1, 4)), "labels": np.array([1], dtype=np.int64)}
+            ],
             x=x,
             target_labels_list=target_labels_list,
             training=True,

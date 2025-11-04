@@ -436,7 +436,7 @@ def test_update_x_adv(tog_config):
     grad = np.ones_like(x_adv) * 0.01
     eps = 0.1
     eps_iter = 0.01
-    
+
     x_adv_updated = tog._update_x_adv(grad, eps_iter, x_query, x_adv, eps)
     assert x_adv_updated.shape == x_adv.shape
     assert np.all(x_adv_updated >= 0.0)
@@ -497,13 +497,15 @@ def test_tog_mislabeling_early_stop_small_gradients(tog_config):
     """Test TOG mislabeling stops early with small gradients."""
     tog = TOG(tog_config)
     x = make_dummy_images()
-    
+
     # Make gradients very small
     original_method = tog._object_detector.compute_object_mislabeling_gradient
+
     def small_grad(*args, **kwargs):
         return np.zeros_like(x) + 1e-10
+
     tog._object_detector.compute_object_mislabeling_gradient = small_grad
-    
+
     with pytest.warns(UserWarning, match="Very small gradients"):
         out = tog._tog_mislabeling(x, mode="ml")
     assert out.shape == x.shape
@@ -635,8 +637,9 @@ def test_generate_mislabeling_targets_assert_mode(tog_config):
 def test_tog_mislabeling_gradient_logging(tog_config, caplog):
     """Test TOG mislabeling gradient norm logging."""
     import logging
+
     caplog.set_level(logging.DEBUG)
-    
+
     tog = TOG(tog_config)
     x = make_dummy_images()
     out = tog._tog_mislabeling(x, mode="ml", n_iter=51)  # > 50 for logging
@@ -704,10 +707,10 @@ def test_attack_returns_none_for_unknown_variant(tog_config):
     """Test attack returns None for unknown variant."""
     tog = TOG(tog_config)
     x = make_dummy_images()
-    
+
     class UnknownVariant:
         pass
-    
+
     result = tog.attack(x, tog_variant=UnknownVariant())
     assert result is None
 
@@ -762,9 +765,9 @@ def test_update_x_adv_projection(tog_config):
     grad = np.ones_like(x_adv) * 100  # Very large gradient
     eps = 0.05
     eps_iter = 0.01
-    
+
     x_adv_updated = tog._update_x_adv(grad, eps_iter, x_query, x_adv, eps)
-    
+
     # Check bounds
     assert np.all(x_adv_updated >= 0.0)
     assert np.all(x_adv_updated <= 1.0)

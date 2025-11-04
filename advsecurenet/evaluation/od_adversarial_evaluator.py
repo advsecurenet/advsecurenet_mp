@@ -13,7 +13,12 @@ class ObjectDetectorAdversarialEvaluator(AdversarialEvaluator):
         **kwargs: Arbitrary keyword arguments for the evaluators.
     """
 
-    def __init__(self, evaluators: Optional[list[str]] = None, dataset_name: Optional[str] = "coco", **kwargs):
+    def __init__(
+        self,
+        evaluators: Optional[list[str]] = None,
+        dataset_name: Optional[str] = "coco",
+        **kwargs
+    ):
         if evaluators is None:
             evaluators = ["mean_average_precision"]
         super().__init__(evaluators=evaluators, **kwargs)
@@ -21,7 +26,9 @@ class ObjectDetectorAdversarialEvaluator(AdversarialEvaluator):
 
     def save_dataset_name(self, dataset_name: str):
         if "mean_average_precision" in self.selected_evaluators:
-            self.selected_evaluators["mean_average_precision"].dataset_name = dataset_name
+            self.selected_evaluators["mean_average_precision"].dataset_name = (
+                dataset_name
+            )
 
     def update(
         self,

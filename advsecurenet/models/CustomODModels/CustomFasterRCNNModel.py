@@ -7,7 +7,10 @@ from torchvision.models.detection import (
     FasterRCNN_ResNet50_FPN_V2_Weights,
 )
 
-from advsecurenet.datasets.COCO.coco_utils import COCO_INSTANCE_CATEGORY_NAMES, ID_TO_CONTIGUOUS
+from advsecurenet.datasets.COCO.coco_utils import (
+    COCO_INSTANCE_CATEGORY_NAMES,
+    ID_TO_CONTIGUOUS,
+)
 from advsecurenet.models.CustomODModels.CustomODBaseModel import CustomODBaseModel
 from advsecurenet.datasets.label_utils import coco_label_ids_to_pascal
 
@@ -27,8 +30,8 @@ class CustomFasterRCNNModel(CustomODBaseModel):
         self.expects_numpy_images = False
         self.num_classes = num_classes
         self.load_model_weights(
-            model_weights_path=model_weights_path, 
-            pretrained=pretrained, 
+            model_weights_path=model_weights_path,
+            pretrained=pretrained,
             pretrained_backbone=pretrained_backbone,
         )
         self._model_name = "CustomFasterRCNNModel"
@@ -43,9 +46,9 @@ class CustomFasterRCNNModel(CustomODBaseModel):
         self.device = torch.device(device)
         self._model.to(self.device)
 
-
     def _parameters_sha256(self):
         import hashlib
+
         with torch.no_grad():
             flat = torch.nn.utils.parameters_to_vector(
                 [p.detach().cpu() for p in self._model.parameters()]
@@ -70,13 +73,20 @@ class CustomFasterRCNNModel(CustomODBaseModel):
             if isinstance(m, torch.nn.modules.batchnorm._BatchNorm):
                 m.eval()
                 m.track_running_stats = False
-        if model_weights_path and isinstance(model_weights_path, str) and model_weights_path.endswith(".pth") and os.path.isfile(model_weights_path):
+        if (
+            model_weights_path
+            and isinstance(model_weights_path, str)
+            and model_weights_path.endswith(".pth")
+            and os.path.isfile(model_weights_path)
+        ):
             try:
                 before_hash = self._parameters_sha256()
                 original_torch_load = torch.load
+
                 def load_with_weights_only_false(*args, **kwargs):
                     kwargs["weights_only"] = False
                     return original_torch_load(*args, **kwargs)
+
                 with patch("torch.load", side_effect=load_with_weights_only_false):
                     sd = torch.load(model_weights_path, map_location="cpu")
                 if isinstance(sd, dict):
@@ -98,19 +108,24 @@ class CustomFasterRCNNModel(CustomODBaseModel):
                         "module.",
                     ):
                         if nk.startswith(prefix):
-                            nk = nk[len(prefix):]
+                            nk = nk[len(prefix) :]
                     if nk not in target_keys and f"model.{nk}" in target_keys:
                         nk = f"model.{nk}"
                     sd_clean[nk] = v
                 self._model.load_state_dict(sd_clean, strict=False)
                 after_hash = self._parameters_sha256()
                 if before_hash != after_hash:
-                    print(f"[CustomFasterRCNNModel] Model parameters changed after loading '{model_weights_path}'.")
+                    print(
+                        f"[CustomFasterRCNNModel] Model parameters changed after loading '{model_weights_path}'."
+                    )
                 else:
-                    print(f"[CustomFasterRCNNModel][WARN] Loading '{model_weights_path}' did not change model parameters.")
+                    print(
+                        f"[CustomFasterRCNNModel][WARN] Loading '{model_weights_path}' did not change model parameters."
+                    )
             except Exception as e:
-                print(f"[CustomFasterRCNNModel][WARN] Failed to load .pth state_dict: {e}")
-        
+                print(
+                    f"[CustomFasterRCNNModel][WARN] Failed to load .pth state_dict: {e}"
+                )
 
     def forward(self, x, targets=None):
         """
@@ -278,14 +293,17 @@ class CustomFasterRCNNModel(CustomODBaseModel):
             preds.append(pred)
         return preds
 
-    def _translate_predictions_for_map_evaluator_coco(self, outputs: list[dict[str, torch.Tensor]]):
+    def _translate_predictions_for_map_evaluator_coco(
+        self, outputs: list[dict[str, torch.Tensor]]
+    ):
         preds = []
         for out in outputs:
             boxes = out["boxes"].detach().cpu().numpy()
             scores = out["scores"].detach().cpu().numpy()
             labels = out["labels"].detach().cpu().numpy()
-            mapped = np.array([ID_TO_CONTIGUOUS.get(int(l), -1) for l in labels],
-                            dtype=np.int32)
+            mapped = np.array(
+                [ID_TO_CONTIGUOUS.get(int(l), -1) for l in labels], dtype=np.int32
+            )
             keep = mapped >= 0
             boxes, scores, mapped = boxes[keep], scores[keep], mapped[keep]
             keep = (mapped >= 0) & (mapped < self.num_classes)
@@ -294,13 +312,16 @@ class CustomFasterRCNNModel(CustomODBaseModel):
                 "boxes": boxes,
                 "scores": scores,
                 "labels": mapped + FASTERRCNN_COCO_LABEL_OFFSET,  # map to COCO labels
-                "label_names": np.array([COCO_INSTANCE_CATEGORY_NAMES[i] for i in mapped]),
+                "label_names": np.array(
+                    [COCO_INSTANCE_CATEGORY_NAMES[i] for i in mapped]
+                ),
             }
             preds.append(pred)
         return preds
 
-
-    def translate_predictions_for_map_evaluator(self, outputs: list[dict[str, torch.Tensor]], dataset_name: str = "coco"):
+    def translate_predictions_for_map_evaluator(
+        self, outputs: list[dict[str, torch.Tensor]], dataset_name: str = "coco"
+    ):
         """From torchvision outputs (list of dicts) back to your np format."""
         if dataset_name.lower() == "coco":
             return self._translate_predictions_for_map_evaluator_coco(outputs)
@@ -309,10 +330,12 @@ class CustomFasterRCNNModel(CustomODBaseModel):
         for out in outputs:
             boxes = out["boxes"].detach().cpu().numpy()
             scores = out["scores"].detach().cpu().numpy()
-            if map_to_pascal: # Assuming COCO label IDs as model's output
+            if map_to_pascal:  # Assuming COCO label IDs as model's output
                 labels_raw = out["labels"].detach().cpu().numpy().astype(int)
                 mapped = np.array(
-                    coco_label_ids_to_pascal(labels_raw.tolist(), assume_contiguous=False, unmapped_value=-1),
+                    coco_label_ids_to_pascal(
+                        labels_raw.tolist(), assume_contiguous=False, unmapped_value=-1
+                    ),
                     dtype=np.int64,
                 )
                 keep = mapped >= 0

@@ -49,19 +49,31 @@ def mock_model():
     model.side_effect = model_call
 
     # Provide translate_predictions_for_map_evaluator to convert YOLO-like outputs
-    def translate_predictions_for_map_evaluator(outputs, expects_numpy: bool = True, dataset_name: str | None = None):
+    def translate_predictions_for_map_evaluator(
+        outputs, expects_numpy: bool = True, dataset_name: str | None = None
+    ):
         if not hasattr(outputs, "pred"):
             return []
         preds = []
         for det in outputs.pred:
             arr = det.detach().cpu().numpy() if isinstance(det, torch.Tensor) else det
-            boxes = arr[:, :4].astype(np.float32) if arr.size else np.empty((0, 4), np.float32)
-            scores = arr[:, 4].astype(np.float32) if arr.size else np.empty((0,), np.float32)
-            labels = arr[:, 5].astype(np.int64) if arr.size else np.empty((0,), np.int64)
+            boxes = (
+                arr[:, :4].astype(np.float32)
+                if arr.size
+                else np.empty((0, 4), np.float32)
+            )
+            scores = (
+                arr[:, 4].astype(np.float32) if arr.size else np.empty((0,), np.float32)
+            )
+            labels = (
+                arr[:, 5].astype(np.int64) if arr.size else np.empty((0,), np.int64)
+            )
             preds.append({"boxes": boxes, "scores": scores, "labels": labels})
         return preds
 
-    model.translate_predictions_for_map_evaluator = MagicMock(side_effect=translate_predictions_for_map_evaluator)
+    model.translate_predictions_for_map_evaluator = MagicMock(
+        side_effect=translate_predictions_for_map_evaluator
+    )
 
     # For device detection in evaluator.update
     param = MagicMock()
@@ -102,11 +114,13 @@ def test_detections_to_dicts(evaluator):
         preds = []
         for det in outputs.pred:
             arr = det.detach().cpu().numpy()
-            preds.append({
-                "boxes": arr[:, :4].astype(np.float32),
-                "scores": arr[:, 4].astype(np.float32),
-                "labels": arr[:, 5].astype(np.int64),
-            })
+            preds.append(
+                {
+                    "boxes": arr[:, :4].astype(np.float32),
+                    "scores": arr[:, 4].astype(np.float32),
+                    "labels": arr[:, 5].astype(np.int64),
+                }
+            )
         return preds
 
     results = convert(DummyDetections())
@@ -173,7 +187,9 @@ def test_update_tensor_model_path(evaluator):
             return out
 
         # Needed by evaluator when expects_numpy_images is False
-        def translate_predictions_for_map_evaluator(self, outputs, dataset_name: str = "coco"):
+        def translate_predictions_for_map_evaluator(
+            self, outputs, dataset_name: str = "coco"
+        ):
             preds = []
             for d in outputs:
                 preds.append(
@@ -194,7 +210,10 @@ def test_update_tensor_model_path(evaluator):
     model = TensorModel()
     images = torch.rand(2, 3, 8, 8)
     targets = [
-        {"boxes": np.array([[0, 0, 1, 1]], dtype=np.float32), "labels": np.array([1], dtype=np.int64)}
+        {
+            "boxes": np.array([[0, 0, 1, 1]], dtype=np.float32),
+            "labels": np.array([1], dtype=np.int64),
+        }
         for _ in range(2)
     ]
     evaluator.update(model, images, images, targets)

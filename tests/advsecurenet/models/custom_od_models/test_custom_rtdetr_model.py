@@ -69,8 +69,12 @@ class DummyProcessor:
 
     def __call__(self, images=None, return_tensors=None, do_rescale=False):
         return {
-            "pixel_values": torch.rand(len(images), 3, images[0].shape[1], images[0].shape[2]),
-            "pixel_mask": torch.ones(len(images), images[0].shape[1], images[0].shape[2]),
+            "pixel_values": torch.rand(
+                len(images), 3, images[0].shape[1], images[0].shape[2]
+            ),
+            "pixel_mask": torch.ones(
+                len(images), images[0].shape[1], images[0].shape[2]
+            ),
         }
 
 
@@ -81,9 +85,7 @@ def patched_module():
     """
     with patch(
         "advsecurenet.models.huggingface_model.HuggingFaceModel"
-    ) as mock_hf_wrapper, patch(
-        "transformers.RTDetrImageProcessor"
-    ) as mock_proc_cls:
+    ) as mock_hf_wrapper, patch("transformers.RTDetrImageProcessor") as mock_proc_cls:
         mock_proc_instance = DummyProcessor()
         mock_proc_cls.from_pretrained.return_value = mock_proc_instance
         wrapper_instance = mock_hf_wrapper.return_value
@@ -116,8 +118,14 @@ def test_forward_eval_and_train(patched_module):
     assert hasattr(out, "logits") or isinstance(out, dict)
     model.train()
     targets = [
-        {"boxes": torch.tensor([[0.5, 0.5, 0.1, 0.1]]), "class_labels": torch.tensor([1])},
-        {"boxes": torch.tensor([[0.3, 0.3, 0.2, 0.2]]), "class_labels": torch.tensor([2])},
+        {
+            "boxes": torch.tensor([[0.5, 0.5, 0.1, 0.1]]),
+            "class_labels": torch.tensor([1]),
+        },
+        {
+            "boxes": torch.tensor([[0.3, 0.3, 0.2, 0.2]]),
+            "class_labels": torch.tensor([2]),
+        },
     ]
     loss_dict = model.forward(x, targets=targets)
     assert isinstance(loss_dict, dict) and "loss_total" in loss_dict
@@ -139,7 +147,9 @@ def test_initialize_inference_model_and_predict_per_batch_modeloutput(patched_mo
     CustomRTDetrModel = patched_module.CustomRTDetrModel
     RTDetrEvalAdapter = patched_module.RTDetrEvalAdapter
     model = CustomRTDetrModel(model_name="dummy", device="cpu")
-    adapter = model.initialize_inference_model(model._model, device=model.device, conf_thresh=0.6)
+    adapter = model.initialize_inference_model(
+        model._model, device=model.device, conf_thresh=0.6
+    )
     assert isinstance(adapter, RTDetrEvalAdapter)
     imgs = torch.zeros((2, 3, 16, 16))
     preds = model.predict_per_batch(imgs, adapter, clip_values=(0, 255))
@@ -147,7 +157,9 @@ def test_initialize_inference_model_and_predict_per_batch_modeloutput(patched_mo
 
 
 @pytest.mark.advsecurenet
-def test_load_model_weights_hash_change_message(tmp_path, patched_module, monkeypatch, capsys):
+def test_load_model_weights_hash_change_message(
+    tmp_path, patched_module, monkeypatch, capsys
+):
     CustomRTDetrModel = patched_module.CustomRTDetrModel
     # Create small .pth file with nested dicts
     pth = tmp_path / "rt.pth"
@@ -165,7 +177,11 @@ def test_translate_predictions_for_map_evaluator_passthrough(patched_module):
     CustomRTDetrModel = patched_module.CustomRTDetrModel
     model = CustomRTDetrModel(model_name="dummy", device="cpu")
     outs = [
-        {"boxes": torch.tensor([[0.1, 0.2, 0.3, 0.4]]), "scores": torch.tensor([0.5]), "labels": torch.tensor([1])}
+        {
+            "boxes": torch.tensor([[0.1, 0.2, 0.3, 0.4]]),
+            "scores": torch.tensor([0.5]),
+            "labels": torch.tensor([1]),
+        }
     ]
     preds = model.translate_predictions_for_map_evaluator(outs, dataset_name="voc")
     assert isinstance(preds, list) and preds[0]["boxes"].shape == (1, 4)
@@ -231,8 +247,10 @@ def test_prepare_training_inputs_and_translate_labels(patched_module):
 def test_calculate_loss_logits_and_scores(patched_module):
     CustomRTDetrModel = patched_module.CustomRTDetrModel
     model = CustomRTDetrModel(model_name="dummy", device="cpu")
+
     class Out:
         pass
+
     out = Out()
     out.logits = torch.randn(1, 3, 4)
     loss1 = model.calculate_loss(out, target_val=1.0)
@@ -263,6 +281,7 @@ def test__to_image_list_and_errors(patched_module):
         model._to_image_list(torch.zeros(3, 16, 16))
     lst = model._to_image_list(torch.zeros(2, 3, 8, 8))
     assert isinstance(lst, list) and lst[0].shape == (3, 8, 8)
+
 
 @pytest.mark.advsecurenet
 def test_adapter_forward_with_pixel_values_and_mask_and_labels(patched_module):
@@ -325,7 +344,9 @@ def test_load_model_weights_warn_message(tmp_path, patched_module, monkeypatch, 
     torch.save({"model": {"k": torch.tensor(1)}}, pth)
 
     # Force same before/after hashes
-    monkeypatch.setattr(CustomRTDetrModel, "_parameters_sha256", lambda self: "CONST_HASH")
+    monkeypatch.setattr(
+        CustomRTDetrModel, "_parameters_sha256", lambda self: "CONST_HASH"
+    )
     _ = CustomRTDetrModel(model_name="dummy", device="cpu", model_weights_path=str(pth))
     out = capsys.readouterr().out
     assert "[WARN] Loading" in out and "did not change model parameters" in out
@@ -338,12 +359,20 @@ def test_predict_per_batch_type_error_and_empty_results(patched_module):
 
     # Wrong type input
     with pytest.raises(TypeError):
-        _ = model.predict_per_batch([np.zeros((1, 3, 8, 8))], model._model, clip_values=(0, 255))
+        _ = model.predict_per_batch(
+            [np.zeros((1, 3, 8, 8))], model._model, clip_values=(0, 255)
+        )
 
     # Inference model that returns empty detections (list branch + empty arrays path)
     class EmptyListModel:
         def __call__(self, pixel_values=None, pixel_mask=None):
-            return [{"boxes": torch.empty((0, 4)), "scores": torch.empty((0,)), "labels": torch.empty((0,), dtype=torch.int64)}]
+            return [
+                {
+                    "boxes": torch.empty((0, 4)),
+                    "scores": torch.empty((0,)),
+                    "labels": torch.empty((0,), dtype=torch.int64),
+                }
+            ]
 
     imgs = torch.zeros((1, 3, 8, 8))
     preds = model.predict_per_batch(imgs, EmptyListModel(), clip_values=(0, 255))
@@ -353,7 +382,9 @@ def test_predict_per_batch_type_error_and_empty_results(patched_module):
 
 
 @pytest.mark.advsecurenet
-def test_translate_predictions_for_map_evaluator_pascal_mapping(monkeypatch, patched_module):
+def test_translate_predictions_for_map_evaluator_pascal_mapping(
+    monkeypatch, patched_module
+):
     """
     Covers the 'pascal_voc' mapping branch with keep mask (unmapped_value = -1).
     """
@@ -366,7 +397,9 @@ def test_translate_predictions_for_map_evaluator_pascal_mapping(monkeypatch, pat
         mapping = {2: 1}
         return [mapping.get(i, -1) for i in ids]
 
-    monkeypatch.setattr(patched_module, "coco_label_ids_to_pascal", fake_map, raising=True)
+    monkeypatch.setattr(
+        patched_module, "coco_label_ids_to_pascal", fake_map, raising=True
+    )
 
     outs = [
         {
@@ -375,7 +408,9 @@ def test_translate_predictions_for_map_evaluator_pascal_mapping(monkeypatch, pat
             "labels": torch.tensor([2, 99], dtype=torch.int64),
         }
     ]
-    preds = model.translate_predictions_for_map_evaluator(outs, dataset_name="pascal_voc")
+    preds = model.translate_predictions_for_map_evaluator(
+        outs, dataset_name="pascal_voc"
+    )
     # Only first survives mapping (label 2 -> 1); second dropped (-> -1)
     assert preds[0]["boxes"].shape == (1, 4)
     assert preds[0]["labels"][0] == 1
@@ -388,7 +423,9 @@ def test__to_image_list_training_no_detach(patched_module):
     model.train()
     x = torch.zeros(2, 3, 8, 8, requires_grad=True)
     lst = model._to_image_list(x)
-    assert isinstance(lst, list) and lst[0].requires_grad is True  # not detached in training
+    assert (
+        isinstance(lst, list) and lst[0].requires_grad is True
+    )  # not detached in training
 
 
 @pytest.mark.advsecurenet
@@ -400,7 +437,10 @@ def test_translate_labels_various_cleanups_and_empty(patched_module):
 
     # Include invalid box (x2==x1) to trigger filtering, and valid box
     labels = [
-        {"boxes": np.array([[10, 10, 10, 20], [0, 0, 16, 16]], dtype=np.float32), "labels": np.array([1, 2])},
+        {
+            "boxes": np.array([[10, 10, 10, 20], [0, 0, 16, 16]], dtype=np.float32),
+            "labels": np.array([1, 2]),
+        },
         {},  # empty -> empty path
     ]
     out = model.translate_labels(labels, batch_size=3)
@@ -458,7 +498,9 @@ def test_load_model_weights_state_dict_key_extraction(patched_module, tmp_path):
     CustomRTDetrModel = patched_module.CustomRTDetrModel
     pth = tmp_path / "rt.pth"
     torch.save({"state_dict": {"k": torch.tensor(1)}}, pth)
-    model = CustomRTDetrModel(model_name="dummy", device="cpu", model_weights_path=str(pth))
+    model = CustomRTDetrModel(
+        model_name="dummy", device="cpu", model_weights_path=str(pth)
+    )
     assert model._model is not None
 
 
@@ -468,7 +510,9 @@ def test_load_model_weights_weights_key_extraction(patched_module, tmp_path):
     CustomRTDetrModel = patched_module.CustomRTDetrModel
     pth = tmp_path / "rt.pth"
     torch.save({"weights": {"k": torch.tensor(1)}}, pth)
-    model = CustomRTDetrModel(model_name="dummy", device="cpu", model_weights_path=str(pth))
+    model = CustomRTDetrModel(
+        model_name="dummy", device="cpu", model_weights_path=str(pth)
+    )
     assert model._model is not None
 
 
@@ -514,17 +558,20 @@ def test_forward_loss_dict_path(patched_module):
     """Test forward with loss_dict attribute."""
     CustomRTDetrModel = patched_module.CustomRTDetrModel
     model = CustomRTDetrModel(model_name="dummy", device="cpu")
-    
+
     class OutWithLossDict:
         loss = torch.tensor(1.0)
         loss_dict = {"bbox": torch.tensor(0.5), "ce": torch.tensor(0.3)}
-    
+
     model._model = MagicMock()
     model._model.return_value = OutWithLossDict()
     model.train()
     x = torch.rand(2, 3, 16, 16)
     targets = [
-        {"boxes": torch.tensor([[0.5, 0.5, 0.1, 0.1]]), "class_labels": torch.tensor([1])},
+        {
+            "boxes": torch.tensor([[0.5, 0.5, 0.1, 0.1]]),
+            "class_labels": torch.tensor([1]),
+        },
     ]
     loss_dict = model.forward(x, targets=targets)
     assert isinstance(loss_dict, dict)
@@ -535,18 +582,21 @@ def test_forward_loss_else_path_with_attributes(patched_module):
     """Test forward loss else path with hasattr checks."""
     CustomRTDetrModel = patched_module.CustomRTDetrModel
     model = CustomRTDetrModel(model_name="dummy", device="cpu")
-    
+
     class OutWithAttrs:
         loss = torch.tensor(1.0)
         loss_ce = torch.tensor(0.5)
         loss_bbox = torch.tensor(0.3)
-    
+
     model._model = MagicMock()
     model._model.return_value = OutWithAttrs()
     model.train()
     x = torch.rand(2, 3, 16, 16)
     targets = [
-        {"boxes": torch.tensor([[0.5, 0.5, 0.1, 0.1]]), "class_labels": torch.tensor([1])},
+        {
+            "boxes": torch.tensor([[0.5, 0.5, 0.1, 0.1]]),
+            "class_labels": torch.tensor([1]),
+        },
     ]
     loss_dict = model.forward(x, targets=targets)
     assert isinstance(loss_dict, dict)
@@ -591,8 +641,10 @@ def test_translate_labels_filtering_invalid_boxes(patched_module):
     model.channels_first = True
     labels = [
         {
-            "boxes": np.array([[0, 0, 10, 10], [15, 15, 15, 20], [0, 0, 16, 16]], dtype=np.float32),  # Second is invalid (x2==x1)
-            "labels": np.array([1, 2, 3])
+            "boxes": np.array(
+                [[0, 0, 10, 10], [15, 15, 15, 20], [0, 0, 16, 16]], dtype=np.float32
+            ),  # Second is invalid (x2==x1)
+            "labels": np.array([1, 2, 3]),
         },
     ]
     out = model.translate_labels(labels, batch_size=1)
@@ -636,6 +688,9 @@ def test_labels_to_list_of_dicts_fallback(patched_module):
     CustomRTDetrModel = patched_module.CustomRTDetrModel
     model = CustomRTDetrModel(model_name="dummy", device="cpu")
     # Fallback: no list/tuple values, no tensor with dim > 0, so wraps as single dict
-    labels = {"boxes": torch.tensor(0.0), "labels": torch.tensor(1.0)}  # Scalars (dim=0)
+    labels = {
+        "boxes": torch.tensor(0.0),
+        "labels": torch.tensor(1.0),
+    }  # Scalars (dim=0)
     out = model._labels_to_list_of_dicts(labels)
     assert out is None

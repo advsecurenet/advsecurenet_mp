@@ -4,7 +4,9 @@ import numpy as np
 from unittest.mock import patch, MagicMock
 import importlib
 
-from advsecurenet.models.CustomODModels.CustomFasterRCNNModel import CustomFasterRCNNModel
+from advsecurenet.models.CustomODModels.CustomFasterRCNNModel import (
+    CustomFasterRCNNModel,
+)
 
 
 class DummyTorchVisionDetModel:
@@ -82,7 +84,9 @@ def patched_frcnn():
 
 @pytest.mark.advsecurenet
 def test_init_pretrained_with_backbone(patched_frcnn):
-    model = CustomFasterRCNNModel(num_classes=91, pretrained=True, pretrained_backbone=True, device="cpu")
+    model = CustomFasterRCNNModel(
+        num_classes=91, pretrained=True, pretrained_backbone=True, device="cpu"
+    )
     assert model.expects_numpy_images is False
     assert model.num_classes == 91
     assert model._model is not None
@@ -93,7 +97,9 @@ def test_init_pretrained_with_backbone(patched_frcnn):
 @pytest.mark.advsecurenet
 def test_init_pretrained_without_backbone(patched_frcnn):
     # Should still construct successfully
-    model = CustomFasterRCNNModel(num_classes=42, pretrained=True, pretrained_backbone=False, device="cpu")
+    model = CustomFasterRCNNModel(
+        num_classes=42, pretrained=True, pretrained_backbone=False, device="cpu"
+    )
     assert model.num_classes == 42
 
 
@@ -113,10 +119,21 @@ def test_forward_eval_and_train_paths(patched_frcnn):
     assert isinstance(outs, list) and isinstance(outs[0], dict)
     # train path -> loss dict augmented with loss_total
     model.train()
-    outs_train = model(x, targets=[{"boxes": torch.zeros((1, 4)), "labels": torch.zeros((1,), dtype=torch.long)}] * 2)
+    outs_train = model(
+        x,
+        targets=[
+            {
+                "boxes": torch.zeros((1, 4)),
+                "labels": torch.zeros((1,), dtype=torch.long),
+            }
+        ]
+        * 2,
+    )
     assert isinstance(outs_train, dict)
     assert "loss_total" in outs_train
-    assert outs_train["loss_total"] == sum(v for k, v in outs_train.items() if k != "loss_total")
+    assert outs_train["loss_total"] == sum(
+        v for k, v in outs_train.items() if k != "loss_total"
+    )
 
 
 @pytest.mark.advsecurenet
@@ -192,10 +209,14 @@ def test_preprocess_x_for_loss_calculation_numpy_and_torch(patched_frcnn):
     model = CustomFasterRCNNModel(pretrained=False, device="cpu")
     arr = (np.zeros((2, 3, 8, 8)) * 255).astype(np.uint8)
     out_np = model.preprocess_x_for_loss_calculation(arr, requires_grad=True)
-    assert isinstance(out_np, torch.Tensor) and out_np.requires_grad and out_np.dim() == 4
+    assert (
+        isinstance(out_np, torch.Tensor) and out_np.requires_grad and out_np.dim() == 4
+    )
     tx = torch.zeros((2, 3, 8, 8), dtype=torch.float32)
     out_t = model.preprocess_x_for_loss_calculation(tx, requires_grad=False)
-    assert isinstance(out_t, torch.Tensor) and out_t.dim() == 4 and not out_t.requires_grad
+    assert (
+        isinstance(out_t, torch.Tensor) and out_t.dim() == 4 and not out_t.requires_grad
+    )
 
 
 @pytest.mark.advsecurenet
@@ -220,7 +241,10 @@ def test_translate_labels_and_align_targets(patched_frcnn):
 
     # numpy inputs conversion path
     labs_np = [
-        {"boxes": np.array([[1, 2, 3, 4]], dtype=np.float32), "labels": np.array([2], dtype=np.int64)}
+        {
+            "boxes": np.array([[1, 2, 3, 4]], dtype=np.float32),
+            "labels": np.array([2], dtype=np.int64),
+        }
     ]
     out_np = model.translate_labels(labs_np, batch_size=1)
     assert isinstance(out_np, list) and isinstance(out_np[0]["boxes"], torch.Tensor)
@@ -250,13 +274,23 @@ def test_forward_with_list_input_inference_and_training(patched_frcnn):
     assert isinstance(outs_inf, list) and isinstance(outs_inf[0], dict)
     # training with targets
     model.train()
-    outs_train = model.forward(imgs_list, targets=[{"boxes": torch.zeros((1, 4)), "labels": torch.zeros((1,), dtype=torch.long)}] * 2)
+    outs_train = model.forward(
+        imgs_list,
+        targets=[
+            {
+                "boxes": torch.zeros((1, 4)),
+                "labels": torch.zeros((1,), dtype=torch.long),
+            }
+        ]
+        * 2,
+    )
     assert isinstance(outs_train, dict) and "loss_total" in outs_train
 
 
 @pytest.mark.advsecurenet
 def test_predict_per_batch_with_list_input_and_mock_inference(patched_frcnn):
     model = CustomFasterRCNNModel(pretrained=False, device="cpu")
+
     # Mock an inference model that returns list of predictions dicts
     def fake_infer(imgs):
         # imgs may be list of tensors
@@ -271,8 +305,14 @@ def test_predict_per_batch_with_list_input_and_mock_inference(patched_frcnn):
         ]
 
     imgs = [torch.zeros((3, 8, 8)), torch.zeros((3, 8, 8))]
-    preds = model.predict_per_batch(imgs, inference_model=fake_infer, clip_values=(0, 255))
-    assert isinstance(preds, list) and len(preds) == 2 and isinstance(preds[0]["boxes"], np.ndarray)
+    preds = model.predict_per_batch(
+        imgs, inference_model=fake_infer, clip_values=(0, 255)
+    )
+    assert (
+        isinstance(preds, list)
+        and len(preds) == 2
+        and isinstance(preds[0]["boxes"], np.ndarray)
+    )
 
 
 @pytest.mark.advsecurenet
@@ -288,39 +328,60 @@ def test_initialize_inference_model_calls_to_and_eval(patched_frcnn):
 
 
 @pytest.mark.advsecurenet
-def test_load_model_weights_pth_changes_and_message(tmp_path, patched_frcnn, monkeypatch, capsys):
+def test_load_model_weights_pth_changes_and_message(
+    tmp_path, patched_frcnn, monkeypatch, capsys
+):
     # Prepare a dummy .pth file with nested state_dict structure
     pth = tmp_path / "weights.pth"
     torch.save({"state_dict": {"some.key": torch.tensor(3.14)}}, pth)
 
     # Force parameter hash to change between before/after
-    from advsecurenet.models.CustomODModels.CustomFasterRCNNModel import CustomFasterRCNNModel
-    seq = iter(["HASH_BEFORE", "HASH_AFTER"])  # different
-    monkeypatch.setattr(CustomFasterRCNNModel, "_parameters_sha256", lambda self: next(seq))
+    from advsecurenet.models.CustomODModels.CustomFasterRCNNModel import (
+        CustomFasterRCNNModel,
+    )
 
-    model = CustomFasterRCNNModel(pretrained=False, device="cpu", model_weights_path=str(pth))
+    seq = iter(["HASH_BEFORE", "HASH_AFTER"])  # different
+    monkeypatch.setattr(
+        CustomFasterRCNNModel, "_parameters_sha256", lambda self: next(seq)
+    )
+
+    model = CustomFasterRCNNModel(
+        pretrained=False, device="cpu", model_weights_path=str(pth)
+    )
     out = capsys.readouterr().out
     assert "Model parameters changed" in out
 
 
 @pytest.mark.advsecurenet
-def test_load_model_weights_pth_unchanged_message(tmp_path, patched_frcnn, monkeypatch, capsys):
+def test_load_model_weights_pth_unchanged_message(
+    tmp_path, patched_frcnn, monkeypatch, capsys
+):
     pth = tmp_path / "weights2.pth"
     torch.save({"model": {"another.key": torch.tensor(2.72)}}, pth)
 
-    from advsecurenet.models.CustomODModels.CustomFasterRCNNModel import CustomFasterRCNNModel
-    seq = iter(["SAME", "SAME"])  # unchanged
-    monkeypatch.setattr(CustomFasterRCNNModel, "_parameters_sha256", lambda self: next(seq))
+    from advsecurenet.models.CustomODModels.CustomFasterRCNNModel import (
+        CustomFasterRCNNModel,
+    )
 
-    _ = CustomFasterRCNNModel(pretrained=False, device="cpu", model_weights_path=str(pth))
+    seq = iter(["SAME", "SAME"])  # unchanged
+    monkeypatch.setattr(
+        CustomFasterRCNNModel, "_parameters_sha256", lambda self: next(seq)
+    )
+
+    _ = CustomFasterRCNNModel(
+        pretrained=False, device="cpu", model_weights_path=str(pth)
+    )
     out = capsys.readouterr().out
     assert "did not change model parameters" in out
 
 
 @pytest.mark.advsecurenet
-def test_translate_predictions_for_map_evaluator_coco_mapping(monkeypatch, patched_frcnn):
+def test_translate_predictions_for_map_evaluator_coco_mapping(
+    monkeypatch, patched_frcnn
+):
     # Patch mapping so label 1 -> 0 contiguous, 99 filtered out
     import advsecurenet.datasets.COCO.coco_utils as coco_mod
+
     monkeypatch.setattr(coco_mod, "ID_TO_CONTIGUOUS", {1: 0, 5: 4})
 
     model = CustomFasterRCNNModel(pretrained=False, device="cpu")
@@ -356,13 +417,25 @@ def test_translate_predictions_for_map_evaluator_non_coco(patched_frcnn):
 @pytest.mark.advsecurenet
 def test_predict_per_batch_with_tensor_input(patched_frcnn):
     model = CustomFasterRCNNModel(pretrained=False, device="cpu")
+
     # inference model returns list[dict] like torchvision
     def fake_infer(imgs):
         b = len(imgs)
         return [
-            {"boxes": torch.tensor([[0.0, 0.0, 1.0, 1.0]]), "scores": torch.tensor([0.6]), "labels": torch.tensor([1])}
+            {
+                "boxes": torch.tensor([[0.0, 0.0, 1.0, 1.0]]),
+                "scores": torch.tensor([0.6]),
+                "labels": torch.tensor([1]),
+            }
             for _ in range(b)
         ]
+
     imgs = torch.zeros((2, 3, 8, 8))
-    preds = model.predict_per_batch(imgs, inference_model=fake_infer, clip_values=(0, 255))
-    assert isinstance(preds, list) and len(preds) == 2 and isinstance(preds[0]["boxes"], np.ndarray)
+    preds = model.predict_per_batch(
+        imgs, inference_model=fake_infer, clip_values=(0, 255)
+    )
+    assert (
+        isinstance(preds, list)
+        and len(preds) == 2
+        and isinstance(preds[0]["boxes"], np.ndarray)
+    )

@@ -6,7 +6,9 @@ import pytest
 import torch
 from torch.utils.data import Subset, TensorDataset
 
-from advsecurenet.computer_vision.object_detection.attacks.pixel_perturbation_based.tog.tog_attack_type import TOGAttackType
+from advsecurenet.computer_vision.object_detection.attacks.pixel_perturbation_based.tog.tog_attack_type import (
+    TOGAttackType,
+)
 from cli.logic.attack.od_attacker import CLIODAttacker
 
 logger = logging.getLogger("cli.logic.attack.od_attacker")
@@ -121,7 +123,13 @@ def test_execute_tog(
 @patch("cli.logic.attack.od_attacker.DDPCoordinator")
 @patch("cli.logic.attack.od_attacker.DDPODAttacker")
 @patch("cli.logic.attack.od_attacker.set_visible_gpus")
-def test_execute_ddp_flow(mock_set_visible_gpus, mock_ddp_od_attacker, mock_ddp_coord, mock_get_datasets, od_attacker_config):
+def test_execute_ddp_flow(
+    mock_set_visible_gpus,
+    mock_ddp_od_attacker,
+    mock_ddp_coord,
+    mock_get_datasets,
+    od_attacker_config,
+):
     class DummyAttackType:
         name = "DPATCH"
 
@@ -263,7 +271,13 @@ def test_sample_data_if_required_no_sampling(od_attacker_config):
 @patch("cli.logic.attack.od_attacker.create_model")
 @patch("cli.logic.attack.od_attacker.get_object_detector")
 @patch("cli.logic.attack.od_attacker.DPatch")
-def test_prepare_attack_config_builds_configs(mock_dpatch, mock_get_object_detector, mock_create_model, mock_get_datasets, od_attacker_config):
+def test_prepare_attack_config_builds_configs(
+    mock_dpatch,
+    mock_get_object_detector,
+    mock_create_model,
+    mock_get_datasets,
+    od_attacker_config,
+):
     class DummyAttackType:
         name = "DPATCH"
 
@@ -285,9 +299,12 @@ def test_prepare_attack_config_builds_configs(mock_dpatch, mock_get_object_detec
 @pytest.mark.cli
 @pytest.mark.essential
 @patch("cli.logic.attack.od_attacker.get_datasets")
-def test_create_dataloader_config_sets_collate_for_coco(mock_get_datasets, od_attacker_config):
+def test_create_dataloader_config_sets_collate_for_coco(
+    mock_get_datasets, od_attacker_config
+):
     class DummyAttackType:
         name = "DPATCH"
+
     mock_get_datasets.return_value = (MagicMock(), MagicMock())
     od_attacker_config.dataset.dataset_name = "COCO"
     attacker = CLIODAttacker(od_attacker_config, DummyAttackType())
@@ -313,9 +330,12 @@ def test_create_dataloader_config_without_coco(mock_get_datasets, od_attacker_co
 @pytest.mark.cli
 @pytest.mark.essential
 @patch("cli.logic.attack.od_attacker.get_datasets")
-def test_build_concrete_attacker_class_unknown_raises(mock_get_datasets, od_attacker_config):
+def test_build_concrete_attacker_class_unknown_raises(
+    mock_get_datasets, od_attacker_config
+):
     class DummyAttackType:
         name = "UNKNOWN"
+
     mock_get_datasets.return_value = (MagicMock(), MagicMock())
     attacker = CLIODAttacker(od_attacker_config, DummyAttackType())
     with pytest.raises(ValueError):
@@ -325,7 +345,9 @@ def test_build_concrete_attacker_class_unknown_raises(mock_get_datasets, od_atta
 @pytest.mark.cli
 @pytest.mark.essential
 @patch("cli.logic.attack.od_attacker.save_images")
-@patch("cli.logic.attack.od_attacker.get_datasets", return_value=(MagicMock(), MagicMock()))
+@patch(
+    "cli.logic.attack.od_attacker.get_datasets", return_value=(MagicMock(), MagicMock())
+)
 def test_save_images_if_needed_skips_when_no_images(
     mock_get_datasets, mock_save_images, od_attacker_config
 ):
@@ -367,7 +389,9 @@ def test_execute_ddp_attack_populates_gpu_ids_and_handles_error(
 
     attacker = CLIODAttacker(od_attacker_config, DummyAttackType())
     with patch("cli.logic.attack.od_attacker.click.secho"):
-        with patch.object(attacker, "_prepare_attack_config", return_value=(MagicMock(), {})):
+        with patch.object(
+            attacker, "_prepare_attack_config", return_value=(MagicMock(), {})
+        ):
             with patch.object(attacker, "_save_images_if_needed") as mock_save_images:
                 attacker.execute()
 
@@ -414,8 +438,14 @@ def test_ddp_attack_fn_without_gpu_ids_sets_processor(
 @pytest.mark.cli
 @pytest.mark.essential
 @patch("cli.logic.attack.od_attacker.DDPODAttacker")
-@patch("cli.logic.attack.od_attacker.CLIODAttacker._prepare_attack_config", return_value=(MagicMock(), {}))
-@patch("cli.logic.attack.od_attacker.torch.cuda.set_device", side_effect=RuntimeError("set fail"))
+@patch(
+    "cli.logic.attack.od_attacker.CLIODAttacker._prepare_attack_config",
+    return_value=(MagicMock(), {}),
+)
+@patch(
+    "cli.logic.attack.od_attacker.torch.cuda.set_device",
+    side_effect=RuntimeError("set fail"),
+)
 @patch("cli.logic.attack.od_attacker.get_datasets")
 def test_ddp_attack_fn_logs_error_on_device_failure(
     mock_get_datasets,
@@ -485,7 +515,9 @@ def test_prepare_attack_config_tog_sets_extra_kwargs(
 @pytest.mark.cli
 @pytest.mark.essential
 @patch("cli.logic.attack.od_attacker.get_datasets")
-def test_sample_data_warns_when_sample_larger(mock_get_datasets, caplog, od_attacker_config):
+def test_sample_data_warns_when_sample_larger(
+    mock_get_datasets, caplog, od_attacker_config
+):
     dataset = TensorDataset(torch.arange(6))
     mock_get_datasets.return_value = (dataset, MagicMock())
 

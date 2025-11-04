@@ -78,7 +78,9 @@ class MockDPatchAttack(MockAttackBase):
     def attack(self, dataloader, mask=None, device=None):  # returns optimized patch
         return torch.zeros(1, 3, 4, 4, device=device)
 
-    def apply_patch(self, x: np.ndarray, patch_external: np.ndarray, random_location: bool = True):
+    def apply_patch(
+        self, x: np.ndarray, patch_external: np.ndarray, random_location: bool = True
+    ):
         return x  # identity for simplicity
 
     @property
@@ -91,6 +93,7 @@ def _make_detection_like_loader(num: int = 3):
     images = torch.randn(num, 3, 4, 4)
     boxes = [torch.tensor([[0.0, 0.0, 1.0, 1.0]]) for _ in range(num)]
     labels = [torch.tensor([1]) for _ in range(num)]
+
     # store as dataset of tuples (image, targets_dict)
     class _DS:
         def __len__(self):
@@ -113,7 +116,9 @@ def base_instance():
     inst._device = torch.device("cpu")
     inst._trainable = MockModel()
     inst._model = inst._trainable
-    inst._optimizer = SimpleNamespace(param_groups=[{"params": [torch.tensor(1.0, requires_grad=True)]}])
+    inst._optimizer = SimpleNamespace(
+        param_groups=[{"params": [torch.tensor(1.0, requires_grad=True)]}]
+    )
     inst._scheduler = None
     inst._wrapper_name = "dummy"
     inst._od_wrapper = SimpleNamespace(
@@ -127,7 +132,12 @@ def base_instance():
 @pytest.mark.essential
 def test_check_config_accepts_dict_targets():
     loader = _make_detection_like_loader()
-    cfg = SimpleNamespace(model=MockModel(), models=[MockModel()], attacks=[MockDefaultAttack()], train_loader=loader)
+    cfg = SimpleNamespace(
+        model=MockModel(),
+        models=[MockModel()],
+        attacks=[MockDefaultAttack()],
+        train_loader=loader,
+    )
     inst = object.__new__(AdversarialODTraining)
     # Should not raise
     inst._check_config(cfg)
@@ -137,9 +147,16 @@ def test_check_config_accepts_dict_targets():
 @pytest.mark.essential
 def test_check_config_rejects_wrong_structure():
     # Dataset that yields wrong shape
-    ds = TensorDataset(torch.randn(2, 3, 4, 4), torch.randn(2))  # y is Tensor, not dict/list[dict]
+    ds = TensorDataset(
+        torch.randn(2, 3, 4, 4), torch.randn(2)
+    )  # y is Tensor, not dict/list[dict]
     loader = DataLoader(ds, batch_size=1)
-    cfg = SimpleNamespace(model=MockModel(), models=[MockModel()], attacks=[MockDefaultAttack()], train_loader=loader)
+    cfg = SimpleNamespace(
+        model=MockModel(),
+        models=[MockModel()],
+        attacks=[MockDefaultAttack()],
+        train_loader=loader,
+    )
     inst = object.__new__(AdversarialODTraining)
     with pytest.raises(ValueError, match=r"expects dataset samples"):
         inst._check_config(cfg)
@@ -162,7 +179,9 @@ def test_combine_clean_and_adversarial_data(base_instance):
     images = torch.randn(2, 3, 4, 4)
     adv_images = torch.randn(2, 3, 4, 4)
     targets = {"labels": [torch.tensor(1), torch.tensor(2)]}
-    combined_imgs, combined_targets = base_instance._combine_clean_and_adversarial_data(images, adv_images, targets)
+    combined_imgs, combined_targets = base_instance._combine_clean_and_adversarial_data(
+        images, adv_images, targets
+    )
     assert combined_imgs.shape[0] == 4
     assert isinstance(combined_targets, dict)
     assert len(combined_targets["labels"]) == 4
@@ -184,7 +203,9 @@ def test_perform_attack_default_path_returns_tensor_on_device(base_instance):
     attack = MockDefaultAttack()
     images = torch.zeros(2, 3, 4, 4)
     targets = {"labels": [torch.tensor(1), torch.tensor(1)]}
-    out = base_instance._perform_attack(attack, base_instance._trainable, images, targets)
+    out = base_instance._perform_attack(
+        attack, base_instance._trainable, images, targets
+    )
     assert isinstance(out, torch.Tensor)
     assert out.device == base_instance._device
     assert torch.allclose(out, images + 1.0)
@@ -196,7 +217,9 @@ def test_perform_attack_tog_numpy_to_torch(base_instance):
     attack = MockTOGAttack()
     images = torch.zeros(2, 3, 4, 4)
     targets = {"labels": [torch.tensor(1), torch.tensor(1)]}
-    out = base_instance._perform_attack(attack, base_instance._trainable, images, targets)
+    out = base_instance._perform_attack(
+        attack, base_instance._trainable, images, targets
+    )
     assert isinstance(out, torch.Tensor)
     assert out.device == base_instance._device
     assert torch.allclose(out, torch.zeros_like(images) + 2.0)
@@ -208,7 +231,9 @@ def test_perform_attack_dpatch_path_with_cached_patch(base_instance):
     attack = MockDPatchAttack()
     images = torch.zeros(1, 3, 4, 4)
     targets = {"labels": [torch.tensor(1)]}
-    out = base_instance._perform_attack(attack, base_instance._trainable, images, targets)
+    out = base_instance._perform_attack(
+        attack, base_instance._trainable, images, targets
+    )
     assert isinstance(out, torch.Tensor)
     assert out.shape == images.shape
 
@@ -295,19 +320,24 @@ def test_perform_attack_resolves_object_detector_success(base_instance, monkeypa
     # Resolver is called with keyword argument existing_model
     def _resolver(*args, **kwargs):
         return _Wrapper()
+
     monkeypatch.setattr(mod, "get_object_detector", _resolver)
 
     attack = Attack()
     images = torch.zeros(2, 3, 4, 4)
     targets = {"labels": [torch.tensor(1), torch.tensor(1)]}
-    out = base_instance._perform_attack(attack, base_instance._trainable, images, targets)
+    out = base_instance._perform_attack(
+        attack, base_instance._trainable, images, targets
+    )
     assert isinstance(attack._object_detector, _Wrapper)
     assert isinstance(out, torch.Tensor)
 
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
-def test_perform_attack_resolves_object_detector_fallback_to_model_predict(base_instance, monkeypatch):
+def test_perform_attack_resolves_object_detector_fallback_to_model_predict(
+    base_instance, monkeypatch
+):
     # get_object_detector fails; model has predict -> fallback
     import advsecurenet.computer_vision.object_detection.defenses.adversarial_od_training as mod
 
@@ -330,7 +360,9 @@ def test_perform_attack_resolves_object_detector_fallback_to_model_predict(base_
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
-def test_perform_attack_resolves_object_detector_raises_without_predict(base_instance, monkeypatch):
+def test_perform_attack_resolves_object_detector_raises_without_predict(
+    base_instance, monkeypatch
+):
     import advsecurenet.computer_vision.object_detection.defenses.adversarial_od_training as mod
 
     def _raise(*args, **kwargs):
@@ -342,9 +374,11 @@ def test_perform_attack_resolves_object_detector_raises_without_predict(base_ins
     attack._object_detector = "anything"
     images = torch.zeros(1, 3, 4, 4)
     targets = {"labels": [torch.tensor(1)]}
+
     # Provide a model object that definitely lacks a 'predict' attribute
     class NoPredict:
         pass
+
     with pytest.raises(RuntimeError, match=r"Cannot resolve object detector"):
         base_instance._perform_attack(attack, NoPredict(), images, targets)
 
@@ -387,15 +421,27 @@ def test_run_epoch_logs_and_uses_batches(monkeypatch):
 @pytest.mark.essential
 def test_check_config_accepts_list_of_dicts_targets():
     """Test _check_config accepts list[dict] targets."""
+
     # Create dataset that returns list[dict] target
     class ListDictDataset:
         def __len__(self):
             return 1
+
         def __getitem__(self, idx):
-            return torch.zeros(3, 4, 4), [{"boxes": [torch.tensor([[0.0, 0.0, 1.0, 1.0]])], "labels": [torch.tensor([1])]}]
-    
+            return torch.zeros(3, 4, 4), [
+                {
+                    "boxes": [torch.tensor([[0.0, 0.0, 1.0, 1.0]])],
+                    "labels": [torch.tensor([1])],
+                }
+            ]
+
     loader = DataLoader(ListDictDataset(), batch_size=1)
-    cfg = SimpleNamespace(model=MockModel(), models=[MockModel()], attacks=[MockDefaultAttack()], train_loader=loader)
+    cfg = SimpleNamespace(
+        model=MockModel(),
+        models=[MockModel()],
+        attacks=[MockDefaultAttack()],
+        train_loader=loader,
+    )
     inst = object.__new__(AdversarialODTraining)
     inst._check_config(cfg)
 
@@ -404,12 +450,14 @@ def test_check_config_accepts_list_of_dicts_targets():
 @pytest.mark.essential
 def test_check_config_sample_not_tuple(base_instance):
     """Test _check_config rejects non-tuple samples."""
+
     class BadDataset:
         def __len__(self):
             return 1
+
         def __getitem__(self, idx):
             return torch.zeros(3, 4, 4)  # Not a tuple
-    
+
     loader = DataLoader(BadDataset(), batch_size=1)
     cfg = SimpleNamespace(
         model=MockModel(),
@@ -418,7 +466,9 @@ def test_check_config_sample_not_tuple(base_instance):
         train_loader=loader,
     )
     inst = object.__new__(AdversarialODTraining)
-    with pytest.raises(ValueError, match="AdversarialODTraining expects dataset samples"):
+    with pytest.raises(
+        ValueError, match="AdversarialODTraining expects dataset samples"
+    ):
         inst._check_config(cfg)
 
 
@@ -426,12 +476,14 @@ def test_check_config_sample_not_tuple(base_instance):
 @pytest.mark.essential
 def test_check_config_exception_handling(base_instance):
     """Test _check_config exception handling."""
+
     class ExceptionDataset:
         def __len__(self):
             return 1
+
         def __getitem__(self, idx):
             raise RuntimeError("dataset error")
-    
+
     loader = DataLoader(ExceptionDataset(), batch_size=1)
     cfg = SimpleNamespace(
         model=MockModel(),
@@ -440,7 +492,9 @@ def test_check_config_exception_handling(base_instance):
         train_loader=loader,
     )
     inst = object.__new__(AdversarialODTraining)
-    with pytest.raises(ValueError, match="AdversarialODTraining expects dataset samples"):
+    with pytest.raises(
+        ValueError, match="AdversarialODTraining expects dataset samples"
+    ):
         inst._check_config(cfg)
 
 
@@ -464,7 +518,9 @@ def test_perform_attack_detector_already_resolved(base_instance, monkeypatch):
     attack._detector_resolved = True
     images = torch.zeros(2, 3, 4, 4)
     targets = {"labels": [torch.tensor(1), torch.tensor(2)]}
-    out = base_instance._perform_attack(attack, base_instance._trainable, images, targets)
+    out = base_instance._perform_attack(
+        attack, base_instance._trainable, images, targets
+    )
     assert isinstance(out, torch.Tensor)
 
 
@@ -476,7 +532,9 @@ def test_perform_attack_dpatch_with_cached_patch(base_instance):
     attack._optimized_patch = torch.zeros(1, 3, 4, 4)
     images = torch.zeros(1, 3, 4, 4)
     targets = {"labels": [torch.tensor(1)]}
-    out = base_instance._perform_attack(attack, base_instance._trainable, images, targets)
+    out = base_instance._perform_attack(
+        attack, base_instance._trainable, images, targets
+    )
     assert isinstance(out, torch.Tensor)
 
 
@@ -488,7 +546,9 @@ def test_perform_attack_tog_with_string_variant(base_instance):
     attack.object_detection_attack_type = "untargeted"
     images = torch.zeros(2, 3, 4, 4)
     targets = {"labels": [torch.tensor(1), torch.tensor(2)]}
-    out = base_instance._perform_attack(attack, base_instance._trainable, images, targets)
+    out = base_instance._perform_attack(
+        attack, base_instance._trainable, images, targets
+    )
     assert isinstance(out, torch.Tensor)
 
 
@@ -496,10 +556,11 @@ def test_perform_attack_tog_with_string_variant(base_instance):
 @pytest.mark.essential
 def test_perform_attack_dpatch_unexpected_type(base_instance):
     """Test _perform_attack with DPatch returning unexpected type."""
+
     class BadDPatch(MockDPatchAttack):
         def apply_patch(self, x, patch_external, random_location):
             return "not tensor or array"  # Unexpected type
-    
+
     attack = BadDPatch()
     attack._optimized_patch = torch.zeros(1, 3, 4, 4)
     images = torch.zeros(1, 3, 4, 4)
@@ -528,10 +589,10 @@ def test_run_batch_with_scheduler(base_instance):
     """Test _run_batch when scheduler is present."""
     param = torch.nn.Parameter(torch.tensor(1.0))
     base_instance._optimizer = torch.optim.SGD([param], lr=0.1)
-    base_instance._scheduler = torch.optim.lr_scheduler.StepLR(base_instance._optimizer, step_size=1)
+    base_instance._scheduler = torch.optim.lr_scheduler.StepLR(
+        base_instance._optimizer, step_size=1
+    )
     source = torch.zeros(2, 3, 4, 4)
     targets = {"labels": [torch.tensor(1), torch.tensor(2)]}
     loss = base_instance._run_batch(source, targets)
     assert isinstance(loss, float)
-
-

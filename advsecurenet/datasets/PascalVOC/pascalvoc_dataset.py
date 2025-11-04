@@ -139,8 +139,7 @@ class PascalVOCDataset(BaseDataset):
         def target_transform(target_dict):
             anns = voc_to_coco_anns(target_dict)
             return [
-                {"bbox": ann["bbox"], "category_id": ann["category_id"]}
-                for ann in anns
+                {"bbox": ann["bbox"], "category_id": ann["category_id"]} for ann in anns
             ]
 
         # 5) instantiate

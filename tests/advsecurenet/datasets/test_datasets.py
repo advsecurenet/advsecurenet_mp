@@ -489,9 +489,18 @@ def test_voc_to_coco_anns_filters_invalid():
         "annotation": {
             "size": {"width": 20, "height": 20},
             "object": [
-                {"name": "unknown", "bndbox": {"xmin": 0, "ymin": 0, "xmax": 5, "ymax": 5}},
-                {"name": "cat", "bndbox": {"xmin": 10, "ymin": 10, "xmax": 10, "ymax": 12}},
-                {"name": "cat", "bndbox": {"xmin": 12, "ymin": 12, "xmax": 10, "ymax": 9}},
+                {
+                    "name": "unknown",
+                    "bndbox": {"xmin": 0, "ymin": 0, "xmax": 5, "ymax": 5},
+                },
+                {
+                    "name": "cat",
+                    "bndbox": {"xmin": 10, "ymin": 10, "xmax": 10, "ymax": 12},
+                },
+                {
+                    "name": "cat",
+                    "bndbox": {"xmin": 12, "ymin": 12, "xmax": 10, "ymax": 9},
+                },
             ],
         }
     }
@@ -523,14 +532,26 @@ def test_pascalvoc_load_dataset_success(monkeypatch, tmp_path):
         _DummyVOC,
     )
     ds = PascalVOCDataset()
-    wrapper = ds.load_dataset(root=str(tmp_path), train=True, download=False, year="2007")
+    wrapper = ds.load_dataset(
+        root=str(tmp_path), train=True, download=False, year="2007"
+    )
     assert wrapper is not None
     # data_type TRAIN for train/trainval; val -> TEST
     assert str(ds.data_type).endswith("TRAIN")
     # target_transform should be callable and produce list of dicts with bbox and category_id
     tt = captured_tt.get("target_transform")
     assert callable(tt)
-    sample = {"annotation": {"size": {"width": 100, "height": 100}, "object": [{"name": "dog", "bndbox": {"xmin": 1, "ymin": 1, "xmax": 20, "ymax": 30}}]}}
+    sample = {
+        "annotation": {
+            "size": {"width": 100, "height": 100},
+            "object": [
+                {
+                    "name": "dog",
+                    "bndbox": {"xmin": 1, "ymin": 1, "xmax": 20, "ymax": 30},
+                }
+            ],
+        }
+    }
     out = tt(sample)
     assert isinstance(out, list)
     assert len(out) > 0
@@ -558,16 +579,20 @@ def test_pascalvoc_load_dataset_fallback(monkeypatch, tmp_path):
         PascalVOCDataset, "_fallback_voc_download", staticmethod(_fallback)
     )
     ds = PascalVOCDataset()
-    wrapper = ds.load_dataset(root=str(tmp_path), train=False, download=True, year="2012")
+    wrapper = ds.load_dataset(
+        root=str(tmp_path), train=False, download=True, year="2012"
+    )
     assert wrapper is not None
     assert calls["fallback"] == 1
 
 
 @pytest.mark.advsecurenet
 def test_pascalvoc_temporarily_disable_ssl_verification(monkeypatch):
-    from advsecurenet.datasets.PascalVOC.pascalvoc_dataset import temporarily_disable_ssl_verification
+    from advsecurenet.datasets.PascalVOC.pascalvoc_dataset import (
+        temporarily_disable_ssl_verification,
+    )
     import ssl
-    
+
     original = ssl._create_default_https_context
     with temporarily_disable_ssl_verification():
         assert ssl._create_default_https_context != original
@@ -620,10 +645,7 @@ def test_pascalvoc_load_dataset_root_none(monkeypatch, tmp_path):
         "advsecurenet.datasets.PascalVOC.pascalvoc_dataset.datasets.VOCDetection",
         _DummyVOC,
     )
-    monkeypatch.setattr(
-        "pkg_resources.resource_filename",
-        lambda *args: str(tmp_path)
-    )
+    monkeypatch.setattr("pkg_resources.resource_filename", lambda *args: str(tmp_path))
     ds = PascalVOCDataset()
     wrapper = ds.load_dataset(root=None, train=True, download=False, year="2012")
     assert wrapper is not None
@@ -641,7 +663,9 @@ def test_pascalvoc_load_dataset_image_set_overrides_train(monkeypatch, tmp_path)
     )
     ds = PascalVOCDataset()
     # image_set="test" should override train=True
-    wrapper = ds.load_dataset(root=str(tmp_path), train=True, download=False, year="2012", image_set="test")
+    wrapper = ds.load_dataset(
+        root=str(tmp_path), train=True, download=False, year="2012", image_set="test"
+    )
     assert wrapper is not None
     assert str(ds.data_type).endswith("TEST")  # test is not train/trainval
 
@@ -657,7 +681,13 @@ def test_pascalvoc_load_dataset_trainval_data_type(monkeypatch, tmp_path):
         _DummyVOC,
     )
     ds = PascalVOCDataset()
-    wrapper = ds.load_dataset(root=str(tmp_path), train=False, download=False, year="2012", image_set="trainval")
+    wrapper = ds.load_dataset(
+        root=str(tmp_path),
+        train=False,
+        download=False,
+        year="2012",
+        image_set="trainval",
+    )
     assert wrapper is not None
     assert str(ds.data_type).endswith("TRAIN")  # trainval is TRAIN
 
@@ -674,9 +704,7 @@ def test_pascalvoc_load_dataset_download_false_on_exception(monkeypatch, tmp_pat
         "advsecurenet.datasets.PascalVOC.pascalvoc_dataset.datasets.VOCDetection",
         _ctor_always_fail,
     )
-    monkeypatch.setattr(
-        PascalVOCDataset, "_fallback_voc_download", MagicMock()
-    )
+    monkeypatch.setattr(PascalVOCDataset, "_fallback_voc_download", MagicMock())
     ds = PascalVOCDataset()
     with pytest.raises(RuntimeError):
         ds.load_dataset(root=str(tmp_path), train=True, download=False, year="2012")
@@ -689,9 +717,9 @@ def test_pascalvoc_fallback_voc_download_existing_dir(tmp_path, monkeypatch):
     os.makedirs(voc_dir, exist_ok=True)
     # Mock urlretrieve to ensure it's never called when dir exists
     urlretrieve_calls = []
-    monkeypatch.setattr("urllib.request.urlretrieve", lambda *args: urlretrieve_calls.append(args))
+    monkeypatch.setattr(
+        "urllib.request.urlretrieve", lambda *args: urlretrieve_calls.append(args)
+    )
     ds._fallback_voc_download(str(tmp_path), year="2012")
     # Should skip download when dir exists
     assert len(urlretrieve_calls) == 0
-
-

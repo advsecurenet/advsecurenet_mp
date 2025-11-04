@@ -147,7 +147,9 @@ class CLIODAttacker:
 
     def _prepare_attack_config(self):
         model = create_model(self._config.model).model
-        if getattr(self._config, "device", None) and getattr(self._config.device, "processor", None):
+        if getattr(self._config, "device", None) and getattr(
+            self._config.device, "processor", None
+        ):
             model = model.to(self._config.device.processor)
         dataloader_config = self._create_dataloader_config()
         attack_config = self._config.attack_config.attack_parameters

@@ -22,7 +22,9 @@ class RTDetrEvalAdapter(torch.nn.Module):
         self.device = torch.device(device)
         self.conf_thresh = conf_thresh
 
-    def translate_predictions_for_map_evaluator(self, predictions, dataset_name: str, expects_numpy: bool = True) -> List[Dict[str, Any]]:
+    def translate_predictions_for_map_evaluator(
+        self, predictions, dataset_name: str, expects_numpy: bool = True
+    ) -> List[Dict[str, Any]]:
         return predictions
 
     def forward(
@@ -127,6 +129,7 @@ class CustomRTDetrModel(CustomODBaseModel):
 
     def _parameters_sha256(self):
         import hashlib
+
         with torch.no_grad():
             flat = torch.nn.utils.parameters_to_vector(
                 [p.detach().cpu() for p in self._model.parameters()]
@@ -134,8 +137,12 @@ class CustomRTDetrModel(CustomODBaseModel):
         return hashlib.sha256(flat.numpy().tobytes()).hexdigest()
 
     def load_model_weights(self, model_weights_path):
-        if not (model_weights_path and isinstance(model_weights_path, str)
-                and model_weights_path.endswith(".pth") and os.path.isfile(model_weights_path)):
+        if not (
+            model_weights_path
+            and isinstance(model_weights_path, str)
+            and model_weights_path.endswith(".pth")
+            and os.path.isfile(model_weights_path)
+        ):
             return
 
         before_hash = self._parameters_sha256()
@@ -151,23 +158,31 @@ class CustomRTDetrModel(CustomODBaseModel):
         def _clean(k: str) -> str:
             nk = k
             for p in (
-                "model._model.model.", "model.model.", "model._model.",
-                "_model.model.", "_model.", "model.", "module.",
+                "model._model.model.",
+                "model.model.",
+                "model._model.",
+                "_model.model.",
+                "_model.",
+                "model.",
+                "module.",
             ):
                 if nk.startswith(p):
-                    nk = nk[len(p):]
+                    nk = nk[len(p) :]
             if nk not in target_keys and f"model.{nk}" in target_keys:
                 nk = f"model.{nk}"
             return nk
 
-        sd_clean = { _clean(k): v for k, v in sd.items() }
+        sd_clean = {_clean(k): v for k, v in sd.items()}
         self._model.load_state_dict(sd_clean, strict=False)
         after_hash = self._parameters_sha256()
         if before_hash != after_hash:
-            print(f"[CustomRTDetrModel] Model parameters changed after loading '{model_weights_path}'.")
+            print(
+                f"[CustomRTDetrModel] Model parameters changed after loading '{model_weights_path}'."
+            )
         else:
-            print(f"[CustomRTDetrModel][WARN] Loading '{model_weights_path}' did not change model parameters.")
-        
+            print(
+                f"[CustomRTDetrModel][WARN] Loading '{model_weights_path}' did not change model parameters."
+            )
 
     def forward(self, x, targets=None):
         """
@@ -183,8 +198,10 @@ class CustomRTDetrModel(CustomODBaseModel):
             else:
                 x = torch.clamp(x, 0.0, 1.0)
             if torch.isnan(x).any() or torch.isinf(x).any():
-                raise ValueError("NaN/Inf detected in input tensor before preprocessing")
-            
+                raise ValueError(
+                    "NaN/Inf detected in input tensor before preprocessing"
+                )
+
         images_list = self._to_image_list(x)
         need_grad = self.training or any(t.requires_grad for t in images_list)
 
@@ -196,17 +213,30 @@ class CustomRTDetrModel(CustomODBaseModel):
                 batch = torch.clamp(batch, 0.0, 1.0)
             if batch.dim() == 3:
                 batch = batch.unsqueeze(0)
-            pixel_values = F.interpolate(batch, size=(640, 640), mode="bilinear", align_corners=False)
-            mean = torch.tensor([0.485, 0.456, 0.406], device=self.device).view(1, -1, 1, 1)
-            std  = torch.tensor([0.229, 0.224, 0.225], device=self.device).view(1, -1, 1, 1)
+            pixel_values = F.interpolate(
+                batch, size=(640, 640), mode="bilinear", align_corners=False
+            )
+            mean = torch.tensor([0.485, 0.456, 0.406], device=self.device).view(
+                1, -1, 1, 1
+            )
+            std = torch.tensor([0.229, 0.224, 0.225], device=self.device).view(
+                1, -1, 1, 1
+            )
             pixel_values = (pixel_values - mean) / std
             if torch.isnan(pixel_values).any() or torch.isinf(pixel_values).any():
                 raise ValueError("NaN/Inf in pixel_values after normalization")
-            pixel_mask = torch.ones(pixel_values.shape[0], 640, 640, dtype=torch.bool, device=self.device)
+            pixel_mask = torch.ones(
+                pixel_values.shape[0], 640, 640, dtype=torch.bool, device=self.device
+            )
             enc = {"pixel_values": pixel_values, "pixel_mask": pixel_mask}
         else:
-            enc = self.processor(images=images_list, return_tensors="pt", do_rescale=False)
-            enc = {k: v.to(self.device) if isinstance(v, torch.Tensor) else v for k, v in enc.items()}
+            enc = self.processor(
+                images=images_list, return_tensors="pt", do_rescale=False
+            )
+            enc = {
+                k: v.to(self.device) if isinstance(v, torch.Tensor) else v
+                for k, v in enc.items()
+            }
         if self.training and targets is not None:
             outputs = self._model(**enc, labels=targets)
             loss_components = {"loss_total": outputs.loss}
@@ -214,7 +244,14 @@ class CustomRTDetrModel(CustomODBaseModel):
                 for k, v in outputs.loss_dict.items():
                     loss_components[f"loss_{k}"] = v
             else:
-                for name in ("loss_ce","loss_cls","loss_bbox","loss_giou","loss_cardinality","loss_objectness"):
+                for name in (
+                    "loss_ce",
+                    "loss_cls",
+                    "loss_bbox",
+                    "loss_giou",
+                    "loss_cardinality",
+                    "loss_objectness",
+                ):
                     if hasattr(outputs, name) and getattr(outputs, name) is not None:
                         loss_components[name] = getattr(outputs, name)
             return loss_components
@@ -363,17 +400,42 @@ class CustomRTDetrModel(CustomODBaseModel):
                 t = t.detach()
         return t
 
-    def translate_predictions_for_map_evaluator(self, predictions, dataset_name: str, expects_numpy: bool = True) -> List[Dict[str, Any]]:
+    def translate_predictions_for_map_evaluator(
+        self, predictions, dataset_name: str, expects_numpy: bool = True
+    ) -> List[Dict[str, Any]]:
         ds = (dataset_name or "").lower()
         if ds == "pascal_voc":
             results: List[Dict[str, Any]] = []
             for d in predictions:
-                boxes = d["boxes"].detach().cpu().numpy() if isinstance(d["boxes"], torch.Tensor) else d["boxes"]
-                scores = d["scores"].detach().cpu().numpy() if isinstance(d["scores"], torch.Tensor) else d["scores"]
-                labels = d["labels"].detach().cpu().numpy().astype(int) if isinstance(d["labels"], torch.Tensor) else d["labels"].astype(int)
-                mapped = np.array(coco_label_ids_to_pascal(labels.tolist(), assume_contiguous=True, unmapped_value=-1), dtype=np.int64)
+                boxes = (
+                    d["boxes"].detach().cpu().numpy()
+                    if isinstance(d["boxes"], torch.Tensor)
+                    else d["boxes"]
+                )
+                scores = (
+                    d["scores"].detach().cpu().numpy()
+                    if isinstance(d["scores"], torch.Tensor)
+                    else d["scores"]
+                )
+                labels = (
+                    d["labels"].detach().cpu().numpy().astype(int)
+                    if isinstance(d["labels"], torch.Tensor)
+                    else d["labels"].astype(int)
+                )
+                mapped = np.array(
+                    coco_label_ids_to_pascal(
+                        labels.tolist(), assume_contiguous=True, unmapped_value=-1
+                    ),
+                    dtype=np.int64,
+                )
                 keep = mapped >= 0
-                results.append({"boxes": boxes[keep], "scores": scores[keep], "labels": mapped[keep]})
+                results.append(
+                    {
+                        "boxes": boxes[keep],
+                        "scores": scores[keep],
+                        "labels": mapped[keep],
+                    }
+                )
             return results
         return predictions
 
@@ -426,9 +488,16 @@ class CustomRTDetrModel(CustomODBaseModel):
                 continue
             # XYXY pixels -> CXCYWH normalized
             x1, y1, x2, y2 = boxes_xyxy.unbind(dim=1)
-            x1 = x1.clamp(0, W); x2 = x2.clamp(0, W)
-            y1 = y1.clamp(0, H); y2 = y2.clamp(0, H)
-            finite = torch.isfinite(x1) & torch.isfinite(y1) & torch.isfinite(x2) & torch.isfinite(y2)
+            x1 = x1.clamp(0, W)
+            x2 = x2.clamp(0, W)
+            y1 = y1.clamp(0, H)
+            y2 = y2.clamp(0, H)
+            finite = (
+                torch.isfinite(x1)
+                & torch.isfinite(y1)
+                & torch.isfinite(x2)
+                & torch.isfinite(y2)
+            )
             proper = (x2 > x1) & (y2 > y1)
             keep = finite & proper
             if keep.sum() != len(keep):
@@ -455,23 +524,32 @@ class CustomRTDetrModel(CustomODBaseModel):
         if self.training or any(t.requires_grad for t in x):
             return [x[i] for i in range(x.shape[0])]
         return [x[i].detach().cpu() for i in range(x.shape[0])]
-    
+
     def _labels_to_list_of_dicts(
         self, labels: Dict[str, torch.Tensor]
     ) -> List[Dict[str, torch.Tensor]]:
         """
         Convert a dict of batched tensors to a list of dicts per image.
         """
-        seq_val = next((v for v in labels.values() if isinstance(v, (list, tuple))), None)
+        seq_val = next(
+            (v for v in labels.values() if isinstance(v, (list, tuple))), None
+        )
         if seq_val is not None:
             n = len(seq_val)
             labels = [
-                {k: (v[i] if isinstance(v, (list, tuple)) else v) for k, v in labels.items()}
+                {
+                    k: (v[i] if isinstance(v, (list, tuple)) else v)
+                    for k, v in labels.items()
+                }
                 for i in range(n)
             ]
         else:
             t_val = next(
-                (v for v in labels.values() if isinstance(v, torch.Tensor) and v.dim() > 0),
+                (
+                    v
+                    for v in labels.values()
+                    if isinstance(v, torch.Tensor) and v.dim() > 0
+                ),
                 None,
             )
             if t_val is not None:

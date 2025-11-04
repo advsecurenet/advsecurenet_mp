@@ -29,7 +29,9 @@ def test_extract_predictions_with_labels_and_mapping_out_of_bounds_maps_to_str_i
         "scores": [0.7, 0.8, 0.9],
     }
     label_names = ["cat", "dog"]
-    classes, boxes, scores = extract_predictions(preds, conf_thresh=0.6, label_names=label_names)
+    classes, boxes, scores = extract_predictions(
+        preds, conf_thresh=0.6, label_names=label_names
+    )
     # Labels map to ["cat", "3", "dog"] then filtered (>0.6) -> keep all
     assert classes == ["cat", "3", "dog"]
     assert boxes == [[(0, 0), (1, 1)], [(1, 1), (2, 2)], [(2, 2), (3, 3)]]
@@ -73,5 +75,3 @@ def test_extract_predictions_no_scores_above_threshold_returns_empty():
     }
     classes, boxes, scores = extract_predictions(preds, conf_thresh=0.5)
     assert classes == [] and boxes == [] and scores == []
-
-

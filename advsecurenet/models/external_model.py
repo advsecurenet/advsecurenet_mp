@@ -50,7 +50,9 @@ class ExternalModel(BaseModel):
         filtered_architecture = filter_kwargs_for_callable(
             model_class, self._architecture
         )
-        if self._model_name in get_object_detector_model_names(): # custom object detector models have model_weights_path in the architecture
+        if (
+            self._model_name in get_object_detector_model_names()
+        ):  # custom object detector models have model_weights_path in the architecture
             filtered_architecture["model_weights_path"] = self._model_weights_path
             self.model = model_class(**filtered_architecture)
         else:
@@ -59,7 +61,9 @@ class ExternalModel(BaseModel):
                 try:
                     self.model.load_state_dict(torch.load(self._model_weights_path))
                 except Exception as e:
-                    raise ValueError(f"Error loading model weights! Details: {e}") from e
+                    raise ValueError(
+                        f"Error loading model weights! Details: {e}"
+                    ) from e
 
     def models(self):
         """

@@ -125,14 +125,14 @@ def test_execute_with_cuda_available(mock_evaluator, patch_config, monkeypatch):
     """Test execute with CUDA available."""
     monkeypatch.setattr(torch.cuda, "is_available", lambda: True)
     patch_config.device.type = "cuda"
-    
+
     evaluator_instance = MagicMock()
     mock_evaluator.return_value.__enter__.return_value = evaluator_instance
     evaluator_instance.get_results.return_value = {"mAP": 0.5}
-    
+
     attacker = AdversarialPatchODAttacker(patch_config)
     adv_images = attacker.execute()
-    
+
     assert isinstance(adv_images, list)
 
 
@@ -142,12 +142,12 @@ def test_execute_with_cuda_available(mock_evaluator, patch_config, monkeypatch):
 def test_apply_patch_method(mock_evaluator, patch_config):
     """Test _apply_patch method."""
     attacker = AdversarialPatchODAttacker(patch_config)
-    
+
     images_np = np.ones((2, 3, 10, 10), dtype=np.float32) * 128
     patch_np = np.ones((3, 10, 10), dtype=np.float32) * 200
-    
+
     result = attacker._apply_patch(images_np, patch_np)
-    
+
     assert isinstance(result, torch.Tensor)
     assert result.dtype == torch.float32
     assert torch.all(result >= 0.0) and torch.all(result <= 1.0)
@@ -161,10 +161,10 @@ def test_execute_patch_stats_logging(mock_evaluator, patch_config, caplog):
     evaluator_instance = MagicMock()
     mock_evaluator.return_value.__enter__.return_value = evaluator_instance
     evaluator_instance.get_results.return_value = {"mAP": 0.5}
-    
+
     attacker = AdversarialPatchODAttacker(patch_config)
     adv_images = attacker.execute()
-    
+
     assert "Patch trained" in caplog.text
 
 
@@ -176,26 +176,31 @@ def test_execute_patch_stats_exception(mock_evaluator, patch_config, caplog):
     evaluator_instance = MagicMock()
     mock_evaluator.return_value.__enter__.return_value = evaluator_instance
     evaluator_instance.get_results.return_value = {"mAP": 0.5}
-    
+
     # Make patch without min/max/item methods
     class BadPatch:
         shape = (3, 10, 10)
+
         def min(self):
             raise AttributeError("no min")
+
         def max(self):
             raise AttributeError("no max")
+
         def detach(self):
             return self
+
         def cpu(self):
             return self
+
         def numpy(self):
             return np.ones((3, 10, 10), dtype=np.float32)
-    
+
     patch_config.attack.attack = lambda **kwargs: BadPatch()
-    
+
     attacker = AdversarialPatchODAttacker(patch_config)
     adv_images = attacker.execute()
-    
+
     assert "stats unavailable" in caplog.text
 
 
@@ -205,15 +210,16 @@ def test_execute_patch_stats_exception(mock_evaluator, patch_config, caplog):
 def test_execute_debug_logging(mock_evaluator, patch_config, caplog):
     """Test debug logging during execution."""
     import logging
+
     caplog.set_level(logging.DEBUG)
-    
+
     evaluator_instance = MagicMock()
     mock_evaluator.return_value.__enter__.return_value = evaluator_instance
     evaluator_instance.get_results.return_value = {"mAP": 0.5}
-    
+
     attacker = AdversarialPatchODAttacker(patch_config)
     adv_images = attacker.execute()
-    
+
     assert "Applied patch to batch" in caplog.text
     assert "Evaluator updated" in caplog.text
 
@@ -224,14 +230,14 @@ def test_execute_debug_logging(mock_evaluator, patch_config, caplog):
 def test_execute_with_mask_attribute(mock_evaluator, patch_config):
     """Test execute when attack has mask attribute."""
     patch_config.attack.mask = np.ones((10, 10), dtype=bool)
-    
+
     evaluator_instance = MagicMock()
     mock_evaluator.return_value.__enter__.return_value = evaluator_instance
     evaluator_instance.get_results.return_value = {"mAP": 0.5}
-    
+
     attacker = AdversarialPatchODAttacker(patch_config)
     adv_images = attacker.execute()
-    
+
     assert isinstance(adv_images, list)
 
 
@@ -241,16 +247,16 @@ def test_execute_with_mask_attribute(mock_evaluator, patch_config):
 def test_execute_without_mask_attribute(mock_evaluator, patch_config):
     """Test execute when attack doesn't have mask attribute."""
     # Remove mask attribute if it exists
-    if hasattr(patch_config.attack, 'mask'):
-        delattr(patch_config.attack, 'mask')
-    
+    if hasattr(patch_config.attack, "mask"):
+        delattr(patch_config.attack, "mask")
+
     evaluator_instance = MagicMock()
     mock_evaluator.return_value.__enter__.return_value = evaluator_instance
     evaluator_instance.get_results.return_value = {"mAP": 0.5}
-    
+
     attacker = AdversarialPatchODAttacker(patch_config)
     adv_images = attacker.execute()
-    
+
     assert isinstance(adv_images, list)
 
 
@@ -261,11 +267,11 @@ def test_trained_patch_initialization(mock_evaluator, patch_config):
     """Test that _trained_patch is initialized to None."""
     attacker = AdversarialPatchODAttacker(patch_config)
     assert attacker._trained_patch is None
-    
+
     evaluator_instance = MagicMock()
     mock_evaluator.return_value.__enter__.return_value = evaluator_instance
     evaluator_instance.get_results.return_value = {"mAP": 0.5}
-    
+
     attacker.execute()
     assert attacker._trained_patch is not None
 
@@ -276,14 +282,15 @@ def test_trained_patch_initialization(mock_evaluator, patch_config):
 def test_execute_info_logging(mock_evaluator, patch_config, caplog):
     """Test info level logging."""
     import logging
+
     caplog.set_level(logging.INFO)
-    
+
     evaluator_instance = MagicMock()
     mock_evaluator.return_value.__enter__.return_value = evaluator_instance
     evaluator_instance.get_results.return_value = {"mAP": 0.5}
-    
+
     attacker = AdversarialPatchODAttacker(patch_config)
     adv_images = attacker.execute()
-    
+
     assert "Starting adversarial patch training" in caplog.text
     assert "Object Detection Attack summary" in caplog.text

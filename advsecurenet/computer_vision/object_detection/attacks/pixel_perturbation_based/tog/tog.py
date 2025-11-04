@@ -351,7 +351,9 @@ class TOG(AdversarialAttack):
         )
         x_adv = self._initialise_x_adv(x_query, eps)
         for _ in range(n_iter):
-            grad = self._object_detector.compute_object_fabrication_gradient(x_adv, training=False)
+            grad = self._object_detector.compute_object_fabrication_gradient(
+                x_adv, training=False
+            )
             x_adv = self._update_x_adv(grad, eps_iter, x_query, x_adv, eps)
         return x_adv
 

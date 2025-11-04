@@ -27,7 +27,13 @@ def test_get_object_detector_defaults(monkeypatch):
     assert captured["conf_thresh"] == 0.25
     assert isinstance(captured["attack_losses"], tuple)
     # ensure default losses include common keys
-    for k in ("loss_total", "loss_classifier", "loss_box_reg", "loss_objectness", "loss_rpn_box_reg"):
+    for k in (
+        "loss_total",
+        "loss_classifier",
+        "loss_box_reg",
+        "loss_objectness",
+        "loss_rpn_box_reg",
+    ):
         assert k in captured["attack_losses"]
 
 

@@ -40,11 +40,11 @@ class AdversarialODTraining(BaseAdversarialTraining):
             object_detector_config = {}
             if hasattr(config, "processor"):
                 object_detector_config["device_type"] = config.processor
-            self._od_wrapper = get_object_detector(config=object_detector_config, existing_model=self._trainable)
+            self._od_wrapper = get_object_detector(
+                config=object_detector_config, existing_model=self._trainable
+            )
         except Exception as e:
-            raise RuntimeError(
-                f"Failed to load detector wrapper: {e}"
-            ) from e
+            raise RuntimeError(f"Failed to load detector wrapper: {e}") from e
         if not any(g["params"] for g in self._optimizer.param_groups):
             kwargs = self._config.optimizer_kwargs or {}
             self._optimizer = self._get_optimizer(
@@ -179,7 +179,9 @@ class AdversarialODTraining(BaseAdversarialTraining):
                 object_detector_config = {
                     "device_type": self._config.processor,
                 }
-                detector_wrapper = get_object_detector(config=object_detector_config, existing_model=self._trainable)
+                detector_wrapper = get_object_detector(
+                    config=object_detector_config, existing_model=self._trainable
+                )
                 attack._object_detector = detector_wrapper
                 attack._detector_resolved = True
             except Exception:
@@ -209,13 +211,17 @@ class AdversarialODTraining(BaseAdversarialTraining):
                 raise TypeError(f"Unexpected patched output type: {type(patched)}")
         elif attack_name == "TOG":
             images_np = images.detach().cpu().numpy()
-            tog_variant = getattr(attack, "object_detection_attack_type", TOGAttackType.UNTARGETED)
+            tog_variant = getattr(
+                attack, "object_detection_attack_type", TOGAttackType.UNTARGETED
+            )
             if isinstance(tog_variant, str):
                 tog_variant = TOGAttackType(tog_variant.lower())
             adv_np = attack.attack(
                 x=images_np,
                 tog_variant=tog_variant,
-                tog_mislabeling_mode=getattr(attack, "object_detection_mislabeling_mode", "ml"),
+                tog_mislabeling_mode=getattr(
+                    attack, "object_detection_mislabeling_mode", "ml"
+                ),
             )
             return torch.from_numpy(adv_np).to(self._device)
         # Default: leave grads enabled so gradient-based attacks work

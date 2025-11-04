@@ -1,7 +1,10 @@
 import pytest
 from unittest.mock import MagicMock
 
-from advsecurenet.datasets.COCO.coco_utils import COCO_INSTANCE_CATEGORY_NAMES, ID_TO_CONTIGUOUS
+from advsecurenet.datasets.COCO.coco_utils import (
+    COCO_INSTANCE_CATEGORY_NAMES,
+    ID_TO_CONTIGUOUS,
+)
 from advsecurenet.datasets.PascalVOC.pascalvoc_utils import PASCAL_VOC_CATEGORY_NAMES
 from advsecurenet.datasets.label_utils import (
     coco_label_id_to_pascal,

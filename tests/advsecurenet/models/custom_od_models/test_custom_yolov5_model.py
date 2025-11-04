@@ -11,12 +11,16 @@ if "transformers" not in sys.modules:
     transformers_stub = types.ModuleType("transformers")
     transformers_stub.__path__ = []  # mark as package
     utils_stub = types.ModuleType("transformers.utils")
+
     class _DummyAutoModel:
         pass
+
     class _DummyAutoConfig:
         pass
+
     class _DummyRTDetrImageProcessor:
         pass
+
     class _DummyModelOutput(dict):
         """Minimal stand-in for transformers.utils.ModelOutput."""
 
@@ -116,12 +120,14 @@ def test_forward_eval_path_uses_autoshape(capsys):
         dummy_model = MinimalYoloModel()
         dummy_model.modules = lambda: []
         mock_load.return_value.model = dummy_model
+
         class DummyAuto:
             def __call__(self, imgs, size=None):
                 return types.SimpleNamespace(
                     xyxy=[np.empty((0, 6))],
                     pred=[torch.zeros((0, 5 + 3), dtype=torch.float32)],
                 )
+
         mock_autoshape.return_value = DummyAuto()
         mock_compute_loss.return_value = MagicMock()
     model = CustomYolov5Model()
@@ -181,7 +187,9 @@ def test_custom_weights_path():
         mock_autoshape.return_value = MagicMock()
         mock_compute_loss.return_value = MagicMock()
         model = CustomYolov5Model(model_weights_path="some/other/path.pt")
-        mock_load.assert_called_once_with("some/other/path.pt", autoshape=False, device=ANY)
+        mock_load.assert_called_once_with(
+            "some/other/path.pt", autoshape=False, device=ANY
+        )
 
 
 @pytest.mark.advsecurenet
@@ -206,9 +214,12 @@ def test_pth_weight_loading_hash_changed_and_unchanged(tmp_path, monkeypatch):
 
         # Sequence 1: changed hash
         cap = []
+
         def run_with_hashes(vals):
             seq = iter(vals)
-            monkeypatch.setattr(CustomYolov5Model, "_parameters_sha256", lambda self: next(seq))
+            monkeypatch.setattr(
+                CustomYolov5Model, "_parameters_sha256", lambda self: next(seq)
+            )
             m = CustomYolov5Model(model_weights_path=str(pth))
             cap.append(m)
             return m
@@ -229,6 +240,7 @@ def test_initialize_inference_model_sets_conf_when_available():
         from advsecurenet.models.CustomODModels.CustomYolov5Model import (
             CustomYolov5Model,
         )
+
         dm = MinimalYoloModel()
         dm.modules = lambda: []
         mock_load.return_value.model = dm
@@ -249,6 +261,7 @@ def test_resolve_device_none_cpu(monkeypatch):
         from advsecurenet.models.CustomODModels.CustomYolov5Model import (
             CustomYolov5Model,
         )
+
         dm = MinimalYoloModel()
         dm.modules = lambda: []
         mock_load.return_value.model = dm
@@ -285,7 +298,10 @@ def test_prepare_training_inputs_and_convert_targets_dict_and_empty():
     with patch("yolov5.load") as mock_load, patch(
         "yolov5.models.common.AutoShape"
     ) as mock_autoshape, patch("yolov5.utils.loss.ComputeLoss") as mock_compute_loss:
-        from advsecurenet.models.CustomODModels.CustomYolov5Model import CustomYolov5Model
+        from advsecurenet.models.CustomODModels.CustomYolov5Model import (
+            CustomYolov5Model,
+        )
+
         dm = MinimalYoloModel()
         dm.modules = lambda: []
         mock_load.return_value.model = dm
@@ -312,7 +328,10 @@ def test_calculate_loss_and_preprocess_paths():
     with patch("yolov5.load") as mock_load, patch(
         "yolov5.models.common.AutoShape"
     ) as mock_autoshape, patch("yolov5.utils.loss.ComputeLoss") as mock_compute_loss:
-        from advsecurenet.models.CustomODModels.CustomYolov5Model import CustomYolov5Model
+        from advsecurenet.models.CustomODModels.CustomYolov5Model import (
+            CustomYolov5Model,
+        )
+
         dm = MinimalYoloModel()
         dm.modules = lambda: []
         mock_load.return_value.model = dm
@@ -329,7 +348,9 @@ def test_calculate_loss_and_preprocess_paths():
         arr = (np.zeros((1, 3, 8, 8)) * 255).astype(np.uint8)
         t_np = model.preprocess_x_for_loss_calculation(arr, requires_grad=True)
         assert isinstance(t_np, torch.Tensor) and t_np.requires_grad
-        t_torch = model.preprocess_x_for_loss_calculation(torch.zeros((1, 3, 8, 8)), requires_grad=False)
+        t_torch = model.preprocess_x_for_loss_calculation(
+            torch.zeros((1, 3, 8, 8)), requires_grad=False
+        )
         assert isinstance(t_torch, torch.Tensor) and not t_torch.requires_grad
 
 
@@ -338,7 +359,10 @@ def test_translate_labels_channels_first_and_last():
     with patch("yolov5.load") as mock_load, patch(
         "yolov5.models.common.AutoShape"
     ) as mock_autoshape, patch("yolov5.utils.loss.ComputeLoss") as mock_compute_loss:
-        from advsecurenet.models.CustomODModels.CustomYolov5Model import CustomYolov5Model
+        from advsecurenet.models.CustomODModels.CustomYolov5Model import (
+            CustomYolov5Model,
+        )
+
         dm = MinimalYoloModel()
         dm.modules = lambda: []
         mock_load.return_value.model = dm
@@ -364,7 +388,10 @@ def test_convert_targets_list_path():
     with patch("yolov5.load") as mock_load, patch(
         "yolov5.models.common.AutoShape"
     ) as mock_autoshape, patch("yolov5.utils.loss.ComputeLoss") as mock_compute_loss:
-        from advsecurenet.models.CustomODModels.CustomYolov5Model import CustomYolov5Model
+        from advsecurenet.models.CustomODModels.CustomYolov5Model import (
+            CustomYolov5Model,
+        )
+
         dm = MinimalYoloModel()
         dm.modules = lambda: []
         mock_load.return_value.model = dm
@@ -433,7 +460,9 @@ def test_predict_per_batch_empty_and_nonempty():
                 # pred carries class logits [5:]
                 self.pred = [
                     torch.zeros((0, 5 + 3), dtype=torch.float32),
-                    torch.tensor([[0, 0, 0, 0, 0.0, 0.1, 0.2, 0.3]], dtype=torch.float32),
+                    torch.tensor(
+                        [[0, 0, 0, 0, 0.0, 0.1, 0.2, 0.3]], dtype=torch.float32
+                    ),
                 ]
 
         # Inference model returns Outputs instance
@@ -458,11 +487,13 @@ def test_initialize_inference_model_exception_path(monkeypatch):
         from advsecurenet.models.CustomODModels.CustomYolov5Model import (
             CustomYolov5Model,
         )
+
         dm = MinimalYoloModel()
         dm.modules = lambda: []
         mock_load.return_value.model = dm
         mock_compute_loss.return_value = MagicMock()
         model = CustomYolov5Model()
+
         # Ensure model has no _autoshape so code tries to construct one and fails
         def raise_autoshape(*args, **kwargs):
             raise RuntimeError("fail")
@@ -482,6 +513,7 @@ def test_init_with_pth_load_state_dict_exception(monkeypatch):
         from advsecurenet.models.CustomODModels.CustomYolov5Model import (
             CustomYolov5Model,
         )
+
         dm = MinimalYoloModel()
         # modules list so BN freeze loop executes
         dm.modules = lambda: []
@@ -494,7 +526,9 @@ def test_init_with_pth_load_state_dict_exception(monkeypatch):
         # Return a nested state dict that will fail when accessing model.state_dict()
         monkeypatch.setattr(
             "torch.load",
-            lambda *a, **k: {"state_dict": {"model._model.model.weight": torch.tensor([1])}},
+            lambda *a, **k: {
+                "state_dict": {"model._model.model.weight": torch.tensor([1])}
+            },
         )
         # Should not raise despite failing to apply state dict
         _ = CustomYolov5Model(model_weights_path="weights.pth")
@@ -508,6 +542,7 @@ def test_init_device_int_branch():
         from advsecurenet.models.CustomODModels.CustomYolov5Model import (
             CustomYolov5Model,
         )
+
         dm = MinimalYoloModel()
         dm.modules = lambda: []
         mock_load.return_value.model = dm
@@ -520,9 +555,11 @@ def test_init_device_int_branch():
 
 @pytest.mark.advsecurenet
 def test_suppress_yolov5_autocast_warning():
-    from advsecurenet.models.CustomODModels.CustomYolov5Model import _suppress_yolov5_autocast_warning
+    from advsecurenet.models.CustomODModels.CustomYolov5Model import (
+        _suppress_yolov5_autocast_warning,
+    )
     import warnings
-    
+
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
         with _suppress_yolov5_autocast_warning():
@@ -536,16 +573,23 @@ def test_suppress_yolov5_autocast_warning():
 
 @pytest.mark.advsecurenet
 def test_translate_predictions_for_map_evaluator_yolo_expects_numpy_true(monkeypatch):
-    from advsecurenet.models.CustomODModels.CustomYolov5Model import translate_predictions_for_map_evaluator_yolo
-    
+    from advsecurenet.models.CustomODModels.CustomYolov5Model import (
+        translate_predictions_for_map_evaluator_yolo,
+    )
+
     class MockPreds:
         def __init__(self):
             self.pred = [
-                torch.tensor([[0, 0, 10, 10, 0.9, 1], [5, 5, 15, 15, 0.8, 2]], dtype=torch.float32)
+                torch.tensor(
+                    [[0, 0, 10, 10, 0.9, 1], [5, 5, 15, 15, 0.8, 2]],
+                    dtype=torch.float32,
+                )
             ]
-    
+
     preds = MockPreds()
-    results = translate_predictions_for_map_evaluator_yolo(preds, "coco", expects_numpy=True)
+    results = translate_predictions_for_map_evaluator_yolo(
+        preds, "coco", expects_numpy=True
+    )
     assert len(results) == 1
     assert "boxes" in results[0]
     assert "labels" in results[0]
@@ -554,8 +598,10 @@ def test_translate_predictions_for_map_evaluator_yolo_expects_numpy_true(monkeyp
 
 @pytest.mark.advsecurenet
 def test_translate_predictions_for_map_evaluator_yolo_expects_numpy_false(monkeypatch):
-    from advsecurenet.models.CustomODModels.CustomYolov5Model import translate_predictions_for_map_evaluator_yolo
-    
+    from advsecurenet.models.CustomODModels.CustomYolov5Model import (
+        translate_predictions_for_map_evaluator_yolo,
+    )
+
     preds = [
         {
             "boxes": torch.tensor([[0, 0, 10, 10]], dtype=torch.float32),
@@ -563,7 +609,9 @@ def test_translate_predictions_for_map_evaluator_yolo_expects_numpy_false(monkey
             "labels": torch.tensor([1], dtype=torch.int64),
         }
     ]
-    results = translate_predictions_for_map_evaluator_yolo(preds, "coco", expects_numpy=False)
+    results = translate_predictions_for_map_evaluator_yolo(
+        preds, "coco", expects_numpy=False
+    )
     assert len(results) == 1
     assert "boxes" in results[0]
     assert "labels" in results[0]
@@ -572,16 +620,20 @@ def test_translate_predictions_for_map_evaluator_yolo_expects_numpy_false(monkey
 
 @pytest.mark.advsecurenet
 def test_translate_predictions_for_map_evaluator_yolo_pascal_mapping(monkeypatch):
-    from advsecurenet.models.CustomODModels.CustomYolov5Model import translate_predictions_for_map_evaluator_yolo
-    
+    from advsecurenet.models.CustomODModels.CustomYolov5Model import (
+        translate_predictions_for_map_evaluator_yolo,
+    )
+
     class MockPreds:
         def __init__(self):
             self.pred = [
                 torch.tensor([[0, 0, 10, 10, 0.9, 5]], dtype=torch.float32)  # label 5
             ]
-    
+
     preds = MockPreds()
-    results = translate_predictions_for_map_evaluator_yolo(preds, "pascal_voc", expects_numpy=True)
+    results = translate_predictions_for_map_evaluator_yolo(
+        preds, "pascal_voc", expects_numpy=True
+    )
     assert len(results) == 1
     # Labels should be mapped/filtered for Pascal VOC
 
@@ -594,6 +646,7 @@ def test_parameters_sha256():
         from advsecurenet.models.CustomODModels.CustomYolov5Model import (
             CustomYolov5Model,
         )
+
         dm = MinimalYoloModel()
         dm.modules = lambda: []
         mock_load.return_value.model = dm
@@ -613,6 +666,7 @@ def test_load_model_weights_non_pth():
         from advsecurenet.models.CustomODModels.CustomYolov5Model import (
             CustomYolov5Model,
         )
+
         dm = MinimalYoloModel()
         dm.modules = lambda: []
         mock_load.return_value.model = dm
@@ -631,22 +685,25 @@ def test_load_model_weights_state_dict_cleaning(tmp_path, monkeypatch):
         from advsecurenet.models.CustomODModels.CustomYolov5Model import (
             CustomYolov5Model,
         )
+
         dm = MinimalYoloModel()
         dm.modules = lambda: []
+
         # Add a state_dict method that returns keys
         def state_dict():
             return {"model.weight": torch.zeros(1)}
+
         dm.state_dict = state_dict
         mock_load.return_value.model = dm
         mock_autoshape.return_value = MagicMock()
         mock_compute_loss.return_value = MagicMock()
-        
+
         pth = tmp_path / "w.pth"
         # Create state dict with prefix that needs cleaning
         sd = {"model._model.model.weight": torch.ones(1)}
         torch.save({"weights": sd}, pth)
         monkeypatch.setattr("os.path.isfile", lambda p: True)
-        
+
         model = CustomYolov5Model(model_weights_path=str(pth))
         # Should not raise and should handle prefix cleaning
 
@@ -659,6 +716,7 @@ def test_forward_exception_path():
         from advsecurenet.models.CustomODModels.CustomYolov5Model import (
             CustomYolov5Model,
         )
+
         dm = MinimalYoloModel()
         dm.modules = lambda: []
         mock_load.return_value.model = dm
@@ -681,6 +739,7 @@ def test_forward_non_training():
         from advsecurenet.models.CustomODModels.CustomYolov5Model import (
             CustomYolov5Model,
         )
+
         dm = MinimalYoloModel()
         dm.modules = lambda: []
         mock_load.return_value.model = dm
@@ -709,6 +768,7 @@ def test_predict_training_false():
         from advsecurenet.models.CustomODModels.CustomYolov5Model import (
             CustomYolov5Model,
         )
+
         dm = MinimalYoloModel()
         dm.modules = lambda: []
         mock_load.return_value.model = dm
@@ -729,6 +789,7 @@ def test_predict_raw_numpy_input():
         from advsecurenet.models.CustomODModels.CustomYolov5Model import (
             CustomYolov5Model,
         )
+
         dm = MinimalYoloModel()
         dm.modules = lambda: []
         mock_load.return_value.model = dm
@@ -748,6 +809,7 @@ def test_predict_per_batch_non_empty_tensor_detections():
         from advsecurenet.models.CustomODModels.CustomYolov5Model import (
             CustomYolov5Model,
         )
+
         dm = MinimalYoloModel()
         dm.modules = lambda: []
         mock_load.return_value.model = dm
@@ -755,12 +817,14 @@ def test_predict_per_batch_non_empty_tensor_detections():
         mock_compute_loss.return_value = MagicMock()
         model = CustomYolov5Model()
         model.input_shape = (3, 32, 32)
-        
+
         class Outputs:
             def __init__(self):
                 self.xyxy = [torch.tensor([[1, 2, 3, 4, 0.9, 1]], dtype=torch.float32)]
-                self.pred = [torch.tensor([[0, 0, 0, 0, 0.0, 0.1, 0.2]], dtype=torch.float32)]
-        
+                self.pred = [
+                    torch.tensor([[0, 0, 0, 0, 0.0, 0.1, 0.2]], dtype=torch.float32)
+                ]
+
         inference_model = MagicMock()
         inference_model.return_value = Outputs()
         imgs = torch.rand(1, 3, 16, 16)
@@ -778,18 +842,23 @@ def test_translate_predictions_for_map_evaluator():
         from advsecurenet.models.CustomODModels.CustomYolov5Model import (
             CustomYolov5Model,
         )
+
         dm = MinimalYoloModel()
         dm.modules = lambda: []
         mock_load.return_value.model = dm
         mock_autoshape.return_value = MagicMock()
         mock_compute_loss.return_value = MagicMock()
         model = CustomYolov5Model()
+
         # Mock predictions
         class MockPreds:
             def __init__(self):
                 self.pred = [torch.tensor([[0, 0, 10, 10, 0.9, 1]])]
+
         preds = MockPreds()
-        results = model.translate_predictions_for_map_evaluator(preds, "coco", expects_numpy=True)
+        results = model.translate_predictions_for_map_evaluator(
+            preds, "coco", expects_numpy=True
+        )
         assert isinstance(results, list)
 
 
@@ -801,6 +870,7 @@ def test_translate_labels_empty_boxes():
         from advsecurenet.models.CustomODModels.CustomYolov5Model import (
             CustomYolov5Model,
         )
+
         dm = MinimalYoloModel()
         dm.modules = lambda: []
         mock_load.return_value.model = dm
@@ -824,6 +894,7 @@ def test_convert_targets_dict_path():
         from advsecurenet.models.CustomODModels.CustomYolov5Model import (
             CustomYolov5Model,
         )
+
         dm = MinimalYoloModel()
         dm.modules = lambda: []
         mock_load.return_value.model = dm
@@ -847,6 +918,7 @@ def test_resolve_device_torch_device(monkeypatch):
         from advsecurenet.models.CustomODModels.CustomYolov5Model import (
             CustomYolov5Model,
         )
+
         dm = MinimalYoloModel()
         dm.modules = lambda: []
         mock_load.return_value.model = dm
@@ -864,6 +936,7 @@ def test_module_device():
         from advsecurenet.models.CustomODModels.CustomYolov5Model import (
             CustomYolov5Model,
         )
+
         dm = MinimalYoloModel()
         dm.modules = lambda: []
         mock_load.return_value.model = dm
@@ -882,6 +955,7 @@ def test_to_method():
         from advsecurenet.models.CustomODModels.CustomYolov5Model import (
             CustomYolov5Model,
         )
+
         dm = MinimalYoloModel()
         dm.modules = lambda: []
         mock_load.return_value.model = dm
@@ -904,13 +978,14 @@ def test_load_model_weights_model_key(tmp_path, monkeypatch):
         from advsecurenet.models.CustomODModels.CustomYolov5Model import (
             CustomYolov5Model,
         )
+
         dm = MinimalYoloModel()
         dm.modules = lambda: []
         dm.state_dict = lambda: {"model.weight": torch.zeros(1)}
         mock_load.return_value.model = dm
         mock_autoshape.return_value = MagicMock()
         mock_compute_loss.return_value = MagicMock()
-        
+
         pth = tmp_path / "w.pth"
         torch.save({"model": {"x": torch.tensor(1)}}, pth)
         monkeypatch.setattr("os.path.isfile", lambda p: True)
@@ -919,10 +994,14 @@ def test_load_model_weights_model_key(tmp_path, monkeypatch):
 
 
 @pytest.mark.advsecurenet
-def test_translate_predictions_for_map_evaluator_yolo_expects_numpy_false_pascal(monkeypatch):
+def test_translate_predictions_for_map_evaluator_yolo_expects_numpy_false_pascal(
+    monkeypatch,
+):
     """Test translate_predictions_for_map_evaluator_yolo with expects_numpy=False and pascal mapping."""
-    from advsecurenet.models.CustomODModels.CustomYolov5Model import translate_predictions_for_map_evaluator_yolo
-    
+    from advsecurenet.models.CustomODModels.CustomYolov5Model import (
+        translate_predictions_for_map_evaluator_yolo,
+    )
+
     preds = [
         {
             "boxes": torch.tensor([[0, 0, 10, 10]], dtype=torch.float32),
@@ -930,6 +1009,8 @@ def test_translate_predictions_for_map_evaluator_yolo_expects_numpy_false_pascal
             "labels": torch.tensor([5], dtype=torch.int64),  # Label 5
         }
     ]
-    results = translate_predictions_for_map_evaluator_yolo(preds, "pascal_voc", expects_numpy=False)
+    results = translate_predictions_for_map_evaluator_yolo(
+        preds, "pascal_voc", expects_numpy=False
+    )
     assert len(results) == 1
     assert "boxes" in results[0]

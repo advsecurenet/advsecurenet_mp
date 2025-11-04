@@ -1016,12 +1016,12 @@ def test_attack_step_build_patch_target_and_flag_empty_targets(dpatch_config):
     dpatch._target_label = None
     patched = torch.zeros((1, 3, 10, 10))
     transforms = [{"i_x_1": 0, "i_x_2": 5, "i_y_1": 0, "i_y_2": 5}]
-    
+
     # Mock predict to return empty detections
     dpatch._object_detector.predict = lambda x: [
         {"boxes": np.empty((0, 4)), "labels": np.empty((0,)), "scores": np.empty((0,))}
     ]
-    
+
     patch_target, suppress = dpatch._attack_step_build_patch_target_and_flag(
         patched, transforms, None
     )
@@ -1042,7 +1042,7 @@ def test_attack_step_build_patch_target_and_flag_with_y(dpatch_config):
             "scores": np.array([1.0]),
         }
     ]
-    
+
     patch_target, suppress = dpatch._attack_step_build_patch_target_and_flag(
         patched, transforms, y
     )
@@ -1059,7 +1059,7 @@ def test_attack_step_accumulate_patch_gradients(dpatch_config):
         {"i_x_1": 0, "i_x_2": 10, "i_y_1": 0, "i_y_2": 10},
     ]
     device = torch.device("cpu")
-    
+
     patch_grads = dpatch._attack_step_accumulate_patch_gradients(
         gradients, transforms, 0, device
     )
@@ -1075,7 +1075,9 @@ def test_attack_step_exception_in_initial_aug(dpatch_config):
     """
     dpatch = DPatch(dpatch_config)
     x = np.zeros((1, 3, 10, 10), dtype=np.float32)
-    grad, suppress = dpatch._attack_step(x, y=None, mask=None, device=torch.device("cpu"))
+    grad, suppress = dpatch._attack_step(
+        x, y=None, mask=None, device=torch.device("cpu")
+    )
     assert isinstance(grad, torch.Tensor)
     assert isinstance(suppress, bool)
 
@@ -1083,17 +1085,17 @@ def test_attack_step_exception_in_initial_aug(dpatch_config):
 def test_attack_step_exception_in_target_building(dpatch_config, monkeypatch):
     """Test exception handling in target building."""
     dpatch = DPatch(dpatch_config)
-    
+
     def bad_predict(*args, **kwargs):
         raise RuntimeError("predict failed")
-    
+
     dpatch._object_detector.predict = bad_predict  # type: ignore
-    
+
     x = np.zeros((1, 3, 10, 10), dtype=np.float32)
     y = None
     mask = None
     device = torch.device("cpu")
-    
+
     grad, suppress = dpatch._attack_step(x, y, mask, device)
     assert isinstance(grad, torch.Tensor)
 
@@ -1101,12 +1103,12 @@ def test_attack_step_exception_in_target_building(dpatch_config, monkeypatch):
 def test_attack_step_exception_in_gradient_computation(dpatch_config, monkeypatch):
     """Test exception handling in gradient computation."""
     dpatch = DPatch(dpatch_config)
-    
+
     def bad_loss_gradient(*args, **kwargs):
         raise RuntimeError("loss gradient failed")
-    
+
     dpatch._object_detector.loss_gradient = bad_loss_gradient  # type: ignore
-    
+
     x = np.zeros((1, 3, 10, 10), dtype=np.float32)
     y = [
         {
@@ -1117,7 +1119,7 @@ def test_attack_step_exception_in_gradient_computation(dpatch_config, monkeypatc
     ]
     mask = None
     device = torch.device("cpu")
-    
+
     grad, suppress = dpatch._attack_step(x, y, mask, device)
     assert isinstance(grad, torch.Tensor)
 
@@ -1161,7 +1163,9 @@ def test_augment_images_single_channel_patch():
     """Test augmenting images with single channel patch."""
     x = torch.zeros((1, 1, 10, 10))
     patch = torch.ones((1, 3, 3))
-    patched, transforms = DPatch.augment_images_with_patch(x, patch, random_location=False)
+    patched, transforms = DPatch.augment_images_with_patch(
+        x, patch, random_location=False
+    )
     assert isinstance(patched, torch.Tensor)
     assert patched.shape == (1, 1, 10, 10)
 
@@ -1194,19 +1198,22 @@ def test_attack_step_with_very_small_batch(dpatch_config):
 def test_attack_with_distributed_sampler(dpatch_config, monkeypatch):
     """Test attack method with DistributedSampler."""
     from torch.utils.data.distributed import DistributedSampler
+
     dpatch = DPatch(dpatch_config)
-    
+
     dataset = DummyDataset()
+
     class MockSampler(DistributedSampler):
         def __init__(self, dataset, **kwargs):
             self.epoch_set = []
             super().__init__(dataset, num_replicas=1, rank=0)
+
         def set_epoch(self, epoch):
             self.epoch_set.append(epoch)
-    
+
     sampler = MockSampler(dataset)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=2, sampler=sampler)
-    
+
     patch = dpatch.attack(dataloader, mask=None, device=torch.device("cpu"))
     assert isinstance(patch, torch.Tensor)
 
@@ -1214,18 +1221,21 @@ def test_attack_with_distributed_sampler(dpatch_config, monkeypatch):
 def test_attack_distributed_sampler_exception(dpatch_config, monkeypatch):
     """Test attack method with DistributedSampler that raises exception."""
     from torch.utils.data.distributed import DistributedSampler
+
     dpatch = DPatch(dpatch_config)
-    
+
     dataset = DummyDataset()
+
     class MockSampler(DistributedSampler):
         def __init__(self, dataset, **kwargs):
             super().__init__(dataset, num_replicas=1, rank=0)
+
         def set_epoch(self, epoch):
             raise RuntimeError("set_epoch failed")
-    
+
     sampler = MockSampler(dataset)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=2, sampler=sampler)
-    
+
     patch = dpatch.attack(dataloader, mask=None, device=torch.device("cpu"))
     assert isinstance(patch, torch.Tensor)
 
@@ -1254,9 +1264,11 @@ def test_attack_untargeted_suppress_false(dpatch_config):
     dpatch._target_label = None
     # Mock _attack_step to return suppress=False
     original_step = dpatch._attack_step
+
     def mock_step(*args, **kwargs):
         grad, _ = original_step(*args, **kwargs)
         return grad, False
+
     dpatch._attack_step = mock_step
     dataloader = torch.utils.data.DataLoader(DummyDataset(), batch_size=2)
     patch = dpatch.attack(dataloader, mask=None, device=torch.device("cpu"))
@@ -1290,8 +1302,16 @@ def test_prepare_patch_targets_target_label_with_y(dpatch_config):
         {"i_x_1": 0, "i_x_2": 5, "i_y_1": 0, "i_y_2": 5},
     ]
     y = [
-        {"boxes": np.array([[0, 0, 5, 5]]), "labels": np.array([1]), "scores": np.array([0.9])},
-        {"boxes": np.array([[0, 0, 5, 5]]), "labels": np.array([2]), "scores": np.array([0.8])},
+        {
+            "boxes": np.array([[0, 0, 5, 5]]),
+            "labels": np.array([1]),
+            "scores": np.array([0.9]),
+        },
+        {
+            "boxes": np.array([[0, 0, 5, 5]]),
+            "labels": np.array([2]),
+            "scores": np.array([0.8]),
+        },
     ]
     targets = dpatch._prepare_patch_targets(patched_images, transforms, y=y)
     assert len(targets) == 2
@@ -1303,8 +1323,16 @@ def test_prepare_data_and_compute_patch_gradients_empty_boxes(dpatch_config):
     patched_images = torch.zeros(2, 3, 10, 10)
     current_step_patched_images = torch.zeros(2, 3, 10, 10)
     patch_target = [
-        {"boxes": np.array([]).reshape(0, 4), "labels": np.array([]), "scores": np.array([])},
-        {"boxes": np.array([]).reshape(0, 4), "labels": np.array([]), "scores": np.array([])},
+        {
+            "boxes": np.array([]).reshape(0, 4),
+            "labels": np.array([]),
+            "scores": np.array([]),
+        },
+        {
+            "boxes": np.array([]).reshape(0, 4),
+            "labels": np.array([]),
+            "scores": np.array([]),
+        },
     ]
     dpatch._object_detector.predict = lambda x: [
         {"boxes": np.empty((0, 4)), "labels": np.empty((0,)), "scores": np.empty((0,))},
@@ -1322,13 +1350,29 @@ def test_prepare_data_and_compute_patch_gradients_missing_scores_labels(dpatch_c
     patched_images = torch.zeros(2, 3, 10, 10)
     current_step_patched_images = torch.zeros(2, 3, 10, 10)
     patch_target = [
-        {"boxes": np.array([[0, 0, 5, 5]]), "labels": np.array([1]), "scores": np.array([0.9])},
-        {"boxes": np.array([[0, 0, 5, 5]]), "labels": np.array([2]), "scores": np.array([0.8])},
+        {
+            "boxes": np.array([[0, 0, 5, 5]]),
+            "labels": np.array([1]),
+            "scores": np.array([0.9]),
+        },
+        {
+            "boxes": np.array([[0, 0, 5, 5]]),
+            "labels": np.array([2]),
+            "scores": np.array([0.8]),
+        },
     ]
     # First result has scores/labels (defines num_classes), second doesn't (skips logits)
     dpatch._object_detector.predict = lambda x: [
-        {"boxes": np.array([[0, 0, 5, 5]]), "labels": np.array([1]), "scores": np.array([0.9])},
-        {"boxes": np.array([[0, 0, 5, 5]]), "labels": np.array([2]), "scores": np.array([0.8])},
+        {
+            "boxes": np.array([[0, 0, 5, 5]]),
+            "labels": np.array([1]),
+            "scores": np.array([0.9]),
+        },
+        {
+            "boxes": np.array([[0, 0, 5, 5]]),
+            "labels": np.array([2]),
+            "scores": np.array([0.8]),
+        },
     ]
     gradients = dpatch._prepare_data_and_compute_patch_gradients(
         patched_images, current_step_patched_images, 0, 2, patch_target
@@ -1346,7 +1390,9 @@ def test_augment_images_with_patch_random_location_with_mask_3d_batch(dpatch_con
     assert 0 <= i_y <= 10 - 3
 
 
-def test_augment_images_with_patch_random_location_with_mask_3d_singleton(dpatch_config):
+def test_augment_images_with_patch_random_location_with_mask_3d_singleton(
+    dpatch_config,
+):
     """Test augment_images_with_patch_random_location_with_mask with 3D mask batch_size = 1."""
     mask = np.ones((1, 10, 10), dtype=bool)
     i_x, i_y = DPatch.augment_images_with_patch_random_location_with_mask(
@@ -1356,7 +1402,9 @@ def test_augment_images_with_patch_random_location_with_mask_3d_singleton(dpatch
     assert 0 <= i_y <= 10 - 3
 
 
-def test_augment_images_with_patch_random_location_with_mask_torch_tensor(dpatch_config):
+def test_augment_images_with_patch_random_location_with_mask_torch_tensor(
+    dpatch_config,
+):
     """Test augment_images_with_patch_random_location_with_mask with torch.Tensor mask."""
     mask = torch.ones(10, 10, dtype=torch.bool)
     i_x, i_y = DPatch.augment_images_with_patch_random_location_with_mask(
@@ -1366,16 +1414,24 @@ def test_augment_images_with_patch_random_location_with_mask_torch_tensor(dpatch
     assert 0 <= i_y <= 10 - 3
 
 
-def test_attack_step_build_patch_target_and_flag_with_y_and_target_label_none(dpatch_config):
+def test_attack_step_build_patch_target_and_flag_with_y_and_target_label_none(
+    dpatch_config,
+):
     """Test _attack_step_build_patch_target_and_flag when y provided and target_label is None."""
     dpatch = DPatch(dpatch_config)
     dpatch._target_label = None
     patched_images = torch.zeros(1, 3, 10, 10)
     transforms = [{"i_x_1": 0, "i_x_2": 5, "i_y_1": 0, "i_y_2": 5}]
     y = [
-        {"boxes": np.array([[0, 0, 5, 5]]), "labels": np.array([1]), "scores": np.array([0.9])},
+        {
+            "boxes": np.array([[0, 0, 5, 5]]),
+            "labels": np.array([1]),
+            "scores": np.array([0.9]),
+        },
     ]
-    patch_target, suppress = dpatch._attack_step_build_patch_target_and_flag(patched_images, transforms, y)
+    patch_target, suppress = dpatch._attack_step_build_patch_target_and_flag(
+        patched_images, transforms, y
+    )
     assert isinstance(patch_target, list)
     assert suppress is False  # y is provided, so not empty
 
@@ -1386,11 +1442,19 @@ def test_prepare_data_and_compute_patch_gradients_invalid_labels(dpatch_config):
     patched_images = torch.zeros(1, 3, 10, 10)
     current_step_patched_images = torch.zeros(1, 3, 10, 10)
     patch_target = [
-        {"boxes": np.array([[0, 0, 5, 5]]), "labels": np.array([999]), "scores": np.array([0.9])},  # Invalid label
+        {
+            "boxes": np.array([[0, 0, 5, 5]]),
+            "labels": np.array([999]),
+            "scores": np.array([0.9]),
+        },  # Invalid label
     ]
     # Mock predict to return valid labels for the logits computation (to avoid IndexError)
     dpatch._object_detector.predict = lambda x: [
-        {"boxes": np.array([[0, 0, 5, 5]]), "labels": np.array([1]), "scores": np.array([0.9])},
+        {
+            "boxes": np.array([[0, 0, 5, 5]]),
+            "labels": np.array([1]),
+            "scores": np.array([0.9]),
+        },
     ]
     with pytest.raises(ValueError, match="Found out-of-range labels"):
         dpatch._prepare_data_and_compute_patch_gradients(

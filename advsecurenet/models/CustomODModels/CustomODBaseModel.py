@@ -128,7 +128,7 @@ class CustomODBaseModel(torch.nn.Module, ABC):
         raise NotImplementedError(
             "Subclasses must implement initialize_inference_model method."
         )
-    
+
     @abstractmethod
     def load_model_weights(self, model_weights_path):
         """
@@ -137,7 +137,9 @@ class CustomODBaseModel(torch.nn.Module, ABC):
         Args:
             model_weights_path: str, path to the model weights file.
         """
-        raise NotImplementedError("Subclasses must implement load_model_weights method.")
+        raise NotImplementedError(
+            "Subclasses must implement load_model_weights method."
+        )
 
     @abstractmethod
     def prepare_training_inputs(self, images: torch.Tensor, targets: list[dict]):
@@ -223,9 +225,11 @@ class CustomODBaseModel(torch.nn.Module, ABC):
                         [img_idx, cls, xc, yc, w, h] normalized to [0,1].
         """
         raise NotImplementedError("Subclasses must implement translate_labels method.")
-    
+
     @abstractmethod
-    def translate_predictions_for_map_evaluator(self, predictions, dataset_name: str, expects_numpy: bool = True) -> List[Dict[str, Any]]:
+    def translate_predictions_for_map_evaluator(
+        self, predictions, dataset_name: str, expects_numpy: bool = True
+    ) -> List[Dict[str, Any]]:
         """
         Convert backend-native predictions into a standardized format for mAP evaluation.
 
@@ -236,4 +240,6 @@ class CustomODBaseModel(torch.nn.Module, ABC):
         Returns:
             Standardized predictions for mAP evaluation.
         """
-        raise NotImplementedError("Subclasses must implement translate_predictions_for_map_evaluator method.")
+        raise NotImplementedError(
+            "Subclasses must implement translate_predictions_for_map_evaluator method."
+        )

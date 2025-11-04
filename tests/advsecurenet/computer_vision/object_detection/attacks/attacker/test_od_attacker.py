@@ -7,6 +7,7 @@ import types
 
 # Minimal transformers stub to avoid heavy dependency during imports
 if "transformers" not in sys.modules:
+
     class _AutoModel:
         @classmethod
         def from_pretrained(cls, *args, **kwargs):
@@ -20,11 +21,14 @@ if "transformers" not in sys.modules:
 
             return _Cfg()
 
-    transformers_stub = types.SimpleNamespace(AutoModel=_AutoModel, AutoConfig=_AutoConfig)
+    transformers_stub = types.SimpleNamespace(
+        AutoModel=_AutoModel, AutoConfig=_AutoConfig
+    )
     sys.modules["transformers"] = transformers_stub
 
 # Minimal mean_average_precision stub to satisfy evaluator imports
 if "mean_average_precision" not in sys.modules:
+
     class _StubMetric:
         def add(self, *args, **kwargs):
             pass
@@ -40,7 +44,9 @@ if "mean_average_precision" not in sys.modules:
         def build_evaluation_metric(*args, **kwargs):
             return _StubMetric()
 
-    sys.modules["mean_average_precision"] = types.SimpleNamespace(MetricBuilder=_MetricBuilder)
+    sys.modules["mean_average_precision"] = types.SimpleNamespace(
+        MetricBuilder=_MetricBuilder
+    )
 
 from advsecurenet.computer_vision.object_detection.attacks.attacker.od_attacker import (
     ODAttacker,
@@ -79,12 +85,21 @@ class _NormalizeLike:
 class _DatasetWithTransform(TorchDataset):
     def __init__(self, with_normalize=True):
         self.transform = types.SimpleNamespace(
-            transforms=[_NormalizeLike([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])] if with_normalize else []
+            transforms=(
+                [_NormalizeLike([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])]
+                if with_normalize
+                else []
+            )
         )
+
     def __len__(self):
         return 1
+
     def __getitem__(self, idx):
-        return torch.zeros(3, 8, 8), {"boxes": [torch.tensor([[0.0, 0.0, 1.0, 1.0]])], "labels": [torch.tensor([1])]} 
+        return torch.zeros(3, 8, 8), {
+            "boxes": [torch.tensor([[0.0, 0.0, 1.0, 1.0]])],
+            "labels": [torch.tensor([1])],
+        }
 
 
 @pytest.fixture
@@ -221,6 +236,7 @@ def test_invalid_processor_string_raises():
 def test_preprocess_images_denormalize_and_scale_warnings(caplog, config):
     # DataLoader with dataset.transform including normalize-like transform
     from torch.utils.data import DataLoader
+
     ds = _DatasetWithTransform(with_normalize=True)
     config.dataloader = DataLoader(ds)
     attacker = DummyODAttacker(config)
@@ -228,7 +244,11 @@ def test_preprocess_images_denormalize_and_scale_warnings(caplog, config):
     # Case 1: inputs in [-1,1] -> map to [0,255]
     imgs = torch.linspace(-1, 1, steps=8 * 8).view(1, 1, 8, 8).repeat(1, 3, 1, 1)
     arr = attacker.preprocess_images(imgs)
-    assert np.issubdtype(arr.dtype, np.floating) and arr.min() >= 0.0 and arr.max() <= 255.0
+    assert (
+        np.issubdtype(arr.dtype, np.floating)
+        and arr.min() >= 0.0
+        and arr.max() <= 255.0
+    )
 
     # Case 2: already in 0..1 -> multiply by 255
     imgs2 = torch.rand(1, 3, 8, 8)
@@ -248,9 +268,13 @@ def test_preprocess_targets_dict_and_process_batch(config, monkeypatch):
     # Patch move_batch_to_device to return inputs unchanged
     monkeypatch.setattr(
         "advsecurenet.utils.device_utils.move_batch_to_device",
-        lambda images, targets, device: (images.to(device), {k: [v[0].to(device)] for k, v in targets.items()}),
+        lambda images, targets, device: (
+            images.to(device),
+            {k: [v[0].to(device)] for k, v in targets.items()},
+        ),
     )
     from torch.utils.data import DataLoader
+
     ds = _DatasetWithTransform(with_normalize=False)
     config.dataloader = DataLoader(ds)
     attacker = DummyODAttacker(config)
@@ -258,16 +282,21 @@ def test_preprocess_targets_dict_and_process_batch(config, monkeypatch):
     images_np, targets_np, original_images = attacker.process_batch(batch)
     # images_np is numpy array in [0,255]; targets list of dicts with numpy arrays
     assert isinstance(images_np, np.ndarray)
-    assert isinstance(targets_np, list) and isinstance(targets_np[0]["boxes"], np.ndarray)
+    assert isinstance(targets_np, list) and isinstance(
+        targets_np[0]["boxes"], np.ndarray
+    )
     assert isinstance(original_images, torch.Tensor)
 
 
 def test_init_dataloader_len_exception(config, monkeypatch):
     """Test __init__ handles exception when len(dataloader) fails."""
+
     def raise_on_len():
         raise RuntimeError("len failed")
+
     monkeypatch.setattr(DummyDataset, "__len__", raise_on_len)
     from torch.utils.data import DataLoader
+
     config.dataloader = DataLoader(DummyDataset())
     attacker = DummyODAttacker(config)
     assert attacker._dataloader is not None
@@ -276,6 +305,7 @@ def test_init_dataloader_len_exception(config, monkeypatch):
 def test_preprocess_images_no_transform(config):
     """Test preprocess_images with no transform."""
     from torch.utils.data import DataLoader
+
     ds = _DatasetWithTransform(with_normalize=False)
     config.dataloader = DataLoader(ds)
     attacker = DummyODAttacker(config)
@@ -288,15 +318,22 @@ def test_preprocess_images_no_transform(config):
 def test_preprocess_images_transform_without_mean_std(config):
     """Test preprocess_images with transform that doesn't have mean/std."""
     import types
+
     class DatasetWithoutMeanStd(TorchDataset):
         def __init__(self):
             self.transform = types.SimpleNamespace(transforms=[types.SimpleNamespace()])
+
         def __len__(self):
             return 1
+
         def __getitem__(self, idx):
-            return torch.zeros(3, 8, 8), {"boxes": [torch.tensor([[0.0, 0.0, 1.0, 1.0]])], "labels": [torch.tensor([1])]}
-    
+            return torch.zeros(3, 8, 8), {
+                "boxes": [torch.tensor([[0.0, 0.0, 1.0, 1.0]])],
+                "labels": [torch.tensor([1])],
+            }
+
     from torch.utils.data import DataLoader
+
     config.dataloader = DataLoader(DatasetWithoutMeanStd())
     attacker = DummyODAttacker(config)
     imgs = torch.rand(1, 3, 8, 8)
@@ -307,6 +344,7 @@ def test_preprocess_images_transform_without_mean_std(config):
 def test_preprocess_images_vmax_gt_11(config):
     """Test preprocess_images when vmax > 1.1 (pass-through branch)."""
     from torch.utils.data import DataLoader
+
     ds = _DatasetWithTransform(with_normalize=False)
     config.dataloader = DataLoader(ds)
     attacker = DummyODAttacker(config)
@@ -324,7 +362,10 @@ def test_preprocess_targets_dict_empty(config):
     attacker = DummyODAttacker(config)
     targets_dict = {
         "boxes": [torch.tensor([]).reshape(0, 4), torch.tensor([]).reshape(0, 4)],
-        "labels": [torch.tensor([], dtype=torch.int64), torch.tensor([], dtype=torch.int64)],
+        "labels": [
+            torch.tensor([], dtype=torch.int64),
+            torch.tensor([], dtype=torch.int64),
+        ],
     }
     targets = attacker.preprocess_targets_dict(targets_dict)
     assert len(targets) == 2

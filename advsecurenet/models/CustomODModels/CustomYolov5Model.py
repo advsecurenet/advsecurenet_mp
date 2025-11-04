@@ -25,7 +25,10 @@ def _suppress_yolov5_autocast_warning():
         )
         yield
 
-def translate_predictions_for_map_evaluator_yolo(predictions, dataset_name: str, expects_numpy: bool = True) -> List[Dict[str, Any]]:
+
+def translate_predictions_for_map_evaluator_yolo(
+    predictions, dataset_name: str, expects_numpy: bool = True
+) -> List[Dict[str, Any]]:
     results = []
     dataset_name = (dataset_name or "").lower()
     map_to_pascal = dataset_name == "pascal_voc"
@@ -39,7 +42,9 @@ def translate_predictions_for_map_evaluator_yolo(predictions, dataset_name: str,
             # boxes, scores, labels = boxes[:n], scores[:n], labels[:n]
             if map_to_pascal:
                 mapped = np.array(
-                    coco_label_ids_to_pascal(labels.tolist(), assume_contiguous=True, unmapped_value=-1),
+                    coco_label_ids_to_pascal(
+                        labels.tolist(), assume_contiguous=True, unmapped_value=-1
+                    ),
                     dtype=np.int64,
                 )
                 keep = mapped >= 0
@@ -52,7 +57,9 @@ def translate_predictions_for_map_evaluator_yolo(predictions, dataset_name: str,
             labels = d["labels"].detach().cpu().numpy().astype(int)
             if map_to_pascal:
                 mapped = np.array(
-                    coco_label_ids_to_pascal(labels.tolist(), assume_contiguous=True, unmapped_value=-1),
+                    coco_label_ids_to_pascal(
+                        labels.tolist(), assume_contiguous=True, unmapped_value=-1
+                    ),
                     dtype=np.int64,
                 )
                 keep = mapped >= 0
@@ -76,6 +83,7 @@ class CustomYolov5Model(CustomODBaseModel):
 
     def _parameters_sha256(self):
         import hashlib
+
         with torch.no_grad():
             flat = torch.nn.utils.parameters_to_vector(
                 [p.detach().cpu() for p in self._model.parameters()]
@@ -84,9 +92,11 @@ class CustomYolov5Model(CustomODBaseModel):
 
     def load_model_weights(self, model_weights_path):
         original_torch_load = torch.load
+
         def load_with_weights_only_false(*args, **kwargs):
             kwargs["weights_only"] = False
             return original_torch_load(*args, **kwargs)
+
         # Decide loading strategy
         is_plain_state_dict = model_weights_path.endswith(".pth")
         base_arch_weights = "yolov5s.pt"
@@ -113,6 +123,7 @@ class CustomYolov5Model(CustomODBaseModel):
                         if k in sd and isinstance(sd[k], dict):
                             sd = sd[k]
                             break
+
                 def _clean(d):
                     target_keys = set(self._model.state_dict().keys())
                     cleaned = {}
@@ -130,13 +141,18 @@ class CustomYolov5Model(CustomODBaseModel):
                             nk = f"model.{nk}"
                         cleaned[nk] = v
                     return cleaned
+
                 sd_clean = _clean(sd)
                 self._model.load_state_dict(sd_clean, strict=False)
                 after_hash = self._parameters_sha256()
                 if before_hash != after_hash:
-                    print(f"[CustomYolov5Model] Model parameters changed after loading '{model_weights_path}'.")
+                    print(
+                        f"[CustomYolov5Model] Model parameters changed after loading '{model_weights_path}'."
+                    )
                 else:
-                    print(f"[CustomYolov5Model][WARN] Loading '{model_weights_path}' did not change model parameters.")
+                    print(
+                        f"[CustomYolov5Model][WARN] Loading '{model_weights_path}' did not change model parameters."
+                    )
             except Exception as e:
                 print(f"[CustomYolov5Model][WARN] Failed to load .pth state_dict: {e}")
         self._model.hyp = {
@@ -159,7 +175,10 @@ class CustomYolov5Model(CustomODBaseModel):
             x = x.to(dev, non_blocking=True)
         if self.training and targets is not None:
             outputs = self._model(x)  # raw logits, pre-nms
-            if isinstance(targets, torch.Tensor) and targets.device != outputs[0].device:
+            if (
+                isinstance(targets, torch.Tensor)
+                and targets.device != outputs[0].device
+            ):
                 targets = targets.to(outputs[0].device)
             loss, loss_items = self.compute_loss(outputs, targets)
             loss_components_dict = {"loss_total": loss}
@@ -264,9 +283,13 @@ class CustomYolov5Model(CustomODBaseModel):
         if requires_grad:
             x_preprocessed.requires_grad_(True)
         return x_preprocessed
-    
-    def translate_predictions_for_map_evaluator(self, predictions, dataset_name: str, expects_numpy: bool = True) -> List[Dict[str, Any]]:
-        return translate_predictions_for_map_evaluator_yolo(predictions, dataset_name, expects_numpy)
+
+    def translate_predictions_for_map_evaluator(
+        self, predictions, dataset_name: str, expects_numpy: bool = True
+    ) -> List[Dict[str, Any]]:
+        return translate_predictions_for_map_evaluator_yolo(
+            predictions, dataset_name, expects_numpy
+        )
 
     def translate_labels(
         self,
@@ -357,7 +380,7 @@ class CustomYolov5Model(CustomODBaseModel):
             if pieces
             else torch.zeros((0, 6), device=self.device)
         )
-    
+
     def _resolve_device(self, device):
         if device is not None:
             if isinstance(device, (int,)):
@@ -372,7 +395,10 @@ class CustomYolov5Model(CustomODBaseModel):
                     resolved_device = f"cuda:{torch.cuda.current_device()}"
                 except Exception:
                     resolved_device = "cuda:0"
-            elif getattr(torch.backends, "mps", None) and torch.backends.mps.is_available():
+            elif (
+                getattr(torch.backends, "mps", None)
+                and torch.backends.mps.is_available()
+            ):
                 resolved_device = "mps"
             else:
                 resolved_device = "cpu"
@@ -385,7 +411,7 @@ class CustomYolov5Model(CustomODBaseModel):
             try:
                 return next(self.parameters()).device
             except Exception:
-                return torch.device('cpu')
+                return torch.device("cpu")
 
     def to(self, *args, **kwargs):
         # Let nn.Module move all registered submodules/buffers (incl. _model and _autoshape)
@@ -396,7 +422,11 @@ class CustomYolov5Model(CustomODBaseModel):
             self.device = str(dev)
         except Exception:
             # Fallback keeps existing self.device if _model not ready yet
-            dev = torch.device(self.device) if hasattr(self, "device") else torch.device("cpu")
+            dev = (
+                torch.device(self.device)
+                if hasattr(self, "device")
+                else torch.device("cpu")
+            )
         # Ensure AutoShape points at the moved model and is moved too
         if getattr(self, "_autoshape", None) is not None:
             try:
@@ -410,4 +440,3 @@ class CustomYolov5Model(CustomODBaseModel):
         if getattr(self, "_model", None) is not None:
             self.compute_loss = ComputeLoss(self._model)
         return self
-

@@ -81,14 +81,42 @@ def test_check_config_base_valid(valid_config):
 @pytest.mark.parametrize(
     "bad_cfg,err_msg",
     [
-        (SimpleNamespace(model=object(), models=[], attacks=[MockAttack()], train_loader=_make_dataloader()),
-         "Target model must be a subclass of BaseModel!"),
-        (SimpleNamespace(model=MockModel(), models=[object()], attacks=[MockAttack()], train_loader=_make_dataloader()),
-         "All models must be a subclass of BaseModel!"),
-        (SimpleNamespace(model=MockModel(), models=[MockModel()], attacks=[object()], train_loader=_make_dataloader()),
-         "All attacks must be a subclass of AdversarialAttack!"),
-        (SimpleNamespace(model=MockModel(), models=[MockModel()], attacks=[MockAttack()], train_loader=object()),
-         "train_dataloader must be a DataLoader!"),
+        (
+            SimpleNamespace(
+                model=object(),
+                models=[],
+                attacks=[MockAttack()],
+                train_loader=_make_dataloader(),
+            ),
+            "Target model must be a subclass of BaseModel!",
+        ),
+        (
+            SimpleNamespace(
+                model=MockModel(),
+                models=[object()],
+                attacks=[MockAttack()],
+                train_loader=_make_dataloader(),
+            ),
+            "All models must be a subclass of BaseModel!",
+        ),
+        (
+            SimpleNamespace(
+                model=MockModel(),
+                models=[MockModel()],
+                attacks=[object()],
+                train_loader=_make_dataloader(),
+            ),
+            "All attacks must be a subclass of AdversarialAttack!",
+        ),
+        (
+            SimpleNamespace(
+                model=MockModel(),
+                models=[MockModel()],
+                attacks=[MockAttack()],
+                train_loader=object(),
+            ),
+            "train_dataloader must be a DataLoader!",
+        ),
     ],
 )
 def test_check_config_base_invalid(bad_cfg, err_msg):
@@ -113,10 +141,15 @@ def test_pre_training_adds_model_and_sets_train_and_device(valid_config):
     assert valid_config.models.count(valid_config.model) == 1
 
     # train() called on each model
-    assert all(isinstance(m, MockModel) and m._train_called >= 1 for m in valid_config.models)
+    assert all(
+        isinstance(m, MockModel) and m._train_called >= 1 for m in valid_config.models
+    )
 
     # to(device) called on each model
-    assert all(isinstance(m, MockModel) and m._to_called_with == bat._device for m in valid_config.models)
+    assert all(
+        isinstance(m, MockModel) and m._to_called_with == bat._device
+        for m in valid_config.models
+    )
 
 
 @pytest.mark.advsecurenet
@@ -154,5 +187,3 @@ def test_get_loss_divisor(valid_config):
     bat.config = valid_config  # type: ignore[attr-defined]
 
     assert bat._get_loss_divisor() == len(valid_config.train_loader)
-
-
