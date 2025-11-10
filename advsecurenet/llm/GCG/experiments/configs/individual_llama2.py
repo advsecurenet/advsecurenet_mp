@@ -9,8 +9,15 @@ def get_config():
 
     config.result_prefix = 'results/individual_llama2'
 
-    config.tokenizer_paths=["/DIR/llama-2/llama/llama-2-7b-chat-hf"]
-    config.model_paths=["/DIR/llama-2/llama/llama-2-7b-chat-hf"]
-    config.conversation_templates=['llama-2']
+    # Use GPT-2 for testing (publicly available)
+    config.tokenizer_paths=["gpt2"]
+    config.model_paths=["gpt2"]
+    config.conversation_templates=['zero_shot']  # GPT-2 doesn't use llama-2 template
+    config.devices=["cpu"]
+
+    config.model_kwargs=[{
+        "low_cpu_mem_usage": True, 
+        "use_cache": False
+    }]
 
     return config
