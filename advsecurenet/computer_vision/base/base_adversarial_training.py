@@ -25,19 +25,19 @@ class BaseAdversarialTraining(Trainer):
 
     def _check_config_base(self, config: AdversarialTrainingConfig) -> None:
         # Check configuration validity
-        if not isinstance(config.model, BaseModel):
+        if not isinstance(config.train_config.model_config.model, BaseModel):
             raise ValueError("Target model must be a subclass of BaseModel!")
         if not all(isinstance(model, BaseModel) for model in config.models):
             raise ValueError("All models must be a subclass of BaseModel!")
         if not all(isinstance(attack, AdversarialAttack) for attack in config.attacks):
             raise ValueError("All attacks must be a subclass of AdversarialAttack!")
-        if not isinstance(config.train_loader, DataLoader):
+        if not isinstance(config.train_config.training_process_config.train_loader, DataLoader):
             raise ValueError("train_dataloader must be a DataLoader!")
 
     def _pre_training(self):
         # add target model to list of models if not already present
-        if self.config.model not in self.config.models:
-            self.config.models.append(self.config.model)
+        if self.config.train_config.model_config.model not in self.config.models:
+            self.config.models.append(self.config.train_config.model_config.model)
 
         # set each model to train mode
         self.config.models = [model.train() for model in self.config.models]
@@ -47,7 +47,7 @@ class BaseAdversarialTraining(Trainer):
 
     def _get_train_loader(self, epoch: int):
         return tqdm(
-            self.config.train_loader,
+            self.config.train_config.training_process_config.train_loader,
             desc="Adversarial Training",
             leave=False,
             position=1,
@@ -56,4 +56,4 @@ class BaseAdversarialTraining(Trainer):
         )
 
     def _get_loss_divisor(self):
-        return len(self.config.train_loader)
+        return len(self.config.train_config.training_process_config.train_loader)

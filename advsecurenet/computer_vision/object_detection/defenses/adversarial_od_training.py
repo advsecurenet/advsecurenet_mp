@@ -33,35 +33,28 @@ class AdversarialODTraining(BaseAdversarialTraining):
     def __init__(self, config: AdversarialTrainingConfig) -> None:
         self._check_config(config)
         super().__init__(config)
-        self._trainable = getattr(self._model, "model", self._model)
+        self._trainable = getattr(self.model, "model", self.model)
         for p in self._trainable.parameters():
             p.requires_grad_(True)
         try:
             object_detector_config = {}
             if hasattr(config, "processor"):
-                object_detector_config["device_type"] = config.processor
+                object_detector_config["device_type"] = config.train_config.device_config.processor
             self._od_wrapper = get_object_detector(
                 config=object_detector_config, existing_model=self._trainable
             )
         except Exception as e:
             raise RuntimeError(f"Failed to load detector wrapper: {e}") from e
-        if not any(g["params"] for g in self._optimizer.param_groups):
-            kwargs = self._config.optimizer_kwargs or {}
-            self._optimizer = self._get_optimizer(
-                self._config.optimizer,
-                self._trainable,
-                self._config.learning_rate,
-                **kwargs,
-            )
-            self._scheduler = self._get_scheduler(
-                self._config.scheduler, self._optimizer
-            )
+        if not any(g["params"] for g in self.optimizer.param_groups):
+            kwargs = self._config.optimization_config.optimizer_kwargs or {}
+            self.optimizer = self._setup_optimizer(self._trainable)
+            self._scheduler = self._setup_scheduler()
 
     def _check_config(self, config: AdversarialTrainingConfig) -> None:
         self._check_config_base(config)
         # Shape check on the first sample to ensure OD targets are list[dict]
         try:
-            sample = config.train_loader.dataset[0]
+            sample = config.train_config.training_process_config.train_loader.dataset[0]
             if not (isinstance(sample, tuple) and len(sample) == 2):
                 raise ValueError
             _img, _tgt = sample
@@ -177,7 +170,7 @@ class AdversarialODTraining(BaseAdversarialTraining):
         ):
             try:
                 object_detector_config = {
-                    "device_type": self._config.processor,
+                    "device_type": self._config.device_config.processor,
                 }
                 detector_wrapper = get_object_detector(
                     config=object_detector_config, existing_model=self._trainable
@@ -194,7 +187,7 @@ class AdversarialODTraining(BaseAdversarialTraining):
         if attack_name == "DPatch":
             if not hasattr(attack, "_optimized_patch"):
                 attack._optimized_patch = attack.attack(
-                    dataloader=self.config.train_loader, mask=None, device=self._device
+                    dataloader=self.config.train_config.training_process_config.train_loader, mask=None, device=self._device
                 )
             # Applying the cached patch doesn't need grads
             images_np = images.detach().cpu().numpy()
@@ -244,7 +237,6 @@ class AdversarialODTraining(BaseAdversarialTraining):
         click.echo(
             click.style(f"Epoch {epoch} - Average loss: {total_loss:.4f}", fg="blue")
         )
-        self._log_loss(epoch, total_loss)
 
     def _run_batch(self, source: torch.Tensor, targets: list[dict]) -> float:
         """
@@ -252,7 +244,7 @@ class AdversarialODTraining(BaseAdversarialTraining):
         Uses the model's own loss (e.g. YOLOv5's composite loss).
         """
         self._trainable.train()
-        self._optimizer.zero_grad()
+        self.optimizer.zero_grad()
         if self._od_wrapper is None:
             raise RuntimeError("No OD wrapper resolved for training.")
         model_inputs, model_targets = self._od_wrapper.prepare_training_inputs(
@@ -262,7 +254,7 @@ class AdversarialODTraining(BaseAdversarialTraining):
         loss = self._od_wrapper.extract_total_loss(output)
         loss.backward()
         torch.nn.utils.clip_grad_norm_(self._trainable.parameters(), max_norm=10.0)
-        self._optimizer.step()
+        self.optimizer.step()
         if self._scheduler:
             self._scheduler.step()
         return loss.item()

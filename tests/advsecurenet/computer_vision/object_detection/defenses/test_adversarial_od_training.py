@@ -3,14 +3,32 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 import torch
+from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from advsecurenet.computer_vision.object_detection.defenses.adversarial_od_training import (
     AdversarialODTraining,
 )
 from advsecurenet.computer_vision.base.adversarial_attack import AdversarialAttack
 from advsecurenet.models.base_model import BaseModel
+
+
+class MockTrainableModel(nn.Module):
+    """Minimal trainable module mimicking OD model behaviour."""
+
+    def __init__(self):
+        super().__init__()
+        self.linear = nn.Linear(1, 1, bias=False)
+
+    def forward(self, inputs, targets=None):  # type: ignore[override]
+        return torch.tensor(1.0, requires_grad=True)
+
+    def initialize_inference_model(self):
+        return self
+
+    def predict(self, x):
+        return x
 
 
 class MockModel(BaseModel):
@@ -35,7 +53,8 @@ class MockModel(BaseModel):
         return self
 
     def load_model(self) -> None:  # satisfy abstract method
-        return None
+        # Provide a minimal OD-style module with parameters and helper methods
+        self.model = MockTrainableModel()
 
     def models(self):  # satisfy abstract requirement
         return [self]
@@ -88,7 +107,7 @@ class MockDPatchAttack(MockAttackBase):
         return type("DPatch", (), {})
 
 
-def _make_detection_like_loader(num: int = 3):
+def _make_detection_like_loader(num: int = 3, as_list_of_dicts: bool = False):
     # images: Tensor [N, C, H, W], targets: dict[str, list[Tensor]]
     images = torch.randn(num, 3, 4, 4)
     boxes = [torch.tensor([[0.0, 0.0, 1.0, 1.0]]) for _ in range(num)]
@@ -100,6 +119,8 @@ def _make_detection_like_loader(num: int = 3):
             return num
 
         def __getitem__(self, idx):
+            if as_list_of_dicts:
+                return images[idx], [{"boxes": boxes[idx], "labels": labels[idx]}]
             return images[idx], {"boxes": boxes, "labels": labels}
 
     ds = _DS()
@@ -109,57 +130,143 @@ def _make_detection_like_loader(num: int = 3):
 
 
 @pytest.fixture
-def base_instance():
-    inst = object.__new__(AdversarialODTraining)
-    inst.config = SimpleNamespace(train_loader=_make_detection_like_loader())
-    inst._config = SimpleNamespace(processor=None)
-    inst._device = torch.device("cpu")
-    inst._trainable = MockModel()
-    inst._model = inst._trainable
-    inst._optimizer = SimpleNamespace(
-        param_groups=[{"params": [torch.tensor(1.0, requires_grad=True)]}]
+def valid_config_fixture(as_list_of_dicts=False):
+    """Provides a valid, nested config for AdversarialODTraining."""
+    loader = _make_detection_like_loader(as_list_of_dicts=as_list_of_dicts)
+    model = MockModel()
+    optimization_config = SimpleNamespace(
+        optimizer="adam",
+        optimizer_kwargs={},
+        scheduler=None,
+        scheduler_kwargs={},
     )
-    inst._scheduler = None
-    inst._wrapper_name = "dummy"
-    inst._od_wrapper = SimpleNamespace(
+    checkpoint_config = SimpleNamespace(
+        load_checkpoint=False,
+        load_checkpoint_path=None,
+        save_checkpoint=False,
+        save_checkpoint_path=None,
+        save_checkpoint_name=None,
+        checkpoint_interval=1,
+    )
+    final_model_config = SimpleNamespace(
+        save_final_model=False,
+        save_model_path=None,
+        save_model_name=None,
+    )
+    differential_privacy_config = SimpleNamespace(enable=False, delta=None)
+    training_process_config = SimpleNamespace(
+        train_loader=loader,
+        learning_rate=0.01,
+        criterion="cross_entropy",
+        epochs=1,
+    )
+    device_config = SimpleNamespace(processor="cpu", use_ddp=False)
+    train_config = SimpleNamespace(
+        model_config=SimpleNamespace(model=model),
+        training_process_config=training_process_config,
+        device_config=device_config,
+        differential_privacy_config=differential_privacy_config,
+        optimization_config=optimization_config,
+        checkpoint_config=checkpoint_config,
+        final_model_config=final_model_config,
+    )
+    return SimpleNamespace(
+        models=[model],
+        attacks=[MockDefaultAttack()],
+        train_config=train_config,
+        optimization_config=optimization_config,
+    )
+
+
+@pytest.fixture
+def base_instance(valid_config_fixture, request):
+    """Provides a partially initialized AdversarialODTraining instance."""
+    # Mock get_object_detector to avoid RuntimeError during initialization
+    patcher = patch(
+        "advsecurenet.computer_vision.object_detection.defenses.adversarial_od_training.get_object_detector"
+    )
+    mock_get_detector = patcher.start()
+    request.addfinalizer(patcher.stop)
+
+    mock_get_detector.return_value = SimpleNamespace(
         prepare_training_inputs=lambda imgs, t: (imgs, t),
         extract_total_loss=lambda out: torch.tensor(1.0, requires_grad=True),
     )
+    inst = AdversarialODTraining(valid_config_fixture)
+    inst._od_wrapper = mock_get_detector.return_value
     return inst
 
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
-def test_check_config_accepts_dict_targets():
-    loader = _make_detection_like_loader()
-    cfg = SimpleNamespace(
-        model=MockModel(),
-        models=[MockModel()],
-        attacks=[MockDefaultAttack()],
-        train_loader=loader,
-    )
+def test_check_config_accepts_dict_targets(valid_config_fixture):
     inst = object.__new__(AdversarialODTraining)
+    inst._check_config_base = lambda x: None  # Isolate the check
     # Should not raise
-    inst._check_config(cfg)
+    inst._check_config(valid_config_fixture)
 
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
-def test_check_config_rejects_wrong_structure():
+def test_check_config_accepts_list_of_dicts_targets(valid_config_fixture):
+    loader = _make_detection_like_loader(as_list_of_dicts=True)
+    valid_config_fixture.train_config.training_process_config.train_loader = loader
+    inst = object.__new__(AdversarialODTraining)
+    inst._check_config_base = lambda x: None
+    # Should not raise
+    inst._check_config(valid_config_fixture)
+
+
+@pytest.mark.advsecurenet
+@pytest.mark.essential
+def test_check_config_rejects_wrong_structure(valid_config_fixture):
     # Dataset that yields wrong shape
     ds = TensorDataset(
         torch.randn(2, 3, 4, 4), torch.randn(2)
     )  # y is Tensor, not dict/list[dict]
     loader = DataLoader(ds, batch_size=1)
-    cfg = SimpleNamespace(
-        model=MockModel(),
-        models=[MockModel()],
-        attacks=[MockDefaultAttack()],
-        train_loader=loader,
-    )
+    valid_config_fixture.train_config.training_process_config.train_loader = loader
+
     inst = object.__new__(AdversarialODTraining)
+    inst._check_config_base = lambda x: None
     with pytest.raises(ValueError, match=r"expects dataset samples"):
-        inst._check_config(cfg)
+        inst._check_config(valid_config_fixture)
+
+
+@pytest.mark.advsecurenet
+@pytest.mark.essential
+def test_check_config_sample_not_tuple(valid_config_fixture):
+    class BadDataset:
+        def __getitem__(self, idx):
+            return "not a tuple"
+
+        def __len__(self):
+            return 1
+
+    loader = DataLoader(BadDataset(), batch_size=1)
+    valid_config_fixture.train_config.training_process_config.train_loader = loader
+    inst = object.__new__(AdversarialODTraining)
+    inst._check_config_base = lambda x: None
+    with pytest.raises(ValueError, match=r"expects dataset samples"):
+        inst._check_config(valid_config_fixture)
+
+
+@pytest.mark.advsecurenet
+@pytest.mark.essential
+def test_check_config_exception_handling(valid_config_fixture):
+    class BadDataset:
+        def __getitem__(self, idx):
+            raise IndexError  # Simulate error on access
+
+        def __len__(self):
+            return 1
+
+    loader = DataLoader(BadDataset(), batch_size=1)
+    valid_config_fixture.train_config.training_process_config.train_loader = loader
+    inst = object.__new__(AdversarialODTraining)
+    inst._check_config_base = lambda x: None
+    with pytest.raises(ValueError, match=r"expects dataset samples"):
+        inst._check_config(valid_config_fixture)
 
 
 @pytest.mark.advsecurenet
@@ -393,7 +500,7 @@ def test_run_epoch_logs_and_uses_batches(monkeypatch):
     inst._model = inst._trainable
     # simple optimizer on a dummy parameter
     param = torch.nn.Parameter(torch.tensor(1.0))
-    inst._optimizer = torch.optim.SGD([param], lr=0.1)
+    inst.optimizer = torch.optim.SGD([param], lr=0.1)
     inst._scheduler = None
     # minimal config with one attack for _generate_adversarial_batch
     inst.config = SimpleNamespace(attacks=[MockDefaultAttack()])
@@ -408,21 +515,24 @@ def test_run_epoch_logs_and_uses_batches(monkeypatch):
     targets = {"labels": [torch.tensor(1)]}
     inst._get_train_loader = lambda epoch: [(images, targets), (images, targets)]
     inst._get_loss_divisor = lambda: 2
+    import advsecurenet.computer_vision.object_detection.defenses.adversarial_od_training as od_mod
 
-    logged = {}
-    inst._log_loss = lambda ep, val: logged.update({"epoch": ep, "loss": val})
+    emitted: list[str] = []
 
+    # Capture the click output while preserving styling
+    monkeypatch.setattr(
+        od_mod.click, "echo", lambda message: emitted.append(str(message))
+    )
     inst._run_epoch(epoch=1)
-    assert logged["epoch"] == 1
-    assert isinstance(logged["loss"], float)
+    assert emitted, "Expected click.echo to be invoked"
+    assert "Epoch 1 - Average loss: 1.0000" in emitted[0]
 
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
-def test_check_config_accepts_list_of_dicts_targets():
+def test_check_config_accepts_list_of_dicts_targets(valid_config_fixture):
     """Test _check_config accepts list[dict] targets."""
 
-    # Create dataset that returns list[dict] target
     class ListDictDataset:
         def __len__(self):
             return 1
@@ -436,19 +546,16 @@ def test_check_config_accepts_list_of_dicts_targets():
             ]
 
     loader = DataLoader(ListDictDataset(), batch_size=1)
-    cfg = SimpleNamespace(
-        model=MockModel(),
-        models=[MockModel()],
-        attacks=[MockDefaultAttack()],
-        train_loader=loader,
-    )
+    cfg = valid_config_fixture
+    cfg.train_config.training_process_config.train_loader = loader
     inst = object.__new__(AdversarialODTraining)
+    inst._check_config_base = lambda _: None
     inst._check_config(cfg)
 
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
-def test_check_config_sample_not_tuple(base_instance):
+def test_check_config_sample_not_tuple(valid_config_fixture):
     """Test _check_config rejects non-tuple samples."""
 
     class BadDataset:
@@ -459,13 +566,10 @@ def test_check_config_sample_not_tuple(base_instance):
             return torch.zeros(3, 4, 4)  # Not a tuple
 
     loader = DataLoader(BadDataset(), batch_size=1)
-    cfg = SimpleNamespace(
-        model=MockModel(),
-        models=[MockModel()],
-        attacks=[MockDefaultAttack()],
-        train_loader=loader,
-    )
+    cfg = valid_config_fixture
+    cfg.train_config.training_process_config.train_loader = loader
     inst = object.__new__(AdversarialODTraining)
+    inst._check_config_base = lambda _: None
     with pytest.raises(
         ValueError, match="AdversarialODTraining expects dataset samples"
     ):
@@ -474,7 +578,7 @@ def test_check_config_sample_not_tuple(base_instance):
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
-def test_check_config_exception_handling(base_instance):
+def test_check_config_exception_handling(valid_config_fixture):
     """Test _check_config exception handling."""
 
     class ExceptionDataset:
@@ -485,13 +589,10 @@ def test_check_config_exception_handling(base_instance):
             raise RuntimeError("dataset error")
 
     loader = DataLoader(ExceptionDataset(), batch_size=1)
-    cfg = SimpleNamespace(
-        model=MockModel(),
-        models=[MockModel()],
-        attacks=[MockDefaultAttack()],
-        train_loader=loader,
-    )
+    cfg = valid_config_fixture
+    cfg.train_config.training_process_config.train_loader = loader
     inst = object.__new__(AdversarialODTraining)
+    inst._check_config_base = lambda _: None
     with pytest.raises(
         ValueError, match="AdversarialODTraining expects dataset samples"
     ):
@@ -588,9 +689,9 @@ def test_generate_adversarial_batch_was_not_training(base_instance):
 def test_run_batch_with_scheduler(base_instance):
     """Test _run_batch when scheduler is present."""
     param = torch.nn.Parameter(torch.tensor(1.0))
-    base_instance._optimizer = torch.optim.SGD([param], lr=0.1)
+    base_instance.optimizer = torch.optim.SGD([param], lr=0.1)
     base_instance._scheduler = torch.optim.lr_scheduler.StepLR(
-        base_instance._optimizer, step_size=1
+        base_instance.optimizer, step_size=1
     )
     source = torch.zeros(2, 3, 4, 4)
     targets = {"labels": [torch.tensor(1), torch.tensor(2)]}

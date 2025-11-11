@@ -59,67 +59,77 @@ def _make_dataloader(num_samples: int = 3) -> DataLoader:
 
 @pytest.fixture
 def valid_config():
+    """Provides a valid, nested config for BaseAdversarialTraining."""
+    model = MockModel()
     return SimpleNamespace(
-        model=MockModel(),
-        models=[],
+        models=[model],
         attacks=[MockAttack()],
-        train_loader=_make_dataloader(4),
+        train_config=SimpleNamespace(
+            model_config=SimpleNamespace(model=model),
+            training_process_config=SimpleNamespace(
+                train_loader=_make_dataloader(4),
+            ),
+            device_config=SimpleNamespace(processor="cpu"),
+        ),
     )
+
+
+@pytest.fixture
+def base_instance(valid_config):
+    """Provides a partially initialized BaseAdversarialTraining instance."""
+    # We use object.__new__ to bypass __init__ which calls super().__init__
+    # that we don't want to test here.
+    inst = object.__new__(BaseAdversarialTraining)
+    inst.config = valid_config
+    inst._device = torch.device("cpu")
+    return inst
 
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
-def test_check_config_base_valid(valid_config):
-    bat = object.__new__(BaseAdversarialTraining)
-    bat.config = valid_config  # type: ignore[attr-defined]
+def test_check_config_base_valid(base_instance):
     # Should not raise
-    bat._check_config_base(valid_config)
+    base_instance._check_config_base(base_instance.config)
 
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
 @pytest.mark.parametrize(
-    "bad_cfg,err_msg",
+    "bad_cfg_update,err_msg",
     [
         (
-            SimpleNamespace(
-                model=object(),
-                models=[],
-                attacks=[MockAttack()],
-                train_loader=_make_dataloader(),
-            ),
+            {"model_config": SimpleNamespace(model=object())},
             "Target model must be a subclass of BaseModel!",
         ),
+        ({"models": [object()]}, "All models must be a subclass of BaseModel!"),
+        ({"attacks": [object()]}, "All attacks must be a subclass of AdversarialAttack!"),
         (
-            SimpleNamespace(
-                model=MockModel(),
-                models=[object()],
-                attacks=[MockAttack()],
-                train_loader=_make_dataloader(),
-            ),
-            "All models must be a subclass of BaseModel!",
-        ),
-        (
-            SimpleNamespace(
-                model=MockModel(),
-                models=[MockModel()],
-                attacks=[object()],
-                train_loader=_make_dataloader(),
-            ),
-            "All attacks must be a subclass of AdversarialAttack!",
-        ),
-        (
-            SimpleNamespace(
-                model=MockModel(),
-                models=[MockModel()],
-                attacks=[MockAttack()],
-                train_loader=object(),
-            ),
+            {
+                "training_process_config": SimpleNamespace(
+                    train_loader=object(),
+                )
+            },
             "train_dataloader must be a DataLoader!",
         ),
     ],
 )
-def test_check_config_base_invalid(bad_cfg, err_msg):
+def test_check_config_base_invalid(valid_config, bad_cfg_update, err_msg):
+    # Create a deep copy to avoid modifying the original fixture
+    from copy import deepcopy
+
+    bad_cfg = deepcopy(valid_config)
+
+    # Update the config with the bad value
+    if "model_config" in bad_cfg_update:
+        bad_cfg.train_config.model_config = bad_cfg_update["model_config"]
+    elif "training_process_config" in bad_cfg_update:
+        bad_cfg.train_config.training_process_config = bad_cfg_update[
+            "training_process_config"
+        ]
+    else:
+        for key, value in bad_cfg_update.items():
+            setattr(bad_cfg, key, value)
+
     bat = object.__new__(BaseAdversarialTraining)
     with pytest.raises(ValueError, match=err_msg):
         bat._check_config_base(bad_cfg)
@@ -127,63 +137,51 @@ def test_check_config_base_invalid(bad_cfg, err_msg):
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
-def test_pre_training_adds_model_and_sets_train_and_device(valid_config):
-    bat = object.__new__(BaseAdversarialTraining)
-    bat.config = valid_config  # type: ignore[attr-defined]
-    bat._device = torch.device("cpu")
+def test_pre_training_adds_model_and_sets_train_and_device(base_instance):
+    # Initially, target model is in models list
+    assert base_instance.config.train_config.model_config.model in base_instance.config.models
 
-    # Initially, target model not in models list
-    assert valid_config.model not in valid_config.models
+    # Make a copy to check if a duplicate is added
+    initial_models = list(base_instance.config.models)
+    base_instance.config.models = initial_models
 
-    bat._pre_training()
+    base_instance._pre_training()
 
-    # Target model appended exactly once
-    assert valid_config.models.count(valid_config.model) == 1
+    # Target model should not be added again
+    assert base_instance.config.models.count(base_instance.config.train_config.model_config.model) == 1
 
     # train() called on each model
-    assert all(
-        isinstance(m, MockModel) and m._train_called >= 1 for m in valid_config.models
-    )
-
-    # to(device) called on each model
-    assert all(
-        isinstance(m, MockModel) and m._to_called_with == bat._device
-        for m in valid_config.models
-    )
+    for model in base_instance.config.models:
+        assert model._train_called > 0
+        assert model._to_called_with == base_instance._device
 
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
-def test_pre_training_no_duplicate_when_model_already_present(valid_config):
-    # Pre-populate with the same target model
-    valid_config.models = [valid_config.model]
+def test_pre_training_no_duplicate_when_model_already_present(base_instance):
+    # Ensure model is already in the list
+    target_model = base_instance.config.train_config.model_config.model
+    base_instance.config.models = [target_model]
 
-    bat = object.__new__(BaseAdversarialTraining)
-    bat.config = valid_config  # type: ignore[attr-defined]
-    bat._device = torch.device("cpu")
+    base_instance._pre_training()
 
-    bat._pre_training()
-
-    # Still only one instance
-    assert valid_config.models.count(valid_config.model) == 1
+    # Should not add a duplicate
+    assert len(base_instance.config.models) == 1
+    assert base_instance.config.models[0] == target_model
 
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
-def test_get_train_loader_wraps_dataloader(valid_config):
-    bat = object.__new__(BaseAdversarialTraining)
-    bat.config = valid_config  # type: ignore[attr-defined]
+def test_get_train_loader_wraps_dataloader(base_instance):
+    from tqdm import tqdm
 
-    wrapped = bat._get_train_loader(epoch=1)
-
-    # Consuming the iterator should yield the same number of batches as the dataloader
-    assert sum(1 for _ in wrapped) == len(valid_config.train_loader)
+    wrapped_loader = base_instance._get_train_loader(epoch=1)
+    assert isinstance(wrapped_loader, tqdm)
+    assert wrapped_loader.iterable == base_instance.config.train_config.training_process_config.train_loader
 
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
-def test_get_loss_divisor(valid_config):
-    bat = object.__new__(BaseAdversarialTraining)
-    bat.config = valid_config  # type: ignore[attr-defined]
-
-    assert bat._get_loss_divisor() == len(valid_config.train_loader)
+def test_get_loss_divisor(base_instance):
+    expected_len = len(base_instance.config.train_config.training_process_config.train_loader)
+    assert base_instance._get_loss_divisor() == expected_len
