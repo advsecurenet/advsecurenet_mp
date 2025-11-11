@@ -31,7 +31,9 @@ class BaseAdversarialTraining(Trainer):
             raise ValueError("All models must be a subclass of BaseModel!")
         if not all(isinstance(attack, AdversarialAttack) for attack in config.attacks):
             raise ValueError("All attacks must be a subclass of AdversarialAttack!")
-        if not isinstance(config.train_config.training_process_config.train_loader, DataLoader):
+        if not isinstance(
+            config.train_config.training_process_config.train_loader, DataLoader
+        ):
             raise ValueError("train_dataloader must be a DataLoader!")
 
     def _pre_training(self):

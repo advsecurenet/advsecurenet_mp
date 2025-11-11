@@ -208,7 +208,10 @@ class ATCLITrainer(CLITrainer):
 
         config = self._prepare_training_environment()
 
-        task = self._infer_task(config.train_config.model_config.model, config.train_config.training_process_config.train_loader)
+        task = self._infer_task(
+            config.train_config.model_config.model,
+            config.train_config.training_process_config.train_loader,
+        )
         if task == "detection":
             if rank == 0:
                 click.secho(
@@ -235,7 +238,10 @@ class ATCLITrainer(CLITrainer):
             ValueError: If the dataset name is not supported.
         """
         config = self._prepare_training_environment()
-        task = self._infer_task(config.train_config.model_config.model, config.train_config.training_process_config.train_loader)
+        task = self._infer_task(
+            config.train_config.model_config.model,
+            config.train_config.training_process_config.train_loader,
+        )
         TrainerCls = self._select_trainer_cls(task)
         click.secho(f"Task detected: {task}. Using {TrainerCls.__name__}.", fg="blue")
         adversarial_training = TrainerCls(config)

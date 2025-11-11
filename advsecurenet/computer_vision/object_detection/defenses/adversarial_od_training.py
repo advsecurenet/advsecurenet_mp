@@ -39,7 +39,9 @@ class AdversarialODTraining(BaseAdversarialTraining):
         try:
             object_detector_config = {}
             if hasattr(config, "processor"):
-                object_detector_config["device_type"] = config.train_config.device_config.processor
+                object_detector_config["device_type"] = (
+                    config.train_config.device_config.processor
+                )
             self._od_wrapper = get_object_detector(
                 config=object_detector_config, existing_model=self._trainable
             )
@@ -187,7 +189,9 @@ class AdversarialODTraining(BaseAdversarialTraining):
         if attack_name == "DPatch":
             if not hasattr(attack, "_optimized_patch"):
                 attack._optimized_patch = attack.attack(
-                    dataloader=self.config.train_config.training_process_config.train_loader, mask=None, device=self._device
+                    dataloader=self.config.train_config.training_process_config.train_loader,
+                    mask=None,
+                    device=self._device,
                 )
             # Applying the cached patch doesn't need grads
             images_np = images.detach().cpu().numpy()

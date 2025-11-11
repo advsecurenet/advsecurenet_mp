@@ -102,7 +102,10 @@ def test_check_config_base_valid(base_instance):
             "Target model must be a subclass of BaseModel!",
         ),
         ({"models": [object()]}, "All models must be a subclass of BaseModel!"),
-        ({"attacks": [object()]}, "All attacks must be a subclass of AdversarialAttack!"),
+        (
+            {"attacks": [object()]},
+            "All attacks must be a subclass of AdversarialAttack!",
+        ),
         (
             {
                 "training_process_config": SimpleNamespace(
@@ -139,7 +142,10 @@ def test_check_config_base_invalid(valid_config, bad_cfg_update, err_msg):
 @pytest.mark.essential
 def test_pre_training_adds_model_and_sets_train_and_device(base_instance):
     # Initially, target model is in models list
-    assert base_instance.config.train_config.model_config.model in base_instance.config.models
+    assert (
+        base_instance.config.train_config.model_config.model
+        in base_instance.config.models
+    )
 
     # Make a copy to check if a duplicate is added
     initial_models = list(base_instance.config.models)
@@ -148,7 +154,12 @@ def test_pre_training_adds_model_and_sets_train_and_device(base_instance):
     base_instance._pre_training()
 
     # Target model should not be added again
-    assert base_instance.config.models.count(base_instance.config.train_config.model_config.model) == 1
+    assert (
+        base_instance.config.models.count(
+            base_instance.config.train_config.model_config.model
+        )
+        == 1
+    )
 
     # train() called on each model
     for model in base_instance.config.models:
@@ -177,11 +188,16 @@ def test_get_train_loader_wraps_dataloader(base_instance):
 
     wrapped_loader = base_instance._get_train_loader(epoch=1)
     assert isinstance(wrapped_loader, tqdm)
-    assert wrapped_loader.iterable == base_instance.config.train_config.training_process_config.train_loader
+    assert (
+        wrapped_loader.iterable
+        == base_instance.config.train_config.training_process_config.train_loader
+    )
 
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
 def test_get_loss_divisor(base_instance):
-    expected_len = len(base_instance.config.train_config.training_process_config.train_loader)
+    expected_len = len(
+        base_instance.config.train_config.training_process_config.train_loader
+    )
     assert base_instance._get_loss_divisor() == expected_len
