@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 import torch
 from abc import ABC, abstractmethod
 import numpy as np
@@ -24,6 +24,25 @@ class CustomODBaseModel(torch.nn.Module, ABC):
         'logits': float32 ndarray [N, C] (per-class logits)
         'label_names': object/str ndarray [N]
     """
+    
+    @abstractmethod
+    def configure(
+        self,
+        *,
+        device: str | int | torch.device | None = None,
+        input_shape: Tuple[int, int, int] | None = None,
+        channels_first: bool | None = None,
+    ):
+        """
+        Configure model parameters.
+
+        Args:
+            device: Device spec (e.g., 'cpu', 'cuda', torch.device, or 'cuda:0').
+            input_shape: Tuple (C, H, W) specifying expected input shape.
+            channels_first: If True, model expects channels-first inputs.
+        """
+        raise NotImplementedError("Subclasses must implement configure method.")
+        
 
     @abstractmethod
     def forward(self, x, targets=None):

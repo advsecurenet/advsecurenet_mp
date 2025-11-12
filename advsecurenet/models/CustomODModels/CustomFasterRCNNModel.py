@@ -55,7 +55,15 @@ class CustomFasterRCNNModel(CustomODBaseModel):
             )
         return hashlib.sha256(flat.numpy().tobytes()).hexdigest()
 
-    def load_model_weights(self, model_weights_path, pretrained, pretrained_backbone):
+    def configure(self, *, device = None, input_shape = None, channels_first = None):
+        if device is not None:
+            self.device=device
+        if input_shape is not None:
+            self.input_shape = input_shape
+        if channels_first is not None:
+            self.channels_first = channels_first
+
+    def load_model_weights(self, model_weights_path, pretrained=True, pretrained_backbone=True):
         if pretrained:
             self._model = fasterrcnn_resnet50_fpn_v2(
                 weights=(
@@ -308,7 +316,7 @@ class CustomFasterRCNNModel(CustomODBaseModel):
         return preds
 
     def translate_predictions_for_map_evaluator(
-        self, outputs: list[dict[str, torch.Tensor]], dataset_name: str = "coco"
+        self, outputs: list[dict[str, torch.Tensor]], dataset_name: str = "coco", expects_numpy: bool = True,
     ):
         """From torchvision outputs (list of dicts) back to your np format."""
         if dataset_name.lower() == "coco":

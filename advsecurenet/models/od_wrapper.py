@@ -18,7 +18,7 @@ class ODWrapper:
         self.model = model
         self.conf_thresh = conf_thresh
         self.device = device_type
-        self.model.device = device_type
+        self.model.configure(device=device_type)
         self.clip_values = clip_values
         self.input_shape = input_shape
         self.inference_model = self.model.initialize_inference_model(
@@ -37,8 +37,7 @@ class ODWrapper:
         else:
             # Default to COCO classes if not specified
             self.num_classes = 91
-        self.model.input_shape = input_shape
-        self.model.channels_first = True
+        self.model.configure(input_shape=input_shape, channels_first=True)
         if self._should_freeze_bn():
             self._freeze_bn()
 
