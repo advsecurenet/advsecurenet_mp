@@ -19,12 +19,12 @@ from advsecurenet.shared.types import DatasetType, DataType
 
 logger = logging.getLogger(__name__)
 URLS_2007 = [
-                "https://data.brainchip.com/dataset-mirror/voc/VOCtrainval_06-Nov-2007.tar",
-                "https://data.brainchip.com/dataset-mirror/voc/VOCtest_06-Nov-2007.tar",
-            ]
+    "https://data.brainchip.com/dataset-mirror/voc/VOCtrainval_06-Nov-2007.tar",
+    "https://data.brainchip.com/dataset-mirror/voc/VOCtest_06-Nov-2007.tar",
+]
 URLS_2012 = [
-                "https://data.brainchip.com/dataset-mirror/voc/VOCtrainval_11-May-2012.tar",
-            ]
+    "https://data.brainchip.com/dataset-mirror/voc/VOCtrainval_11-May-2012.tar",
+]
 
 
 @contextmanager
