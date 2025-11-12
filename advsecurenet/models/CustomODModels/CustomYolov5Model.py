@@ -90,9 +90,9 @@ class CustomYolov5Model(CustomODBaseModel):
             )
         return hashlib.sha256(flat.numpy().tobytes()).hexdigest()
 
-    def configure(self, *, device = None, input_shape = None, channels_first = None):
+    def configure(self, *, device=None, input_shape=None, channels_first=None):
         if device is not None:
-            self.device=device
+            self.device = device
         if input_shape is not None:
             self.input_shape = input_shape
         if channels_first is not None:

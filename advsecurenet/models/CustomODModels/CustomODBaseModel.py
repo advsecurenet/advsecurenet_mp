@@ -24,7 +24,7 @@ class CustomODBaseModel(torch.nn.Module, ABC):
         'logits': float32 ndarray [N, C] (per-class logits)
         'label_names': object/str ndarray [N]
     """
-    
+
     @abstractmethod
     def configure(
         self,
@@ -42,7 +42,6 @@ class CustomODBaseModel(torch.nn.Module, ABC):
             channels_first: If True, model expects channels-first inputs.
         """
         raise NotImplementedError("Subclasses must implement configure method.")
-        
 
     @abstractmethod
     def forward(self, x, targets=None):
