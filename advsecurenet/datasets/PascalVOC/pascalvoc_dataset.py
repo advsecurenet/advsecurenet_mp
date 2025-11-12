@@ -18,6 +18,13 @@ from advsecurenet.shared.types.configs.preprocess_config import PreprocessConfig
 from advsecurenet.shared.types import DatasetType, DataType
 
 logger = logging.getLogger(__name__)
+URLS_2007 = [
+                "https://data.brainchip.com/dataset-mirror/voc/VOCtrainval_06-Nov-2007.tar",
+                "https://data.brainchip.com/dataset-mirror/voc/VOCtest_06-Nov-2007.tar",
+            ]
+URLS_2012 = [
+                "https://data.brainchip.com/dataset-mirror/voc/VOCtrainval_11-May-2012.tar",
+            ]
 
 
 @contextmanager
@@ -70,14 +77,9 @@ class PascalVOCDataset(BaseDataset):
             logger.info(f"Found existing {voc_dir}, skipping mirror download.")
             return
         if str(year) == "2007":
-            urls = [
-                "https://data.brainchip.com/dataset-mirror/voc/VOCtrainval_06-Nov-2007.tar",
-                "https://data.brainchip.com/dataset-mirror/voc/VOCtest_06-Nov-2007.tar",
-            ]
+            urls = URLS_2007
         else:
-            urls = [
-                "https://data.brainchip.com/dataset-mirror/voc/VOCtrainval_11-May-2012.tar",
-            ]
+            urls = URLS_2012
         for url in urls:
             fname = os.path.join(root, os.path.basename(url))
             if not os.path.exists(fname):

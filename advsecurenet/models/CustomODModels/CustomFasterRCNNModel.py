@@ -141,16 +141,6 @@ class CustomFasterRCNNModel(CustomODBaseModel):
         """
         if isinstance(x, torch.Tensor):
             x = [x[i] for i in range(x.shape[0])]
-            # img_list = []
-            # for i in range(x.shape[0]):
-            #     im = x[i].to(self.device)
-            #     # Ensure float32 and normalize if it looks like [0, 255]
-            #     if im.dtype != torch.float32:
-            #         im = im.float()
-            #     if im.max() > 1.0:
-            #         im = im / 255.0
-            #     img_list.append(im)
-            # x = img_list
 
         if self.training and targets is not None:
             loss_dict = self._model(x, targets)
@@ -193,7 +183,6 @@ class CustomFasterRCNNModel(CustomODBaseModel):
         return img_list, targets
 
     def calculate_loss(self, predictions, target_val):
-        # target_val = 0 - subtract, target_val = 1 - add
         target_val = 2 * target_val - 1  # map 0 -> -1, 1 -> 1
         loss = torch.tensor(0.0, device=self.device, dtype=torch.float32)
         for pred in predictions:
@@ -230,7 +219,6 @@ class CustomFasterRCNNModel(CustomODBaseModel):
         x_tensor = torch.stack(imgs, dim=0)
         if requires_grad:
             x_tensor.requires_grad_(True)
-        # return [x_tensor[i] for i in range(x_tensor.shape[0])]
         return x_tensor
 
     def translate_labels(
@@ -259,8 +247,8 @@ class CustomFasterRCNNModel(CustomODBaseModel):
 
     def _empty_target_np(self):
         return {
-            "boxes": np.empty((0, 4), dtype=np.float32),
-            "labels": np.empty((0,), dtype=np.int64),
+            "boxes": torch.empty(0, 4, dtype=torch.float32, device=self.device),
+            "labels": torch.empty(0, dtype=torch.int64, device=self.device),
         }
 
     def _align_targets_to_batch(self, y, batch_size: int):

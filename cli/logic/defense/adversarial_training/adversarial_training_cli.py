@@ -160,7 +160,7 @@ class ATCLITrainer(CLITrainer):
         task = self._infer_task(model)
         is_od = task == "detection"
         train_loader = self._prepare_dataloader(is_object_detection=is_od)
-        # --------------- TODO - remove this hack before merging ------------------------
+        # apply random sampling if requested - to narrow down the dataset size
         try:
             rs = getattr(self.config.dataset, "random_sample_size", None)
             if rs and rs > 0 and len(train_loader.dataset) > rs:
@@ -182,7 +182,6 @@ class ATCLITrainer(CLITrainer):
                 )
         except Exception:
             pass
-        # --------------- TODO - remove this hack before merging ------------------------
         train_config = self._prepare_train_config(model, train_loader)
 
         attacks = self._prepare_attacks()

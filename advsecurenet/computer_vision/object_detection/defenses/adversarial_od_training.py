@@ -1,5 +1,6 @@
 import logging
 import random
+import secrets
 import click
 from typing import Optional, Union
 import torch
@@ -121,7 +122,7 @@ class AdversarialODTraining(BaseAdversarialTraining):
         target_images: Optional[torch.Tensor] = None,
         target_targets: Optional[list[dict]] = None,
     ) -> tuple[torch.Tensor, list[dict]]:
-        attack = random.choice(self.config.attacks)
+        attack = secrets.choice(self.config.attacks)
         was_training = self._trainable.training
         self._trainable.eval()
         try:
