@@ -3,13 +3,13 @@
 export WANDB_MODE=disabled
 
 # Parse arguments with defaults
-MODEL_NAME=${1:-"gpt2"}
+MODEL_NAME=${1:-"microsoft/DialoGPT-medium"}  # Changed default from gpt2
 ATTACK_TYPE=${2:-"individual"}
 DATA_TYPE=${3:-"behaviors"}
 DEVICE=${4:-"auto"}
-N_STEPS=${5:-1000}
-N_TRAIN_DATA=${6:-10}
-BATCH_SIZE=${7:-512}
+N_STEPS=${5:-100}  # Reduced for testing
+N_TRAIN_DATA=${6:-1}  # Reduced for testing
+BATCH_SIZE=${7:-32}  # Reduced for testing
 LEARNING_RATE=${8:-0.01}
 CONTROL_INIT=${9:-"! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! !"}
 
@@ -26,19 +26,16 @@ echo "Learning Rate: $LEARNING_RATE"
 echo "Control Init: $CONTROL_INIT"
 echo "================================"
 
-
-
 # Create results folder if it doesn't exist
 if [ ! -d "../results" ]; then
-    mkdir "../results"
+    mkdir -p "../results"
     echo "Folder '../results' created."
 else
     echo "Folder '../results' already exists."
 fi
 
-
-# Run attack with different offsets
-for data_offset in 0 10 20 30 40 50 60 70 80 90; do
+# Run attack with different offsets (reduced for testing)
+for data_offset in 0 10; do  # Just test 2 offsets instead of 10
     echo "📊 Running experiment with data offset $data_offset"
     
     python3 ../main.py \
@@ -55,7 +52,12 @@ for data_offset in 0 10 20 30 40 50 60 70 80 90; do
         --config.data_offset=$data_offset \
         --config.verbose=true
         
-    echo "✅ Completed offset $data_offset"
+    if [ $? -eq 0 ]; then
+        echo "✅ Completed offset $data_offset"
+    else
+        echo "❌ Failed offset $data_offset"
+        break  # Stop on first failure for debugging
+    fi
 done
 
 echo "🎉 All experiments completed!"

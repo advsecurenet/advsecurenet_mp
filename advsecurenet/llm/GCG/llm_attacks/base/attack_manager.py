@@ -1,4 +1,5 @@
 import gc
+import os
 import json
 import math
 import random
@@ -16,6 +17,39 @@ from fastchat.model import get_conversation_template
 from transformers import (AutoModelForCausalLM, AutoTokenizer, GPT2LMHeadModel,
                           GPTJForCausalLM, GPTNeoXForCausalLM,
                           LlamaForCausalLM)
+
+class ConversationTemplateAdapter:
+    """Adapter to normalize different conversation templates."""
+    
+    @staticmethod
+    def normalize_template(conv_template, tokenizer):
+        """Normalize conversation template for consistent handling."""
+        
+        # Ensure we have proper role names
+        if not hasattr(conv_template, 'roles') or len(conv_template.roles) < 2:
+            conv_template.roles = ['User', 'Assistant']
+        
+        # Handle missing separators
+        if not hasattr(conv_template, 'sep'):
+            conv_template.sep = '\n'
+        if not hasattr(conv_template, 'sep2'):
+            conv_template.sep2 = conv_template.sep
+            
+        # Ensure proper system message handling
+        if not hasattr(conv_template, 'system'):
+            conv_template.system = ""
+            
+        return conv_template
+    
+    @staticmethod
+    def get_special_tokens_info(tokenizer):
+        """Extract special token information for slice detection."""
+        return {
+            'bos_token_id': getattr(tokenizer, 'bos_token_id', None),
+            'eos_token_id': getattr(tokenizer, 'eos_token_id', None),
+            'pad_token_id': getattr(tokenizer, 'pad_token_id', None),
+            'unk_token_id': getattr(tokenizer, 'unk_token_id', None),
+        }
 
 
 class NpEncoder(json.JSONEncoder):
@@ -35,28 +69,32 @@ def get_embedding_layer(model):
         return model.model.embed_tokens
     elif isinstance(model, GPTNeoXForCausalLM):
         return model.base_model.embed_in
+    elif hasattr(model, 'transformer') and hasattr(model.transformer, 'wte'):
+        return model.transformer.wte  # GPT-2, GPT-J, etc.
+    elif hasattr(model, 'model') and hasattr(model.model, 'embed_tokens'):
+        return model.model.embed_tokens  # LLaMA, Mistral, etc.
+    elif hasattr(model, 'gpt_neox') and hasattr(model.gpt_neox, 'embed_in'):
+        return model.gpt_neox.embed_in  # GPT-NeoX variants
+    elif hasattr(model, 'transformer') and hasattr(model.transformer, 'word_embeddings'):
+        return model.transformer.word_embeddings  # BERT-style
+    elif hasattr(model, 'embeddings'):
+        return model.embeddings.word_embeddings  # Some other architectures
     else:
-        raise ValueError(f"Unknown model type: {type(model)}")
+        # Fallback: search for embedding layers
+        for name, module in model.named_modules():
+            if isinstance(module, torch.nn.Embedding) and 'embed' in name.lower():
+                return module
+        raise ValueError(f"Could not find embedding layer for model type: {type(model)}")
+        
 
 def get_embedding_matrix(model):
-    if isinstance(model, GPTJForCausalLM) or isinstance(model, GPT2LMHeadModel):
-        return model.transformer.wte.weight
-    elif isinstance(model, LlamaForCausalLM):
-        return model.model.embed_tokens.weight
-    elif isinstance(model, GPTNeoXForCausalLM):
-        return model.base_model.embed_in.weight
-    else:
-        raise ValueError(f"Unknown model type: {type(model)}")
+    return get_embedding_layer(model).weight
 
 def get_embeddings(model, input_ids):
-    if isinstance(model, GPTJForCausalLM) or isinstance(model, GPT2LMHeadModel):
-        return model.transformer.wte(input_ids).half()
-    elif isinstance(model, LlamaForCausalLM):
-        return model.model.embed_tokens(input_ids)
-    elif isinstance(model, GPTNeoXForCausalLM):
-        return model.base_model.embed_in(input_ids).half()
-    else:
-        raise ValueError(f"Unknown model type: {type(model)}")
+    embedding_layer = get_embedding_layer(model)
+    if hasattr(embedding_layer.weight, 'half'):
+        return embedding_layer(input_ids).half()
+    return embedding_layer(input_ids)
 
 def get_nonascii_toks(tokenizer, device='cpu'):
 
@@ -116,7 +154,12 @@ class AttackPrompt(object):
         self.target = target
         self.control = control_init
         self.tokenizer = tokenizer
-        self.conv_template = conv_template
+        self.conv_template = ConversationTemplateAdapter.normalize_template(
+        deepcopy(conv_template), tokenizer
+    )
+    
+    # Store special token info for robust handling
+        self.special_tokens = ConversationTemplateAdapter.get_special_tokens_info(tokenizer)
         self.test_prefixes = test_prefixes
 
         self.conv_template.messages = []
@@ -128,11 +171,115 @@ class AttackPrompt(object):
         self._update_ids()
 
     def _update_ids(self):
-
+        """Update token IDs and slices with robust tokenization handling."""
+        
+        # Build the full conversation
         self.conv_template.append_message(self.conv_template.roles[0], f"{self.goal} {self.control}")
         self.conv_template.append_message(self.conv_template.roles[1], f"{self.target}")
-        prompt = self.conv_template.get_prompt()
-        encoding = self.tokenizer(prompt)
+        full_prompt = self.conv_template.get_prompt()
+        
+        # Try robust slice detection first, fallback to original logic if it fails
+        try:
+            self._detect_slices_robust(full_prompt)
+        except Exception as e:
+            print(f"Robust detection failed ({e}), using fallback logic")
+            self._detect_slices_fallback(full_prompt)
+        
+        # Finalize input_ids
+        encoding = self.tokenizer(full_prompt)
+        self.input_ids = torch.tensor(encoding.input_ids[:self._target_slice.stop], device='cpu')
+        self.conv_template.messages = []
+
+    def validate_slices(self):
+        """Validate that all slices are properly defined and non-overlapping."""
+        slices = [
+            ('user_role', self._user_role_slice),
+            ('goal', self._goal_slice), 
+            ('control', self._control_slice),
+            ('assistant_role', self._assistant_role_slice),
+            ('target', self._target_slice),
+            ('loss', self._loss_slice)
+        ]
+        
+        for name, slice_obj in slices:
+            if slice_obj.start < 0 or slice_obj.stop < slice_obj.start:
+                raise ValueError(f"Invalid {name} slice: {slice_obj}")
+        
+        # Check for reasonable ordering
+        if not (self._user_role_slice.stop <= self._goal_slice.start <= 
+                self._control_slice.start <= self._assistant_role_slice.start <= 
+                self._target_slice.start):
+            print("Warning: Slice ordering may be incorrect")
+
+    def _detect_slices_robust(self, full_prompt):
+        """Universal slice detection that works with any tokenizer."""
+        
+        # Clear messages and rebuild incrementally
+        self.conv_template.messages = []
+        
+        # Step 1: Get just the user role prefix
+        self.conv_template.append_message(self.conv_template.roles[0], None)
+        user_role_prompt = self.conv_template.get_prompt()
+        user_role_tokens = self.tokenizer(user_role_prompt).input_ids
+        self._user_role_slice = slice(0, len(user_role_tokens))
+        
+        # Step 2: Add goal
+        goal_start = len(user_role_tokens)
+        if self.goal:
+            self.conv_template.update_last_message(self.goal)
+            goal_prompt = self.conv_template.get_prompt()
+            goal_tokens = self.tokenizer(goal_prompt).input_ids
+            goal_end = goal_start + (len(goal_tokens) - len(user_role_tokens))
+            self._goal_slice = slice(goal_start, goal_end)
+        else:
+            self._goal_slice = slice(len(user_role_tokens), len(user_role_tokens))
+        
+        # Step 3: Add control
+        separator = ' ' if self.goal else ''
+        self.conv_template.update_last_message(f"{self.goal}{separator}{self.control}")
+        control_prompt = self.conv_template.get_prompt()
+        control_tokens = self.tokenizer(control_prompt).input_ids
+        
+        # Handle potential tokenizer quirks
+        control_start = self._goal_slice.stop
+        control_end = control_start + (len(control_tokens) - self._goal_slice.stop)
+        self._control_slice = slice(control_start, control_end)
+        
+        # Adjust for tokenizers that add/remove tokens during concatenation
+        if hasattr(self.tokenizer, 'add_special_tokens') and control_end < control_start:
+            control_end = control_start + len(self.tokenizer(self.control, add_special_tokens=False).input_ids)
+        
+        self._control_slice = slice(control_start, max(control_start, control_end))
+        
+        # Step 4: Add assistant role
+        self.conv_template.append_message(self.conv_template.roles[1], None)
+        assistant_role_prompt = self.conv_template.get_prompt()
+        assistant_role_tokens = self.tokenizer(assistant_role_prompt).input_ids
+        self._assistant_role_slice = slice(self._control_slice.stop, len(assistant_role_tokens))
+        
+        # Step 5: Add target
+        self.conv_template.update_last_message(self.target)
+        target_prompt = self.conv_template.get_prompt()
+        target_tokens = self.tokenizer(target_prompt).input_ids
+        
+        # Handle EOS token variations across tokenizers
+        eos_offset = 0
+        if (hasattr(self.tokenizer, 'eos_token_id') and 
+            self.tokenizer.eos_token_id is not None and 
+            len(target_tokens) > 0 and 
+            target_tokens[-1] == self.tokenizer.eos_token_id):
+            eos_offset = 1
+        
+        self._target_slice = slice(self._assistant_role_slice.stop, len(target_tokens) - eos_offset)
+        self._loss_slice = slice(self._assistant_role_slice.stop - 1, len(target_tokens) - eos_offset - 1)
+        self.validate_slices()
+    
+    
+
+
+    def _detect_slices_fallback(self, full_prompt):
+        """Fallback to original template-specific logic."""
+        encoding = self.tokenizer(full_prompt)
         toks = encoding.input_ids
 
         if self.conv_template.name == 'llama-2':
@@ -163,7 +310,7 @@ class AttackPrompt(object):
         else:
             python_tokenizer = False or self.conv_template.name == 'oasst_pythia'
             try:
-                encoding.char_to_token(len(prompt)-1)
+                encoding.char_to_token(len(full_prompt)-1)
             except:
                 python_tokenizer = True
             if python_tokenizer:
@@ -198,32 +345,33 @@ class AttackPrompt(object):
                     encoding.char_to_token(len(self.conv_template.system))
                 )
                 self._user_role_slice = slice(
-                    encoding.char_to_token(prompt.find(self.conv_template.roles[0])),
-                    encoding.char_to_token(prompt.find(self.conv_template.roles[0]) + len(self.conv_template.roles[0]) + 1)
+                    encoding.char_to_token(full_prompt.find(self.conv_template.roles[0])),
+                    encoding.char_to_token(full_prompt.find(self.conv_template.roles[0]) + len(self.conv_template.roles[0]) + 1)
                 )
                 self._goal_slice = slice(
-                    encoding.char_to_token(prompt.find(self.goal)),
-                    encoding.char_to_token(prompt.find(self.goal) + len(self.goal))
+                    encoding.char_to_token(full_prompt.find(self.goal)),
+                    encoding.char_to_token(full_prompt.find(self.goal) + len(self.goal))
                 )
                 self._control_slice = slice(
-                    encoding.char_to_token(prompt.find(self.control)),
-                    encoding.char_to_token(prompt.find(self.control) + len(self.control))
+                    encoding.char_to_token(full_prompt.find(self.control)),
+                    encoding.char_to_token(full_prompt.find(self.control) + len(self.control))
                 )
                 self._assistant_role_slice = slice(
-                    encoding.char_to_token(prompt.find(self.conv_template.roles[1])),
-                    encoding.char_to_token(prompt.find(self.conv_template.roles[1]) + len(self.conv_template.roles[1]) + 1)
+                    encoding.char_to_token(full_prompt.find(self.conv_template.roles[1])),
+                    encoding.char_to_token(full_prompt.find(self.conv_template.roles[1]) + len(self.conv_template.roles[1]) + 1)
                 )
                 self._target_slice = slice(
-                    encoding.char_to_token(prompt.find(self.target)),
-                    encoding.char_to_token(prompt.find(self.target) + len(self.target))
+                    encoding.char_to_token(full_prompt.find(self.target)),
+                    encoding.char_to_token(full_prompt.find(self.target) + len(self.target))
                 )
                 self._loss_slice = slice(
-                    encoding.char_to_token(prompt.find(self.target)) - 1,
-                    encoding.char_to_token(prompt.find(self.target) + len(self.target)) - 1
+                    encoding.char_to_token(full_prompt.find(self.target)) - 1,
+                    encoding.char_to_token(full_prompt.find(self.target) + len(self.target)) - 1
                 )
 
         self.input_ids = torch.tensor(toks[:self._target_slice.stop], device='cpu')
         self.conv_template.messages = []
+        self.validate_slices()
 
     @torch.no_grad()
     def generate(self, model, gen_config=None):

@@ -2,34 +2,38 @@ import os
 import torch
 from ml_collections import config_dict
 
-os.sys.path.append("..")
-from configs.template import get_config as default_config
-
 def get_config():
     """
     Universal GCG config that works with any HuggingFace model.
+    Uses the ConversationTemplateAdapter in attack_manager.py for template handling.
     All parameters can be overridden via command line using --config.parameter_name=value
     """
     
-    # Start with default config
-    config = default_config()
+    # Start with fresh config
+    config = config_dict.ConfigDict()
     
-    # === ADD ALL CONFIGURABLE FIELDS TO THE CONFIG ===
-    # Model parameters
-    config.model_name = "gpt2"
+    # === UNIVERSAL MODE SETTINGS ===
+    config.universal_mode = True        # Enable universal model support
+    config.auto_template_detection = True  # Let attack_manager handle templates
+    
+    # === MODEL PARAMETERS ===
+    config.model_name = "gpt2"  # Default - can be overridden
     config.device = "auto"
     
-    # Attack parameters  
+    # === ATTACK PARAMETERS ===  
     config.attack_type = "individual"  # "individual" or "transfer"
     config.data_type = "behaviors"     # "behaviors" or "strings"
     config.attack = "gcg"              # Attack method
+    config.transfer = False
     
-    # Data parameters (override defaults if they exist)
+    # === DATA PARAMETERS ===
     config.n_train_data = 10
     config.n_test_data = 0
     config.data_offset = 0
+    config.train_data = '/Users/philip/Desktop/advsecurenet_mp/advsecurenet/llm/GCG/data/advbench/harmful_behaviors.csv'
+    config.test_data = ''
     
-    # Optimization parameters (override defaults if they exist)
+    # === OPTIMIZATION PARAMETERS ===
     config.n_steps = 1000
     config.test_steps = 50
     config.batch_size = 512
@@ -37,17 +41,17 @@ def get_config():
     config.topk = 256
     config.temp = 1
     
-    # Control parameters (override defaults if they exist)
+    # === CONTROL PARAMETERS ===
     config.control_init = "! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! !"
     config.control_weight = 0.0
     config.target_weight = 1.0
     
-    # Progressive parameters (override defaults if they exist)
+    # === PROGRESSIVE PARAMETERS ===
     config.progressive_goals = False
     config.progressive_models = False
     config.incr_control = False
     
-    # Other parameters (override defaults if they exist)
+    # === OTHER PARAMETERS ===
     config.anneal = False
     config.stop_on_success = False
     config.filter_cand = True
@@ -56,12 +60,12 @@ def get_config():
     config.verbose = True
     config.num_train_models = 1
     
-    # Advanced model parameters
+    # === ADVANCED MODEL PARAMETERS ===
     config.low_cpu_mem_usage = True
     config.use_cache = False
     config.use_fast_tokenizer = False
     
-    # === COMPUTED FIELDS (derived from the above) ===
+    # === COMPUTED FIELDS ===
     # Auto-detect device if needed
     if config.device == "auto":
         if torch.cuda.is_available():
@@ -69,54 +73,40 @@ def get_config():
         else:
             config.device = "cpu"
     
-    # Auto-detect appropriate conversation template
-    conversation_template = _get_conversation_template(config.model_name)
-    
-    # Set derived fields
-    config.model_paths = [config.model_name]
-    config.tokenizer_paths = [config.model_name]
+    # === REQUIRED DERIVED FIELDS (set immediately) ===
+    # These MUST exist for the framework to work
+    def get_current_model_name():
+        return getattr(config, 'model_name', 'gpt2')
+    config.model_paths = [get_current_model_name()]
+    config.tokenizer_paths = [get_current_model_name()] 
     config.devices = [config.device]
-    config.conversation_templates = [conversation_template]
+    config.conversation_templates = ["zero_shot"]  # Universal template
     
-    # Set attack-specific config
-    config.transfer = (config.attack_type == "transfer")
-    config.train_data = f'../../data/advbench/harmful_{config.data_type}.csv'
-    config.test_data = ''
-    
-    # Model kwargs
-    config.model_kwargs = _get_model_kwargs(config.device, config.low_cpu_mem_usage, config.use_cache)
+    # === MODEL KWARGS ===
+    config.model_kwargs = [{"low_cpu_mem_usage": config.low_cpu_mem_usage, "use_cache": config.use_cache}]
     config.tokenizer_kwargs = [{"use_fast": config.use_fast_tokenizer}]
+
+    # === RESULTS PATH ===
+    config.result_prefix = f'../results/{config.attack_type}_{config.data_type}_{_clean_model_name(get_current_model_name())}_gcg_offset{config.data_offset}'
     
-    # Results path
-    config.result_prefix = f'../results/{config.attack_type}_{config.data_type}_{_clean_model_name(config.model_name)}_gcg_offset{config.data_offset}'
+    # Ensure results directory exists
+    results_dir = os.path.dirname(config.result_prefix) 
+    if results_dir and not os.path.exists(results_dir):
+        os.makedirs(results_dir, exist_ok=True)
+        print(f"🔧 Created results directory: {results_dir}")
+    
+    # === DEBUG INFO ===
+    if config.verbose:
+        print(f"🔧 Universal GCG Config Loaded")
+        print(f"🔧 Model: {config.model_name}")
+        print(f"🔧 Model Paths: {config.model_paths}")
+        print(f"🔧 Tokenizer Paths: {config.tokenizer_paths}")
+        print(f"🔧 Device: {config.device}")
+        print(f"🔧 Universal Mode: {config.universal_mode}")
+        print(f"🔧 Template will be auto-adapted by ConversationTemplateAdapter")
     
     return config
-
-def _get_conversation_template(model_name):
-    """Auto-detect appropriate conversation template based on model name."""
-    model_lower = model_name.lower()
-    
-    if "llama-2" in model_lower or "llama2" in model_lower:
-        return "llama-2"
-    elif "vicuna" in model_lower:
-        return "vicuna_v1.1"
-    elif "mistral" in model_lower:
-        return "mistral"
-    elif "gpt" in model_lower:
-        return "zero_shot"
-    elif "claude" in model_lower:
-        return "claude"
-    else:
-        return "zero_shot"
 
 def _clean_model_name(model_name):
     """Clean model name for use in file paths."""
     return model_name.replace("/", "_").replace("-", "_")
-
-def _get_model_kwargs(device, low_cpu_mem_usage=True, use_cache=False):
-    """Get appropriate model kwargs based on device."""
-    kwargs = {
-        "low_cpu_mem_usage": low_cpu_mem_usage,
-        "use_cache": use_cache
-    }
-    return [kwargs]
