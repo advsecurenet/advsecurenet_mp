@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 from tqdm.auto import tqdm
 
-from advsecurenet.llm.GCG.src.prompts.attack_prompt import AttackPrompt,
+from advsecurenet.llm.GCG.src.prompts.attack_prompt import AttackPrompt
 from advsecurenet.llm.GCG.src.attacks.multi_prompt import MultiPromptAttack
 from advsecurenet.llm.GCG.src.prompts.prompt_manager import PromptManager
 from advsecurenet.llm.GCG.src.models.embedding_utils import get_embedding_matrix, get_embeddings
