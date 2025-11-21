@@ -266,16 +266,22 @@ class TOG(AdversarialAttack):
         x_adv = np.clip(x_query + eta, 0.0, 1.0)
         return x_adv
 
+    def _infer_by_names(self, names):
+        if isinstance(names, (list, tuple)) and len(names) > 0:
+            return len(names)
+        if isinstance(names, dict) and len(names) > 0:
+            return len(names.keys())
+        return None
+
     def _resolve_num_classes(self, initial_detections):
         inf = getattr(self._object_detector, "inference_model", None)
         for obj in [inf, getattr(inf, "model", None)]:
             if obj is None:
                 continue
             names = getattr(obj, "names", None)
-            if isinstance(names, (list, tuple)) and len(names) > 0:
-                return len(names)
-            if isinstance(names, dict) and len(names) > 0:
-                return len(names.keys())
+            nc = self._infer_by_names(names)
+            if nc:
+                return nc
         for attr_owner in [self._object_detector, inf]:
             if attr_owner is None:
                 continue

@@ -149,20 +149,7 @@ class AdversarialODTraining(BaseAdversarialTraining):
         targets = {k: [t.to(self._device) for t in v] for k, v in targets.items()}
         return images, targets
 
-    def _perform_attack(
-        self,
-        attack: AdversarialAttack,
-        model: BaseModel,
-        images: torch.Tensor,
-        targets: list[dict],
-        target_images: Optional[torch.Tensor] = None,  # kept for forward compat
-        target_targets: Optional[list[dict]] = None,  # kept for forward compat
-    ) -> torch.Tensor:
-        """
-        Runs a detection-friendly attack and returns adversarial images (same shape as images).
-        """
-        attack_name = attack.__class__.__name__
-        self._trainable.to(self._device)
+    def _setup_object_detector(self, attack, model):
         if (
             (not getattr(attack, "_detector_resolved", False))
             and hasattr(attack, "_object_detector")
@@ -187,6 +174,22 @@ class AdversarialODTraining(BaseAdversarialTraining):
                     raise RuntimeError(
                         f"Cannot resolve object detector for attack (value={attack._object_detector})."
                     )
+
+    def _perform_attack(
+        self,
+        attack: AdversarialAttack,
+        model: BaseModel,
+        images: torch.Tensor,
+        targets: list[dict],
+        target_images: Optional[torch.Tensor] = None,  # kept for forward compat
+        target_targets: Optional[list[dict]] = None,  # kept for forward compat
+    ) -> torch.Tensor:
+        """
+        Runs a detection-friendly attack and returns adversarial images (same shape as images).
+        """
+        attack_name = attack.__class__.__name__
+        self._trainable.to(self._device)
+        self._setup_object_detector(attack, model)
         if attack_name == "DPatch":
             if not hasattr(attack, "_optimized_patch"):
                 attack._optimized_patch = attack.attack(

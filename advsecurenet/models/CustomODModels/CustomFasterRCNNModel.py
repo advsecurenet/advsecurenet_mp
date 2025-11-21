@@ -63,9 +63,7 @@ class CustomFasterRCNNModel(CustomODBaseModel):
         if channels_first is not None:
             self.channels_first = channels_first
 
-    def load_model_weights(
-        self, model_weights_path, pretrained=True, pretrained_backbone=True
-    ):
+    def _init_model(self, pretrained, pretrained_backbone):
         if pretrained:
             self._model = fasterrcnn_resnet50_fpn_v2(
                 weights=(
@@ -79,10 +77,64 @@ class CustomFasterRCNNModel(CustomODBaseModel):
             self._model = fasterrcnn_resnet50_fpn_v2(
                 weights=None, num_classes=self.num_classes
             )
+
+    def _disable_batchnorm_tracking(self):
         for m in self._model.modules():
             if isinstance(m, torch.nn.modules.batchnorm._BatchNorm):
                 m.eval()
                 m.track_running_stats = False
+
+    def _clean_state_dict(self, sd, target_keys):
+        sd_clean = {}
+        for k, v in sd.items():
+            nk = k
+            for prefix in (
+                "model._model.model.",
+                "model.model.",
+                "model._model.",
+                "model.",
+                "_model.model.",
+                "_model.",
+                "module.",
+            ):
+                if nk.startswith(prefix):
+                    nk = nk[len(prefix) :]
+            if nk not in target_keys and f"model.{nk}" in target_keys:
+                nk = f"model.{nk}"
+            sd_clean[nk] = v
+        return sd_clean
+
+    def _report_hash_diff(self, before_hash, after_hash, model_weights_path):
+        if before_hash != after_hash:
+            print(
+                f"[CustomFasterRCNNModel] Model parameters changed after loading '{model_weights_path}'."
+            )
+        else:
+            print(
+                f"[CustomFasterRCNNModel][WARN] Loading '{model_weights_path}' did not change model parameters."
+            )
+
+    def _safe_load_state_dict(self, model_weights_path):
+        original_torch_load = torch.load
+
+        def load_with_weights_only_false(*args, **kwargs):
+            kwargs["weights_only"] = False
+            return original_torch_load(*args, **kwargs)
+
+        with patch("torch.load", side_effect=load_with_weights_only_false):
+            sd = torch.load(model_weights_path, map_location="cpu")
+        if isinstance(sd, dict):
+            for k in ["state_dict", "model", "weights"]:
+                if k in sd and isinstance(sd[k], dict):
+                    sd = sd[k]
+                    break
+        return sd
+
+    def load_model_weights(
+        self, model_weights_path, pretrained=True, pretrained_backbone=True
+    ):
+        self._init_model(pretrained, pretrained_backbone)
+        self._disable_batchnorm_tracking()
         if (
             model_weights_path
             and isinstance(model_weights_path, str)
@@ -91,47 +143,12 @@ class CustomFasterRCNNModel(CustomODBaseModel):
         ):
             try:
                 before_hash = self._parameters_sha256()
-                original_torch_load = torch.load
-
-                def load_with_weights_only_false(*args, **kwargs):
-                    kwargs["weights_only"] = False
-                    return original_torch_load(*args, **kwargs)
-
-                with patch("torch.load", side_effect=load_with_weights_only_false):
-                    sd = torch.load(model_weights_path, map_location="cpu")
-                if isinstance(sd, dict):
-                    for k in ["state_dict", "model", "weights"]:
-                        if k in sd and isinstance(sd[k], dict):
-                            sd = sd[k]
-                            break
+                sd = self._safe_load_state_dict(model_weights_path)
                 target_keys = set(self._model.state_dict().keys())
-                sd_clean = {}
-                for k, v in sd.items():
-                    nk = k
-                    for prefix in (
-                        "model._model.model.",
-                        "model.model.",
-                        "model._model.",
-                        "model.",
-                        "_model.model.",
-                        "_model.",
-                        "module.",
-                    ):
-                        if nk.startswith(prefix):
-                            nk = nk[len(prefix) :]
-                    if nk not in target_keys and f"model.{nk}" in target_keys:
-                        nk = f"model.{nk}"
-                    sd_clean[nk] = v
+                sd_clean = self._clean_state_dict(sd, target_keys)
                 self._model.load_state_dict(sd_clean, strict=False)
                 after_hash = self._parameters_sha256()
-                if before_hash != after_hash:
-                    print(
-                        f"[CustomFasterRCNNModel] Model parameters changed after loading '{model_weights_path}'."
-                    )
-                else:
-                    print(
-                        f"[CustomFasterRCNNModel][WARN] Loading '{model_weights_path}' did not change model parameters."
-                    )
+                self._report_hash_diff(before_hash, after_hash, model_weights_path)
             except Exception as e:
                 print(
                     f"[CustomFasterRCNNModel][WARN] Failed to load .pth state_dict: {e}"
@@ -205,27 +222,36 @@ class CustomFasterRCNNModel(CustomODBaseModel):
                     loss -= torch.sum(torch.max(logits, dim=1)[0]) * target_val
         return loss
 
-    def preprocess_x_for_loss_calculation(self, x, requires_grad=True):
-        # build list[Tensor(C,H,W)] float32 in [0,1]
+    def _preprocess_numpy_batch(self, x: np.ndarray):
         imgs = []
-        if isinstance(x, np.ndarray):
+        for i in range(x.shape[0]):
+            t = torch.from_numpy(x[i]).to(self.device).float()
+            if t.max() > 1:
+                t = t / 255.0
+            imgs.append(t)
+        return imgs
+    
+    def _preprocess_tensor_input(self, x: torch.Tensor):
+        imgs = []
+        if x.dim() == 4:
             for i in range(x.shape[0]):
-                t = torch.from_numpy(x[i]).to(self.device).float()
+                t = x[i].to(self.device).float()
                 if t.max() > 1:
                     t = t / 255.0
                 imgs.append(t)
         else:
-            if x.dim() == 4:
-                for i in range(x.shape[0]):
-                    t = x[i].to(self.device).float()
-                    if t.max() > 1:
-                        t = t / 255.0
-                    imgs.append(t)
-            else:
-                t = x.to(self.device).float()
-                if t.max() > 1:
-                    t = t / 255.0
-                imgs = [t]
+            t = x.to(self.device).float()
+            if t.max() > 1:
+                t = t / 255.0
+            imgs = [t]
+        return imgs
+
+    def preprocess_x_for_loss_calculation(self, x, requires_grad=True):
+        # build list[Tensor(C,H,W)] float32 in [0,1]
+        if isinstance(x, np.ndarray):
+            imgs = self._preprocess_numpy_batch(x)
+        else:
+            imgs = self._preprocess_tensor_input(x)
         x_tensor = torch.stack(imgs, dim=0)
         if requires_grad:
             x_tensor.requires_grad_(True)

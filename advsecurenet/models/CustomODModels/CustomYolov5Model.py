@@ -104,65 +104,75 @@ class CustomYolov5Model(CustomODBaseModel):
         def load_with_weights_only_false(*args, **kwargs):
             kwargs["weights_only"] = False
             return original_torch_load(*args, **kwargs)
-
-        # Decide loading strategy
-        is_plain_state_dict = model_weights_path.endswith(".pth")
-        base_arch_weights = "yolov5s.pt"
-        arch_source = (
-            model_weights_path if not is_plain_state_dict else base_arch_weights
-        )
+        
+        is_plain_state_dict, arch_source = self._resolve_arch_source(model_weights_path)
         with patch("torch.load", side_effect=load_with_weights_only_false):
             self._model = yolov5.load(
                 arch_source, autoshape=False, device=self.device
             ).model
             self._autoshape = AutoShape(self._model)
             self._model.to(self.device)
-        # Freeze BatchNorm running stats to avoid per-rank drift during adversarial gradients
+        self._freeze_bn_running_stats()
+        if is_plain_state_dict and os.path.isfile(model_weights_path):
+            self._load_state_dict_from_path(model_weights_path)
+        self._set_default_hyp()
+
+    def _freeze_bn_running_stats(self):
         for m in self._model.modules():
             if isinstance(m, torch.nn.modules.batchnorm._BatchNorm):
                 m.eval()
                 m.track_running_stats = False
-        if is_plain_state_dict and os.path.isfile(model_weights_path):
-            try:
-                before_hash = self._parameters_sha256()
-                sd = torch.load(model_weights_path, map_location="cpu")
-                if isinstance(sd, dict):
-                    for k in ["state_dict", "model", "weights"]:
-                        if k in sd and isinstance(sd[k], dict):
-                            sd = sd[k]
-                            break
 
-                def _clean(d):
-                    target_keys = set(self._model.state_dict().keys())
-                    cleaned = {}
-                    for k, v in d.items():
-                        nk = k
-                        for prefix in (
-                            "model._model.model.",
-                            "model.model.",
-                            "model._model.",
-                        ):
-                            if nk.startswith(prefix):
-                                nk = nk[len(prefix) :]
-                                break
-                        if nk not in target_keys and f"model.{nk}" in target_keys:
-                            nk = f"model.{nk}"
-                        cleaned[nk] = v
-                    return cleaned
+    def _resolve_arch_source(self, model_weights_path):
+        is_plain_state_dict = model_weights_path.endswith(".pth")
+        base_arch_weights = "yolov5s.pt"
+        arch_source = (
+            model_weights_path if not is_plain_state_dict else base_arch_weights
+        )
+        return is_plain_state_dict, arch_source
 
-                sd_clean = _clean(sd)
-                self._model.load_state_dict(sd_clean, strict=False)
-                after_hash = self._parameters_sha256()
-                if before_hash != after_hash:
-                    print(
-                        f"[CustomYolov5Model] Model parameters changed after loading '{model_weights_path}'."
-                    )
-                else:
-                    print(
-                        f"[CustomYolov5Model][WARN] Loading '{model_weights_path}' did not change model parameters."
-                    )
-            except Exception as e:
-                print(f"[CustomYolov5Model][WARN] Failed to load .pth state_dict: {e}")
+    def _load_state_dict_from_path(self, model_weights_path):
+        try:
+            before_hash = self._parameters_sha256()
+            sd = torch.load(model_weights_path, map_location="cpu")
+            if isinstance(sd, dict):
+                for k in ["state_dict", "model", "weights"]:
+                    if k in sd and isinstance(sd[k], dict):
+                        sd = sd[k]
+                        break
+            sd_clean = self._clean_state_dict(sd)
+            self._model.load_state_dict(sd_clean, strict=False)
+            after_hash = self._parameters_sha256()
+            if before_hash != after_hash:
+                print(
+                    f"[CustomYolov5Model] Model parameters changed after loading '{model_weights_path}'."
+                )
+            else:
+                print(
+                    f"[CustomYolov5Model][WARN] Loading '{model_weights_path}' did not change model parameters."
+                )
+        except Exception as e:
+            print(f"[CustomYolov5Model][WARN] Failed to load .pth state_dict: {e}")
+
+    def _clean_state_dict(self, d):
+        target_keys = set(self._model.state_dict().keys())
+        cleaned = {}
+        for k, v in d.items():
+            nk = k
+            for prefix in (
+                "model._model.model.",
+                "model.model.",
+                "model._model.",
+            ):
+                if nk.startswith(prefix):
+                    nk = nk[len(prefix) :]
+                    break
+            if nk not in target_keys and f"model.{nk}" in target_keys:
+                nk = f"model.{nk}"
+            cleaned[nk] = v
+        return cleaned
+
+    def _set_default_hyp(self) -> None:
         self._model.hyp = {
             "box": 0.05,
             "obj": 1.0,
@@ -389,27 +399,35 @@ class CustomYolov5Model(CustomODBaseModel):
             else torch.zeros((0, 6), device=self.device)
         )
 
-    def _resolve_device(self, device):
-        if device is not None:
-            if isinstance(device, (int,)):
+    def _resolve_device_not_empty(self, device):
+        if isinstance(device, (int,)):
                 resolved_device = (
                     f"cuda:{device}" if torch.cuda.is_available() else "cpu"
                 )
-            else:
-                resolved_device = str(device)
         else:
-            if torch.cuda.is_available():
+            resolved_device = str(device)
+        return resolved_device
+
+    def _resolve_device_empty(self):
+        if torch.cuda.is_available():
                 try:
                     resolved_device = f"cuda:{torch.cuda.current_device()}"
                 except Exception:
                     resolved_device = "cuda:0"
-            elif (
-                getattr(torch.backends, "mps", None)
-                and torch.backends.mps.is_available()
-            ):
-                resolved_device = "mps"
-            else:
-                resolved_device = "cpu"
+        elif (
+            getattr(torch.backends, "mps", None)
+            and torch.backends.mps.is_available()
+        ):
+            resolved_device = "mps"
+        else:
+            resolved_device = "cpu"
+        return resolved_device
+
+    def _resolve_device(self, device):
+        if device is not None:
+            resolved_device = self._resolve_device_not_empty(device)
+        else:
+            resolved_device = self._resolve_device_empty()
         self.device = resolved_device
 
     def _module_device(self) -> torch.device:

@@ -79,48 +79,99 @@ class DDPODAttacker(DDPBaseTask):
             logging.getLogger().setLevel(logging.WARNING)
         result = self.attacker.execute()
         if self.config.return_adversarial_images and result:
-            try:
-                temp_dir = os.environ.get("ADV_OD_TMP", self.TEMP_DIR)
-                if dist.get_rank() == 0 and not os.path.exists(temp_dir):
-                    os.makedirs(temp_dir, exist_ok=True)
-                dist.barrier()
-                out_path = os.path.join(
-                    temp_dir, f"adv_images_rank{dist.get_rank()}.pt"
-                )
-                # Flatten result to count images
-                flat_count = 0
-                for batch in result:
-                    if hasattr(batch, "shape") and len(batch.shape) == 4:
-                        flat_count += batch.shape[0]
-                    else:
-                        flat_count += 1
-                dataset_len = (
-                    len(self.attacker._dataloader.dataset)
-                    if hasattr(self.attacker._dataloader, "dataset")
-                    else None
-                )
-                torch.save(
-                    {
-                        "images": result,
-                        "indices": shard_indices,
-                        "local_image_count": flat_count,
-                        "dataset_len": dataset_len,
-                    },
-                    out_path,
-                )
-            except Exception as e:
-                logging.error(
-                    "Failed to store adversarial images on rank %d: %s",
-                    dist.get_rank(),
-                    e,
-                )
+            self._maybe_store_adversarial_images(result, shard_indices)
         dist.barrier()
         return result
+    
+    def _maybe_store_adversarial_images(self, result, shard_indices):
+        try:
+            temp_dir = os.environ.get("ADV_OD_TMP", self.TEMP_DIR)
+            if dist.get_rank() == 0 and not os.path.exists(temp_dir):
+                os.makedirs(temp_dir, exist_ok=True)
+            dist.barrier()
+            out_path = os.path.join(
+                temp_dir, f"adv_images_rank{dist.get_rank()}.pt"
+            )
+            # Flatten result to count images
+            flat_count = 0
+            for batch in result:
+                if hasattr(batch, "shape") and len(batch.shape) == 4:
+                    flat_count += batch.shape[0]
+                else:
+                    flat_count += 1
+            dataset_len = (
+                len(self.attacker._dataloader.dataset)
+                if hasattr(self.attacker._dataloader, "dataset")
+                else None
+            )
+            torch.save(
+                {
+                    "images": result,
+                    "indices": shard_indices,
+                    "local_image_count": flat_count,
+                    "dataset_len": dataset_len,
+                },
+                out_path,
+            )
+        except Exception as e:
+            logging.error(
+                "Failed to store adversarial images on rank %d: %s",
+                dist.get_rank(),
+                e,
+            )
+
 
     @staticmethod
     def gather_results(world_size: int) -> list:
         temp_dir = os.environ.get("ADV_OD_TMP", DDPODAttacker.TEMP_DIR)
         gathered = []
+        shards, total_local_counts, dataset_len_reported = DDPODAttacker.collect_shards(world_size, temp_dir)
+        # If all shards have per-sample indices and counts match, restore ordering.
+        if shards and all(s[0] is not None for s in shards):
+            total_images = 0
+            flat_shards = []  # list of (indices, flat_images)
+            for idxs, imgs in shards:
+                flat = DDPODAttacker.flatten_images(imgs)
+                flat_shards.append((idxs, flat))
+                total_images += len(flat)
+            # Validate index coverage
+            total_indices = sum(len(idxs) for idxs, _ in flat_shards)
+            if total_indices == total_images:
+                ordered = DDPODAttacker.restore_order(total_images, flat_shards)
+                for img in ordered:
+                    if img is not None:
+                        gathered.append(img)
+            else:
+                for _, flat in flat_shards:
+                    gathered.extend(flat)
+        else:
+            gathered = DDPODAttacker.gather_images_no_ordering_restoring(shards, gathered)
+        DDPODAttacker.cleanup_temp_dir(temp_dir)
+        DDPODAttacker.log_image_count_inconsistency(total_local_counts, dataset_len_reported)
+        return gathered
+    
+    @staticmethod
+    def gather_images_no_ordering_restoring(shards, gathered):
+        for idxs, imgs in shards:
+            for batch in imgs:
+                if hasattr(batch, "shape") and len(batch.shape) == 4:
+                    for img in batch:
+                        gathered.append(img)
+                else:
+                    gathered.append(batch)
+        return gathered
+
+    @staticmethod
+    def restore_order(total_indices, flat_shards):
+        ordered = [None] * total_indices
+        for idxs, flat in flat_shards:
+            for index, img in zip(idxs, flat):
+                if 0 <= index < total_indices:
+                    ordered[index] = img
+        return ordered
+
+    @staticmethod
+    def collect_shards(world_size, temp_dir):
         shards = []  # collect (indices, images)
         total_local_counts = 0
         dataset_len_reported = None
@@ -144,49 +195,29 @@ class DDPODAttacker(DDPBaseTask):
                     os.remove(path)
                 except OSError:
                     pass
-        # If all shards have per-sample indices and counts match, restore ordering.
-        if shards and all(s[0] is not None for s in shards):
-            total_images = 0
-            flat_shards = []  # list of (indices, flat_images)
-            for idxs, imgs in shards:
-                flat = []
-                for batch in imgs:
-                    if hasattr(batch, "shape") and len(batch.shape) == 4:
-                        for img in batch:
-                            flat.append(img)
-                    else:
-                        flat.append(batch)
-                flat_shards.append((idxs, flat))
-                total_images += len(flat)
-            # Validate index coverage
-            total_indices = sum(len(idxs) for idxs, _ in flat_shards)
-            if total_indices == total_images:
-                ordered = [None] * total_indices
-                for idxs, flat in flat_shards:
-                    for index, img in zip(idxs, flat):
-                        if 0 <= index < total_indices:
-                            ordered[index] = img
-                for img in ordered:
-                    if img is not None:
-                        gathered.append(img)
+        return shards, total_local_counts, dataset_len_reported
+
+    @staticmethod
+    def flatten_images(imgs):
+        flat = []
+        for batch in imgs:
+            if hasattr(batch, "shape") and len(batch.shape) == 4:
+                for img in batch:
+                    flat.append(img)
             else:
-                # Fallback concatenation if mismatch
-                for _, flat in flat_shards:
-                    gathered.extend(flat)
-        else:
-            for idxs, imgs in shards:
-                for batch in imgs:
-                    if hasattr(batch, "shape") and len(batch.shape) == 4:
-                        for img in batch:
-                            gathered.append(img)
-                    else:
-                        gathered.append(batch)
+                flat.append(batch)
+        return flat
+
+    @staticmethod
+    def cleanup_temp_dir(temp_dir):
         try:
             if os.path.isdir(temp_dir) and not os.listdir(temp_dir):
                 os.rmdir(temp_dir)
         except OSError:
             pass
-        # Consistency assertion for total image counts if dataset length known
+
+    @staticmethod
+    def log_image_count_inconsistency(total_local_counts: int, dataset_len_reported: int):
         if dataset_len_reported is not None and total_local_counts > 0:
             if total_local_counts != dataset_len_reported:
                 logger.error(
@@ -199,4 +230,3 @@ class DDPODAttacker(DDPBaseTask):
                     "[DDP OD] Image count consistency verified: %d images processed.",
                     total_local_counts,
                 )
-        return gathered

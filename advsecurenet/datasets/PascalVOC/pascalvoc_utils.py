@@ -37,6 +37,27 @@ def _normalize_name(name: str) -> str:
     return name
 
 
+def _extract_bbox(bb, W, H):
+    try:
+        xmin = float(bb["xmin"])
+        ymin = float(bb["ymin"])
+        xmax = float(bb["xmax"])
+        ymax = float(bb["ymax"])
+    except Exception:
+        return None
+    # clip to image bounds if size is known
+    if W > 0 and H > 0:
+        xmin = max(0.0, min(xmin, W))
+        xmax = max(0.0, min(xmax, W))
+        ymin = max(0.0, min(ymin, H))
+        ymax = max(0.0, min(ymax, H))
+    w = xmax - xmin
+    h = ymax - ymin
+    if w <= 0 or h <= 0:
+        return None
+    return xmin, ymin, w, h
+
+
 def voc_to_coco_anns(target: Dict) -> List[Dict]:
     """
     Convert torchvision VOCDetection 'target' (XML-as-dict) into a list of
@@ -55,23 +76,10 @@ def voc_to_coco_anns(target: Dict) -> List[Dict]:
         if name not in NAME_TO_RAW_ID:
             continue
         bb = obj.get("bndbox", {})
-        try:
-            xmin = float(bb["xmin"])
-            ymin = float(bb["ymin"])
-            xmax = float(bb["xmax"])
-            ymax = float(bb["ymax"])
-        except Exception:
+        bbox = _extract_bbox(bb, W, H)
+        if bbox is None:
             continue
-        # clip to image bounds if size is known
-        if W > 0 and H > 0:
-            xmin = max(0.0, min(xmin, W))
-            xmax = max(0.0, min(xmax, W))
-            ymin = max(0.0, min(ymin, H))
-            ymax = max(0.0, min(ymax, H))
-        w = xmax - xmin
-        h = ymax - ymin
-        if w <= 0 or h <= 0:
-            continue
+        xmin, ymin, w, h = bbox
         difficult = obj.get("difficult", "0")
         try:
             difficult = int(difficult)

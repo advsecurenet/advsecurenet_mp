@@ -57,8 +57,7 @@ class MeanAveragePrecisionEvaluator(BaseEvaluator):
             imgs.append(img_np)
         return imgs
 
-    def to_tensor_list(self, x, device):
-        imgs = []
+    def _ensure_tensor_iterable(self, x):
         if isinstance(x, np.ndarray):
             x = torch.from_numpy(x)
         if isinstance(x, torch.Tensor) and x.ndim == 4:
@@ -69,6 +68,11 @@ class MeanAveragePrecisionEvaluator(BaseEvaluator):
             it = [torch.from_numpy(i) if isinstance(i, np.ndarray) else i for i in x]
         else:
             raise TypeError(type(x))
+        return it
+
+    def to_tensor_list(self, x, device):
+        imgs = []
+        it = self._ensure_tensor_iterable(x)
         for t in it:
             if t.ndim != 3:
                 raise ValueError(f"Each image must be 3D; got {tuple(t.shape)}")
@@ -151,6 +155,59 @@ class MeanAveragePrecisionEvaluator(BaseEvaluator):
         self._process_and_update(self.clean_metric, clean_predictions, targets)
         self._process_and_update(self.adv_metric, adv_predictions, targets)
 
+    def _compute_local_maps(self, map_eval_format):
+        clean_map = self.clean_metric.value(**map_eval_format)["mAP"]
+        adv_map = self.adv_metric.value(**map_eval_format)["mAP"]
+        return clean_map, adv_map
+
+    def _build_rank_tensor(self, rank, clean_lists, adv_lists, map_eval_format):
+        device="cuda" if torch.cuda.is_available() else "cpu"
+        if rank == 0:
+            # Rebuild metrics centrally
+            self.clean_metric.reset()
+            self.adv_metric.reset()
+            for entries in clean_lists:
+                if entries:
+                    for preds_arr, gts_arr in entries:
+                        self.clean_metric.add(preds_arr, gts_arr)
+            for entries in adv_lists:
+                if entries:
+                    for preds_arr, gts_arr in entries:
+                        self.adv_metric.add(preds_arr, gts_arr)
+            clean_map = self.clean_metric.value(**map_eval_format)["mAP"]
+            adv_map = self.adv_metric.value(**map_eval_format)["mAP"]
+            t = torch.tensor(
+                [clean_map, adv_map],
+                dtype=torch.float32,
+                device=device,
+            )
+        else:
+            t = torch.zeros(
+                2,
+                dtype=torch.float32,
+                device=device,
+            )
+        return t
+
+    def _compute_distributed_maps(self, map_eval_format):
+        world_size = dist.get_world_size()
+        rank = dist.get_rank()
+        # Gather entries
+        try:
+            clean_lists = [None] * world_size
+            adv_lists = [None] * world_size
+            dist.barrier()
+            dist.all_gather_object(clean_lists, self._clean_entries)
+            dist.all_gather_object(adv_lists, self._adv_entries)
+            t = self._build_rank_tensor(rank, clean_lists, adv_lists, map_eval_format)
+            # Broadcast final maps to all ranks
+            dist.broadcast(t, src=0)
+            clean_map, adv_map = float(t[0].item()), float(t[1].item())
+        except Exception:
+            # Fallback: compute local only
+            clean_map, adv_map = self._compute_local_maps(map_eval_format)
+        return clean_map, adv_map
+
     def get_results(self):
         """
         Returns the mAP results for clean and adversarial data, and the gap.
@@ -163,50 +220,9 @@ class MeanAveragePrecisionEvaluator(BaseEvaluator):
         }
         distributed = dist.is_available() and dist.is_initialized()
         if distributed:
-            world_size = dist.get_world_size()
-            rank = dist.get_rank()
-            # Gather entries
-            try:
-                clean_lists = [None] * world_size
-                adv_lists = [None] * world_size
-                dist.barrier()
-                dist.all_gather_object(clean_lists, self._clean_entries)
-                dist.all_gather_object(adv_lists, self._adv_entries)
-                if rank == 0:
-                    # Rebuild metrics centrally
-                    self.clean_metric.reset()
-                    self.adv_metric.reset()
-                    for entries in clean_lists:
-                        if entries:
-                            for preds_arr, gts_arr in entries:
-                                self.clean_metric.add(preds_arr, gts_arr)
-                    for entries in adv_lists:
-                        if entries:
-                            for preds_arr, gts_arr in entries:
-                                self.adv_metric.add(preds_arr, gts_arr)
-                    clean_map = self.clean_metric.value(**map_eval_format)["mAP"]
-                    adv_map = self.adv_metric.value(**map_eval_format)["mAP"]
-                    t = torch.tensor(
-                        [clean_map, adv_map],
-                        dtype=torch.float32,
-                        device="cuda" if torch.cuda.is_available() else "cpu",
-                    )
-                else:
-                    t = torch.zeros(
-                        2,
-                        dtype=torch.float32,
-                        device="cuda" if torch.cuda.is_available() else "cpu",
-                    )
-                # Broadcast final maps to all ranks
-                dist.broadcast(t, src=0)
-                clean_map, adv_map = float(t[0].item()), float(t[1].item())
-            except Exception:
-                # Fallback: compute local only
-                clean_map = self.clean_metric.value(**map_eval_format)["mAP"]
-                adv_map = self.adv_metric.value(**map_eval_format)["mAP"]
+            clean_map, adv_map = self._compute_distributed_maps(map_eval_format)
         else:
-            clean_map = self.clean_metric.value(**map_eval_format)["mAP"]
-            adv_map = self.adv_metric.value(**map_eval_format)["mAP"]
+            clean_map, adv_map = self._compute_local_maps(map_eval_format)
         return {
             "clean_mAP": clean_map,
             "adversarial_mAP": adv_map,

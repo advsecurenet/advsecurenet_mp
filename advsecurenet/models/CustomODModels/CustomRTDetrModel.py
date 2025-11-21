@@ -27,20 +27,15 @@ class RTDetrEvalAdapter(torch.nn.Module):
     ) -> List[Dict[str, Any]]:
         return predictions
 
-    def forward(
-        self, x=None, pixel_values=None, pixel_mask=None, labels=None, **kwargs
-    ):
-        if pixel_values is not None and x is None:
-            pv = pixel_values.to(self.device)
-            pm = pixel_mask.to(self.device) if pixel_mask is not None else None
-            with torch.no_grad():
-                return self.core_model(
-                    pixel_values=pv, pixel_mask=pm, labels=labels, **kwargs
-                )
-
-        if x is None:
-            raise ValueError("RTDetrEvalAdapter expects either x or pixel_values.")
-
+    def _forward_with_pixel_values(self, pixel_mask, pixel_values, labels, **kwargs):
+        pv = pixel_values.to(self.device)
+        pm = pixel_mask.to(self.device) if pixel_mask is not None else None
+        with torch.no_grad():
+            return self.core_model(
+                pixel_values=pv, pixel_mask=pm, labels=labels, **kwargs
+            )
+    
+    def _build_batch_from_input(self, x):
         if isinstance(x, (list, tuple)):
             imgs = []
             for im in x:
@@ -60,22 +55,18 @@ class RTDetrEvalAdapter(torch.nn.Module):
                 raise ValueError(f"Expected CHW or BCHW tensor; got {tuple(x.shape)}")
         else:
             raise TypeError("Unsupported input type for RTDetrEvalAdapter.")
+        return batch
+        
+    def _encode_batch_for_processor(self, batch):
         imgs_list = [img.detach().cpu() for img in batch]
         enc = self.processor(images=imgs_list, return_tensors="pt", do_rescale=False)
         enc = {
             k: (v.to(self.device) if isinstance(v, torch.Tensor) else v)
             for k, v in enc.items()
         }
-        with torch.no_grad():
-            raw_out = self.core_model(**enc)
-        if not isinstance(raw_out, ModelOutput):
-            raw_out = ModelOutput(raw_out)
-        model_out = ModelOutput(
-            {
-                k: (v.detach().cpu() if isinstance(v, torch.Tensor) else v)
-                for k, v in raw_out.items()
-            }
-        )
+        return enc
+
+    def _postprocess_detections(self, batch, model_out):
         H, W = batch.shape[-2], batch.shape[-1]
         target_sizes = torch.tensor([[H, W]] * batch.shape[0], dtype=torch.long)
         results = self.processor.post_process_object_detection(
@@ -90,6 +81,28 @@ class RTDetrEvalAdapter(torch.nn.Module):
                     "labels": r["labels"].to(torch.int64),
                 }
             )
+        return detections
+
+    def forward(
+        self, x=None, pixel_values=None, pixel_mask=None, labels=None, **kwargs
+    ):
+        if pixel_values is not None and x is None:
+            return self._forward_with_pixel_values(pixel_mask, pixel_values, labels, **kwargs)
+        if x is None:
+            raise ValueError("RTDetrEvalAdapter expects either x or pixel_values.")
+        batch = self._build_batch_from_input(x)
+        enc = self._encode_batch_for_processor(batch)
+        with torch.no_grad():
+            raw_out = self.core_model(**enc)
+        if not isinstance(raw_out, ModelOutput):
+            raw_out = ModelOutput(raw_out)
+        model_out = ModelOutput(
+            {
+                k: (v.detach().cpu() if isinstance(v, torch.Tensor) else v)
+                for k, v in raw_out.items()
+            }
+        )
+        detections = self._postprocess_detections(batch, model_out)
         return detections
 
 
@@ -144,6 +157,26 @@ class CustomRTDetrModel(CustomODBaseModel):
         if channels_first is not None:
             self.channels_first = channels_first
 
+    def _normalize_state_dict(self, sd, target_keys):
+        def _clean(k: str) -> str:
+            nk = k
+            for p in (
+                "model._model.model.",
+                "model.model.",
+                "model._model.",
+                "_model.model.",
+                "_model.",
+                "model.",
+                "module.",
+            ):
+                if nk.startswith(p):
+                    nk = nk[len(p) :]
+            if nk not in target_keys and f"model.{nk}" in target_keys:
+                nk = f"model.{nk}"
+            return nk
+        return {_clean(k): v for k, v in sd.items()}
+
+
     def load_model_weights(self, model_weights_path):
         if not (
             model_weights_path
@@ -162,25 +195,7 @@ class CustomRTDetrModel(CustomODBaseModel):
                     break
 
         target_keys = set(self._model.state_dict().keys())
-
-        def _clean(k: str) -> str:
-            nk = k
-            for p in (
-                "model._model.model.",
-                "model.model.",
-                "model._model.",
-                "_model.model.",
-                "_model.",
-                "model.",
-                "module.",
-            ):
-                if nk.startswith(p):
-                    nk = nk[len(p) :]
-            if nk not in target_keys and f"model.{nk}" in target_keys:
-                nk = f"model.{nk}"
-            return nk
-
-        sd_clean = {_clean(k): v for k, v in sd.items()}
+        sd_clean = self._normalize_state_dict(sd, target_keys)
         self._model.load_state_dict(sd_clean, strict=False)
         after_hash = self._parameters_sha256()
         if before_hash != after_hash:
@@ -192,12 +207,7 @@ class CustomRTDetrModel(CustomODBaseModel):
                 f"[CustomRTDetrModel][WARN] Loading '{model_weights_path}' did not change model parameters."
             )
 
-    def forward(self, x, targets=None):
-        """
-        x: torch.Tensor [B,C,H,W] float32 (0..1 or 0..255)
-        targets: list of dicts in HF RT-DETR format:
-                {'class_labels': LongTensor[N], 'boxes': FloatTensor[N,4] (cxcywh in [0,1])}
-        """
+    def _sanitize_input_tensor(self, x):
         if isinstance(x, torch.Tensor):
             if x.dim() == 3:
                 x = x.unsqueeze(0)
@@ -209,34 +219,46 @@ class CustomRTDetrModel(CustomODBaseModel):
                 raise ValueError(
                     "NaN/Inf detected in input tensor before preprocessing"
                 )
+        return x
 
+    def _build_manual_encoder(self, x):
+        batch = x.to(self.device).float()
+        if batch.max() > 1.0:
+            batch = torch.clamp(batch, 0, 255) / 255.0
+        else:
+            batch = torch.clamp(batch, 0.0, 1.0)
+        if batch.dim() == 3:
+            batch = batch.unsqueeze(0)
+        pixel_values = F.interpolate(
+            batch, size=(640, 640), mode="bilinear", align_corners=False
+        )
+        mean = torch.tensor([0.485, 0.456, 0.406], device=self.device).view(
+            1, -1, 1, 1
+        )
+        std = torch.tensor([0.229, 0.224, 0.225], device=self.device).view(
+            1, -1, 1, 1
+        )
+        pixel_values = (pixel_values - mean) / std
+        if torch.isnan(pixel_values).any() or torch.isinf(pixel_values).any():
+            raise ValueError("NaN/Inf in pixel_values after normalization")
+        pixel_mask = torch.ones(
+            pixel_values.shape[0], 640, 640, dtype=torch.bool, device=self.device
+        )
+        enc = {"pixel_values": pixel_values, "pixel_mask": pixel_mask}
+        return enc
+
+    def forward(self, x, targets=None):
+        """
+        x: torch.Tensor [B,C,H,W] float32 (0..1 or 0..255)
+        targets: list of dicts in HF RT-DETR format:
+                {'class_labels': LongTensor[N], 'boxes': FloatTensor[N,4] (cxcywh in [0,1])}
+        """
+        x = self._sanitize_input_tensor(x)
         images_list = self._to_image_list(x)
         need_grad = self.training or any(t.requires_grad for t in images_list)
 
         if need_grad:
-            batch = x.to(self.device).float()
-            if batch.max() > 1.0:
-                batch = torch.clamp(batch, 0, 255) / 255.0
-            else:
-                batch = torch.clamp(batch, 0.0, 1.0)
-            if batch.dim() == 3:
-                batch = batch.unsqueeze(0)
-            pixel_values = F.interpolate(
-                batch, size=(640, 640), mode="bilinear", align_corners=False
-            )
-            mean = torch.tensor([0.485, 0.456, 0.406], device=self.device).view(
-                1, -1, 1, 1
-            )
-            std = torch.tensor([0.229, 0.224, 0.225], device=self.device).view(
-                1, -1, 1, 1
-            )
-            pixel_values = (pixel_values - mean) / std
-            if torch.isnan(pixel_values).any() or torch.isinf(pixel_values).any():
-                raise ValueError("NaN/Inf in pixel_values after normalization")
-            pixel_mask = torch.ones(
-                pixel_values.shape[0], 640, 640, dtype=torch.bool, device=self.device
-            )
-            enc = {"pixel_values": pixel_values, "pixel_mask": pixel_mask}
+            enc = self._build_manual_encoder(x)
         else:
             enc = self.processor(
                 images=images_list, return_tensors="pt", do_rescale=False
@@ -311,6 +333,10 @@ class CustomRTDetrModel(CustomODBaseModel):
                 target_sizes=target_sizes,
                 threshold=getattr(self, "conf_thresh", 0.7),
             )
+        preds = self.format_predictions(results)
+        return preds
+
+    def format_predictions(self, results):
         preds = []
         for res in results:
             boxes = (
