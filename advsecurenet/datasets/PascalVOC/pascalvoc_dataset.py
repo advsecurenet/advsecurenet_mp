@@ -86,7 +86,7 @@ class PascalVOCDataset(BaseDataset):
                 logger.info(f"Downloading {url} -> {fname}")
                 try:
                     urlretrieve(url, fname)
-                except (URLError, HTTPError) as e:
+                except URLError as e:
                     raise RuntimeError(f"Mirror download failed for {url}: {e}") from e
             # extract (plain .tar)
             logger.info(f"Extracting {fname} into {root}")

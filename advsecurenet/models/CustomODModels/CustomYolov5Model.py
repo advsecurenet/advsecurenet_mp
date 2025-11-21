@@ -38,7 +38,6 @@ def translate_predictions_for_map_evaluator_yolo(
             boxes = det_tensor_cpu[:, :4].numpy()
             scores = det_tensor_cpu[:, 4].numpy()
             labels = det_tensor_cpu[:, 5].numpy().astype(int)
-            # n = min(len(boxes), len(scores), len(labels))
             # boxes, scores, labels = boxes[:n], scores[:n], labels[:n]
             if map_to_pascal:
                 mapped = np.array(
@@ -186,7 +185,7 @@ class CustomYolov5Model(CustomODBaseModel):
     def forward(self, x, targets=None):
         try:
             x = x.float()
-        except Exception as e:
+        except Exception:
             pass
         dev = self._module_device()
         if x.device != dev:
@@ -267,7 +266,7 @@ class CustomYolov5Model(CustomODBaseModel):
                 inference_model = AutoShape(model)
             if hasattr(inference_model, "conf"):
                 inference_model.conf = conf_thresh
-        except Exception as e:
+        except Exception:
             inference_model = model
         return inference_model
 

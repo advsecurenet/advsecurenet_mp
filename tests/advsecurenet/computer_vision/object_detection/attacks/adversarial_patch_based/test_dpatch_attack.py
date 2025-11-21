@@ -1,4 +1,5 @@
 import pytest
+import logging
 import torch
 import numpy as np
 from unittest.mock import MagicMock
@@ -955,7 +956,7 @@ def test_place_patch_into_image_logs_on_mismatch(caplog):
         x, patch, i_image=0, i_x_1=0, i_x_2=4, i_y_1=0, i_y_2=4
     )
     # Should not raise; optionally check that something was logged at error/exception level if configured
-    assert True
+    assert any(record.levelno >= logging.ERROR for record in caplog.records)
 
 
 def test_attack_step_handles_loss_gradient_exception(dpatch_config, monkeypatch):

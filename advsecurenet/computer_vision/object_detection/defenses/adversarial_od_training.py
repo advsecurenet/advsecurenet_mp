@@ -49,7 +49,6 @@ class AdversarialODTraining(BaseAdversarialTraining):
         except Exception as e:
             raise RuntimeError(f"Failed to load detector wrapper: {e}") from e
         if not any(g["params"] for g in self.optimizer.param_groups):
-            kwargs = self._config.optimization_config.optimizer_kwargs or {}
             self.optimizer = self._setup_optimizer(self._trainable)
             self._scheduler = self._setup_scheduler()
 

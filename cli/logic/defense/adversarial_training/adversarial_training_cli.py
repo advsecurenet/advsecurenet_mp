@@ -241,7 +241,7 @@ class ATCLITrainer(CLITrainer):
             config.train_config.model_config.model,
             config.train_config.training_process_config.train_loader,
         )
-        TrainerCls = self._select_trainer_cls(task)
-        click.secho(f"Task detected: {task}. Using {TrainerCls.__name__}.", fg="blue")
-        adversarial_training = TrainerCls(config)
+        trainer_cls = self._select_trainer_cls(task)
+        click.secho(f"Task detected: {task}. Using {trainer_cls.__name__}.", fg="blue")
+        adversarial_training = trainer_cls(config)
         adversarial_training.train()

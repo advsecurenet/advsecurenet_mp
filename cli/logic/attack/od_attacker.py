@@ -82,13 +82,8 @@ class CLIODAttacker:
 
     def _ddp_attack_fn(self, rank: int, world_size: int) -> None:
         try:
-            if getattr(self._config.device, "gpu_ids", None):
-                torch.cuda.set_device(rank)
-                self._config.device.processor = f"cuda:{rank}"
-            else:
-                # Fallback: ensure processor string reflects local rank even if gpu_ids absent
-                torch.cuda.set_device(rank)
-                self._config.device.processor = f"cuda:{rank}"
+            torch.cuda.set_device(rank)
+            self._config.device.processor = f"cuda:{rank}"
             logger.info(
                 "[DDP OD] Rank %d using device %s (physical GPU %s)",
                 rank,

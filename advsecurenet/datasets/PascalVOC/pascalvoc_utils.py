@@ -37,7 +37,7 @@ def _normalize_name(name: str) -> str:
     return name
 
 
-def _extract_bbox(bb, W, H):
+def _extract_bbox(bb, big_W, big_H):
     try:
         xmin = float(bb["xmin"])
         ymin = float(bb["ymin"])
@@ -46,11 +46,11 @@ def _extract_bbox(bb, W, H):
     except Exception:
         return None
     # clip to image bounds if size is known
-    if W > 0 and H > 0:
-        xmin = max(0.0, min(xmin, W))
-        xmax = max(0.0, min(xmax, W))
-        ymin = max(0.0, min(ymin, H))
-        ymax = max(0.0, min(ymax, H))
+    if big_W > 0 and big_H > 0:
+        xmin = max(0.0, min(xmin, big_W))
+        xmax = max(0.0, min(xmax, big_W))
+        ymin = max(0.0, min(ymin, big_H))
+        ymax = max(0.0, min(ymax, big_H))
     w = xmax - xmin
     h = ymax - ymin
     if w <= 0 or h <= 0:
