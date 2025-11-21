@@ -160,20 +160,20 @@ class MeanAveragePrecisionEvaluator(BaseEvaluator):
         adv_map = self.adv_metric.value(**map_eval_format)["mAP"]
         return clean_map, adv_map
 
+    def _add_entries_to_metric(self, metric, lists):
+        for entries in lists:
+            if entries:
+                for preds_arr, gts_arr in entries:
+                    metric.add(preds_arr, gts_arr)
+
     def _build_rank_tensor(self, rank, clean_lists, adv_lists, map_eval_format):
         device = "cuda" if torch.cuda.is_available() else "cpu"
         if rank == 0:
             # Rebuild metrics centrally
             self.clean_metric.reset()
             self.adv_metric.reset()
-            for entries in clean_lists:
-                if entries:
-                    for preds_arr, gts_arr in entries:
-                        self.clean_metric.add(preds_arr, gts_arr)
-            for entries in adv_lists:
-                if entries:
-                    for preds_arr, gts_arr in entries:
-                        self.adv_metric.add(preds_arr, gts_arr)
+            self._add_entries_to_metric(self.clean_metric, clean_lists)
+            self._add_entries_to_metric(self.adv_metric, adv_lists)
             clean_map = self.clean_metric.value(**map_eval_format)["mAP"]
             adv_map = self.adv_metric.value(**map_eval_format)["mAP"]
             t = torch.tensor(

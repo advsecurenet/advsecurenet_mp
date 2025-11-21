@@ -127,22 +127,7 @@ class DDPODAttacker(DDPBaseTask):
         )
         # If all shards have per-sample indices and counts match, restore ordering.
         if shards and all(s[0] is not None for s in shards):
-            total_images = 0
-            flat_shards = []  # list of (indices, flat_images)
-            for idxs, imgs in shards:
-                flat = DDPODAttacker.flatten_images(imgs)
-                flat_shards.append((idxs, flat))
-                total_images += len(flat)
-            # Validate index coverage
-            total_indices = sum(len(idxs) for idxs, _ in flat_shards)
-            if total_indices == total_images:
-                ordered = DDPODAttacker.restore_order(total_images, flat_shards)
-                for img in ordered:
-                    if img is not None:
-                        gathered.append(img)
-            else:
-                for _, flat in flat_shards:
-                    gathered.extend(flat)
+            gathered = DDPODAttacker.gather_with_order_restoration(shards, gathered)
         else:
             gathered = DDPODAttacker.gather_images_no_ordering_restoring(
                 shards, gathered
@@ -151,6 +136,26 @@ class DDPODAttacker(DDPBaseTask):
         DDPODAttacker.log_image_count_inconsistency(
             total_local_counts, dataset_len_reported
         )
+        return gathered
+
+    @staticmethod
+    def gather_with_order_restoration(shards, gathered):
+        total_images = 0
+        flat_shards = []  # list of (indices, flat_images)
+        for idxs, imgs in shards:
+            flat = DDPODAttacker.flatten_images(imgs)
+            flat_shards.append((idxs, flat))
+            total_images += len(flat)
+        # Validate index coverage
+        total_indices = sum(len(idxs) for idxs, _ in flat_shards)
+        if total_indices == total_images:
+            ordered = DDPODAttacker.restore_order(total_images, flat_shards)
+            for img in ordered:
+                if img is not None:
+                    gathered.append(img)
+        else:
+            for _, flat in flat_shards:
+                gathered.extend(flat)
         return gathered
 
     @staticmethod

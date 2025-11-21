@@ -35,17 +35,21 @@ class RTDetrEvalAdapter(torch.nn.Module):
                 pixel_values=pv, pixel_mask=pm, labels=labels, **kwargs
             )
 
+    def _build_batch_from_input_list_tuple(self, x):
+        imgs = []
+        for im in x:
+            t = torch.from_numpy(im) if isinstance(im, np.ndarray) else im
+            if t.dim() == 4 and t.size(0) == 1:
+                t = t[0]
+            if t.dim() != 3:
+                raise ValueError(f"Expected CHW tensors; got {tuple(t.shape)}")
+            imgs.append(t)
+        batch = torch.stack([t.to(self.device).float() for t in imgs], dim=0)
+        return batch
+
     def _build_batch_from_input(self, x):
         if isinstance(x, (list, tuple)):
-            imgs = []
-            for im in x:
-                t = torch.from_numpy(im) if isinstance(im, np.ndarray) else im
-                if t.dim() == 4 and t.size(0) == 1:
-                    t = t[0]
-                if t.dim() != 3:
-                    raise ValueError(f"Expected CHW tensors; got {tuple(t.shape)}")
-                imgs.append(t)
-            batch = torch.stack([t.to(self.device).float() for t in imgs], dim=0)
+            batch = self._build_batch_from_input_list_tuple(x)
         elif isinstance(x, torch.Tensor):
             if x.dim() == 3:
                 batch = x.unsqueeze(0).to(self.device).float()
@@ -267,23 +271,27 @@ class CustomRTDetrModel(CustomODBaseModel):
             }
         if self.training and targets is not None:
             outputs = self._model(**enc, labels=targets)
-            loss_components = {"loss_total": outputs.loss}
-            if hasattr(outputs, "loss_dict") and isinstance(outputs.loss_dict, dict):
-                for k, v in outputs.loss_dict.items():
-                    loss_components[f"loss_{k}"] = v
-            else:
-                for name in (
-                    "loss_ce",
-                    "loss_cls",
-                    "loss_bbox",
-                    "loss_giou",
-                    "loss_cardinality",
-                    "loss_objectness",
-                ):
-                    if hasattr(outputs, name) and getattr(outputs, name) is not None:
-                        loss_components[name] = getattr(outputs, name)
+            loss_components = self.collect_loss_components(outputs)
             return loss_components
         return self._model(**enc)
+
+    def collect_loss_components(self, outputs):
+        loss_components = {"loss_total": outputs.loss}
+        if hasattr(outputs, "loss_dict") and isinstance(outputs.loss_dict, dict):
+            for k, v in outputs.loss_dict.items():
+                loss_components[f"loss_{k}"] = v
+        else:
+            for name in (
+                "loss_ce",
+                "loss_cls",
+                "loss_bbox",
+                "loss_giou",
+                "loss_cardinality",
+                "loss_objectness",
+            ):
+                if hasattr(outputs, name) and getattr(outputs, name) is not None:
+                    loss_components[name] = getattr(outputs, name)
+        return loss_components
 
     def predict(self, x, training):
         if not training:

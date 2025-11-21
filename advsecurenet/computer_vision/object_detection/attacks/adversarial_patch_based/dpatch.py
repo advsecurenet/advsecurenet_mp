@@ -100,8 +100,7 @@ class DPatch(AdversarialAttack):
         self._object_detector.model.eval()
         ignore_true_labels = self._target_label is not None
         for i_step in trange(self._max_iterations, desc="DPatch iteration"):
-            if i_step == 0 or (i_step + 1) % 100 == 0:
-                logger.info("Training Step: %d/%d", i_step + 1, self._max_iterations)
+            self._maybe_log_training_step(i_step)
             if hasattr(dataloader, "sampler") and isinstance(
                 dataloader.sampler, DistributedSampler
             ):
@@ -129,6 +128,10 @@ class DPatch(AdversarialAttack):
             self._apply_patch_update(patch_gradients_sum, suppress_flag_any)
             self._check_patch_consistency()
         return self._patch
+
+    def _maybe_log_training_step(self, i_step: int) -> None:
+        if i_step == 0 or (i_step + 1) % 100 == 0:
+            logger.info("Training Step: %d/%d", i_step + 1, self._max_iterations)
 
     def _accumulate_gradients_over_batches(
         self,
