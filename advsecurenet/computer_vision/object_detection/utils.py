@@ -14,9 +14,7 @@ def extract_predictions(predictions_, conf_thresh, label_names=None):
         return [], [], []
 
     # Get the predicted bounding boxes
-    predictions_boxes = [
-        [(i[0], i[1]), (i[2], i[3])] for i in predictions_["boxes"]
-    ]
+    predictions_boxes = [[(i[0], i[1]), (i[2], i[3])] for i in predictions_["boxes"]]
     # Get the predicted prediction score
     predictions_score = list(predictions_["scores"])
     # Get a list of index with score greater than threshold
