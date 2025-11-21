@@ -2,6 +2,7 @@ from transformers import (AutoModelForCausalLM, AutoTokenizer, GPT2LMHeadModel,
                           GPTJForCausalLM, GPTNeoXForCausalLM,
                           LlamaForCausalLM)
 import torch, json
+import numpy as np
 
 class NpEncoder(json.JSONEncoder):
     def default(self, obj):

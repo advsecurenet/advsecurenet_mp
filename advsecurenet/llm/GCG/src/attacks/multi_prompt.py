@@ -1,5 +1,7 @@
-import math, time, random
+import math, time, random, json
 import torch
+import numpy as np
+from advsecurenet.llm.GCG.src.models.embedding_utils import NpEncoder
 class MultiPromptAttack(object):
     """A class used to manage multiple prompt-based attacks."""
     def __init__(self, 

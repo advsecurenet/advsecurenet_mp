@@ -20,7 +20,7 @@ def main(_):
 
     params = _CONFIG.value
 
-    attack_lib = dynamic_import(f'advsecurenet.llm.GCG.llm_attacks.{params.attack}')
+    attack_lib = dynamic_import(f'advsecurenet.llm.GCG.src.{params.attack}')
 
     print(params)
 

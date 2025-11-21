@@ -1,6 +1,7 @@
 import torch, math, random
 from advsecurenet.llm.GCG.src.models.embedding_utils import get_nonascii_toks, NpEncoder
 import json, time
+import numpy as np
 class PromptManager(object):
     """A class used to manage the prompt during optimization."""
     def __init__(self,

@@ -1,6 +1,8 @@
 from copy import deepcopy
 from advsecurenet.llm.GCG.src.conversation.template_adapter import ConversationTemplateAdapter
 import torch
+import gc
+import torch.nn as nn
 
 class AttackPrompt(object):
     """
