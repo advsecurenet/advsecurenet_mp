@@ -82,16 +82,14 @@ class DDPODAttacker(DDPBaseTask):
             self._maybe_store_adversarial_images(result, shard_indices)
         dist.barrier()
         return result
-    
+
     def _maybe_store_adversarial_images(self, result, shard_indices):
         try:
             temp_dir = os.environ.get("ADV_OD_TMP", self.TEMP_DIR)
             if dist.get_rank() == 0 and not os.path.exists(temp_dir):
                 os.makedirs(temp_dir, exist_ok=True)
             dist.barrier()
-            out_path = os.path.join(
-                temp_dir, f"adv_images_rank{dist.get_rank()}.pt"
-            )
+            out_path = os.path.join(temp_dir, f"adv_images_rank{dist.get_rank()}.pt")
             # Flatten result to count images
             flat_count = 0
             for batch in result:
@@ -120,12 +118,13 @@ class DDPODAttacker(DDPBaseTask):
                 e,
             )
 
-
     @staticmethod
     def gather_results(world_size: int) -> list:
         temp_dir = os.environ.get("ADV_OD_TMP", DDPODAttacker.TEMP_DIR)
         gathered = []
-        shards, total_local_counts, dataset_len_reported = DDPODAttacker.collect_shards(world_size, temp_dir)
+        shards, total_local_counts, dataset_len_reported = DDPODAttacker.collect_shards(
+            world_size, temp_dir
+        )
         # If all shards have per-sample indices and counts match, restore ordering.
         if shards and all(s[0] is not None for s in shards):
             total_images = 0
@@ -145,11 +144,15 @@ class DDPODAttacker(DDPBaseTask):
                 for _, flat in flat_shards:
                     gathered.extend(flat)
         else:
-            gathered = DDPODAttacker.gather_images_no_ordering_restoring(shards, gathered)
+            gathered = DDPODAttacker.gather_images_no_ordering_restoring(
+                shards, gathered
+            )
         DDPODAttacker.cleanup_temp_dir(temp_dir)
-        DDPODAttacker.log_image_count_inconsistency(total_local_counts, dataset_len_reported)
+        DDPODAttacker.log_image_count_inconsistency(
+            total_local_counts, dataset_len_reported
+        )
         return gathered
-    
+
     @staticmethod
     def gather_images_no_ordering_restoring(shards, gathered):
         for idxs, imgs in shards:
@@ -217,7 +220,9 @@ class DDPODAttacker(DDPBaseTask):
             pass
 
     @staticmethod
-    def log_image_count_inconsistency(total_local_counts: int, dataset_len_reported: int):
+    def log_image_count_inconsistency(
+        total_local_counts: int, dataset_len_reported: int
+    ):
         if dataset_len_reported is not None and total_local_counts > 0:
             if total_local_counts != dataset_len_reported:
                 logger.error(

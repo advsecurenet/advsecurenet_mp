@@ -161,7 +161,7 @@ class MeanAveragePrecisionEvaluator(BaseEvaluator):
         return clean_map, adv_map
 
     def _build_rank_tensor(self, rank, clean_lists, adv_lists, map_eval_format):
-        device="cuda" if torch.cuda.is_available() else "cpu"
+        device = "cuda" if torch.cuda.is_available() else "cpu"
         if rank == 0:
             # Rebuild metrics centrally
             self.clean_metric.reset()

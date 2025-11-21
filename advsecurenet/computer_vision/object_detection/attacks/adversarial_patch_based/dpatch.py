@@ -109,12 +109,14 @@ class DPatch(AdversarialAttack):
                     dataloader.sampler.set_epoch(i_step)
                 except Exception as e:
                     logger.debug("Failed to set sampler epoch %d: %s", i_step, e)
-            patch_gradients_sum, suppress_flag_any = self._accumulate_gradients_over_batches(
-                device=device,
-                dataloader=dataloader,
-                ignore_true_labels=ignore_true_labels,
-                mask=mask,
-                i_step=i_step,
+            patch_gradients_sum, suppress_flag_any = (
+                self._accumulate_gradients_over_batches(
+                    device=device,
+                    dataloader=dataloader,
+                    ignore_true_labels=ignore_true_labels,
+                    mask=mask,
+                    i_step=i_step,
+                )
             )
             # Distributed aggregation: sum gradients, OR suppression flag across ranks
             if dist.is_available() and dist.is_initialized():
@@ -129,12 +131,12 @@ class DPatch(AdversarialAttack):
         return self._patch
 
     def _accumulate_gradients_over_batches(
-            self, 
-            device: Union[str, torch.device], 
-            dataloader: DataLoader, 
-            ignore_true_labels: bool, 
-            mask: Union[np.ndarray, torch.Tensor, None],
-            i_step: int,
+        self,
+        device: Union[str, torch.device],
+        dataloader: DataLoader,
+        ignore_true_labels: bool,
+        mask: Union[np.ndarray, torch.Tensor, None],
+        i_step: int,
     ) -> tuple[torch.Tensor, bool]:
         patch_gradients_sum = torch.zeros_like(self._patch, device=device)
         suppress_flag_any = False
@@ -145,9 +147,7 @@ class DPatch(AdversarialAttack):
             leave=False,
         ):
             images, targets_dict = data_batch
-            images, targets_dict = move_batch_to_device(
-                images, targets_dict, device
-            )
+            images, targets_dict = move_batch_to_device(images, targets_dict, device)
             images_np_for_dpatch = (images.detach().cpu().numpy() * 255.0).astype(
                 np.float32
             )
@@ -176,7 +176,9 @@ class DPatch(AdversarialAttack):
                 suppress_flag_any = True
         return patch_gradients_sum, suppress_flag_any
 
-    def _apply_patch_update(self, patch_gradients_sum: torch.Tensor, suppress_flag_any: bool) -> None:
+    def _apply_patch_update(
+        self, patch_gradients_sum: torch.Tensor, suppress_flag_any: bool
+    ) -> None:
         if self._target_label is not None:
             self._patch = self._patch - self._learning_rate * torch.sign(
                 patch_gradients_sum
@@ -191,7 +193,6 @@ class DPatch(AdversarialAttack):
                     patch_gradients_sum
                 )
         self._patch = self._patch.clamp(0.0, 255.0)
-
 
     def _check_patch_consistency(self) -> None:
         if dist.is_available() and dist.is_initialized():

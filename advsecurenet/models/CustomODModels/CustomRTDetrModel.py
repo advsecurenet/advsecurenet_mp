@@ -34,7 +34,7 @@ class RTDetrEvalAdapter(torch.nn.Module):
             return self.core_model(
                 pixel_values=pv, pixel_mask=pm, labels=labels, **kwargs
             )
-    
+
     def _build_batch_from_input(self, x):
         if isinstance(x, (list, tuple)):
             imgs = []
@@ -56,7 +56,7 @@ class RTDetrEvalAdapter(torch.nn.Module):
         else:
             raise TypeError("Unsupported input type for RTDetrEvalAdapter.")
         return batch
-        
+
     def _encode_batch_for_processor(self, batch):
         imgs_list = [img.detach().cpu() for img in batch]
         enc = self.processor(images=imgs_list, return_tensors="pt", do_rescale=False)
@@ -87,7 +87,9 @@ class RTDetrEvalAdapter(torch.nn.Module):
         self, x=None, pixel_values=None, pixel_mask=None, labels=None, **kwargs
     ):
         if pixel_values is not None and x is None:
-            return self._forward_with_pixel_values(pixel_mask, pixel_values, labels, **kwargs)
+            return self._forward_with_pixel_values(
+                pixel_mask, pixel_values, labels, **kwargs
+            )
         if x is None:
             raise ValueError("RTDetrEvalAdapter expects either x or pixel_values.")
         batch = self._build_batch_from_input(x)
@@ -174,8 +176,8 @@ class CustomRTDetrModel(CustomODBaseModel):
             if nk not in target_keys and f"model.{nk}" in target_keys:
                 nk = f"model.{nk}"
             return nk
-        return {_clean(k): v for k, v in sd.items()}
 
+        return {_clean(k): v for k, v in sd.items()}
 
     def load_model_weights(self, model_weights_path):
         if not (
@@ -232,12 +234,8 @@ class CustomRTDetrModel(CustomODBaseModel):
         pixel_values = F.interpolate(
             batch, size=(640, 640), mode="bilinear", align_corners=False
         )
-        mean = torch.tensor([0.485, 0.456, 0.406], device=self.device).view(
-            1, -1, 1, 1
-        )
-        std = torch.tensor([0.229, 0.224, 0.225], device=self.device).view(
-            1, -1, 1, 1
-        )
+        mean = torch.tensor([0.485, 0.456, 0.406], device=self.device).view(1, -1, 1, 1)
+        std = torch.tensor([0.229, 0.224, 0.225], device=self.device).view(1, -1, 1, 1)
         pixel_values = (pixel_values - mean) / std
         if torch.isnan(pixel_values).any() or torch.isinf(pixel_values).any():
             raise ValueError("NaN/Inf in pixel_values after normalization")

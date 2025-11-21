@@ -230,7 +230,7 @@ class CustomFasterRCNNModel(CustomODBaseModel):
                 t = t / 255.0
             imgs.append(t)
         return imgs
-    
+
     def _preprocess_tensor_input(self, x: torch.Tensor):
         imgs = []
         if x.dim() == 4:

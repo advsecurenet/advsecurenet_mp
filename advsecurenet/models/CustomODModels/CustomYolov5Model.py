@@ -104,7 +104,7 @@ class CustomYolov5Model(CustomODBaseModel):
         def load_with_weights_only_false(*args, **kwargs):
             kwargs["weights_only"] = False
             return original_torch_load(*args, **kwargs)
-        
+
         is_plain_state_dict, arch_source = self._resolve_arch_source(model_weights_path)
         with patch("torch.load", side_effect=load_with_weights_only_false):
             self._model = yolov5.load(
@@ -401,23 +401,18 @@ class CustomYolov5Model(CustomODBaseModel):
 
     def _resolve_device_not_empty(self, device):
         if isinstance(device, (int,)):
-                resolved_device = (
-                    f"cuda:{device}" if torch.cuda.is_available() else "cpu"
-                )
+            resolved_device = f"cuda:{device}" if torch.cuda.is_available() else "cpu"
         else:
             resolved_device = str(device)
         return resolved_device
 
     def _resolve_device_empty(self):
         if torch.cuda.is_available():
-                try:
-                    resolved_device = f"cuda:{torch.cuda.current_device()}"
-                except Exception:
-                    resolved_device = "cuda:0"
-        elif (
-            getattr(torch.backends, "mps", None)
-            and torch.backends.mps.is_available()
-        ):
+            try:
+                resolved_device = f"cuda:{torch.cuda.current_device()}"
+            except Exception:
+                resolved_device = "cuda:0"
+        elif getattr(torch.backends, "mps", None) and torch.backends.mps.is_available():
             resolved_device = "mps"
         else:
             resolved_device = "cpu"
