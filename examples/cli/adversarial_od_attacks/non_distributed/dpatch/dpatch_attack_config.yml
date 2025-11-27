@@ -43,7 +43,7 @@ dataset:
   dataset_part: test
   train_dataset_path: advsecurenet/data/train2017
   test_dataset_path: advsecurenet/data/val2017
-  random_sample_size: 20
+  random_sample_size: 200
   preprocessing:
     steps:
     - name: Resize
@@ -62,8 +62,8 @@ dataloader:
     shuffle: true
     drop_last: false
     pin_memory: true
-    batch_size: 32
-  default.batch_size: 16
+    batch_size: 4
+  default.batch_size: 4
   default.num_workers: 0
 device:
   use_ddp: false
