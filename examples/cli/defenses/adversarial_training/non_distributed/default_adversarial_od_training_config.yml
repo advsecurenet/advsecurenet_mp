@@ -12,7 +12,7 @@ training:
     path_configs:
       model_weights_path: model_weights/yolov5s.pt
       model_arch_path: 
-        ../../../../../advsecurenet/models/CustomODModels/CustomYolov5Model.py
+        ../../../advsecurenet/models/CustomODModels/CustomYolov5Model.py
     norm_config:
       add_norm_layer: false
       norm_mean:
@@ -43,7 +43,7 @@ training:
     num_classes: 80
     split: train
     path: advsecurenet/data
-    random_sample_size: 40
+    random_sample_size: 10
     preprocessing:
       steps:
       - name: Resize
@@ -59,42 +59,44 @@ training:
   dataloader:
     train:
       num_workers: 4
-      shuffle: false
+      shuffle: true
       drop_last: false
       pin_memory: true
-      batch_size: 4
+      batch_size: 5
     test:
       num_workers: 4
-      shuffle: false
+      shuffle: true
       drop_last: false
       pin_memory: true
-      batch_size: 4
+      batch_size: 5
   device:
     use_ddp: false
-    processor: cuda:5
+    processor: cuda:0
     gpu_ids:
   training:
-    epochs: 20
-    learning_rate: 0.0025
-    optimizer: sgd
-    optimizer_kwargs:
-      weight_decay: 0.0005
-      momentum: 0.9
-    scheduler: COSINE_ANNEALING_LR
-    scheduler_kwargs:
-      T_max: 2000
-      eta_min: 0.00025
-    criterion: cross_entropy
-    save_final_model: true
-    save_model_path:
-    save_model_name:
-    save_checkpoint: false
-    save_checkpoint_path:
-    save_checkpoint_name:
-    checkpoint_interval: 1
-    load_checkpoint: false
-    load_checkpoint_path:
-    verbose: true
+    training_hyperparameter:
+      epochs: 1
+      learning_rate: 0.001
+      criterion: cross_entropy
+      verbose: false
+    optimization:
+      optimizer: adam
+      optimizer_kwargs:
+        weight_decay: 0.0001
+      scheduler: LINEAR_LR
+      scheduler_kwargs:
+      criterion: cross_entropy
+    final_model:
+      save_final_model: true
+      save_model_path:
+      save_model_name:
+    checkpoint:
+      save_checkpoint: false
+      save_checkpoint_path:
+      save_checkpoint_name:
+      checkpoint_interval: 1
+      load_checkpoint: false
+      load_checkpoint_path:
 adversarial_training:
   models: []
   attacks:

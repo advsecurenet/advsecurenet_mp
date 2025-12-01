@@ -5,5 +5,5 @@ evaluation_config:
   evaluators:
   - mean_average_precision
   target_models:
-  - name: custom_yolov5_model
+  - name: trained_yolov5_model
     config: ../shared/od_model_config.yml

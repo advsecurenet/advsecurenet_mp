@@ -83,6 +83,6 @@ attack_config:
     - 200
     - 200
     learning_rate: 1.99
-    max_iter: 100
+    max_iter: 800
     random_location: false
     target_label: 20

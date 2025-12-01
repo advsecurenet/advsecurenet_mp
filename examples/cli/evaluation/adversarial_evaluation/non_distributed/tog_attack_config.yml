@@ -1,5 +1,4 @@
 model:
-  is_object_detector: true
   model_name: CustomYolov5Model
   num_input_channels: 3
   architecture:
@@ -43,7 +42,7 @@ dataset:
   dataset_part: test
   train_dataset_path: advsecurenet/data/train2017
   test_dataset_path: advsecurenet/data/val2017
-  random_sample_size: 100
+  random_sample_size: 20
   preprocessing:
     steps:
     - name: Resize
@@ -58,12 +57,12 @@ dataset:
         dtype: torch.float32
 dataloader:
   default:
-    num_workers: 0
-    shuffle: false
+    num_workers: 4
+    shuffle: true
     drop_last: false
     pin_memory: true
-    batch_size: 1
-  default.batch_size: 16
+    batch_size: 5
+  default.batch_size: 5
   default.num_workers: 0
 device:
   use_ddp: false
@@ -81,15 +80,14 @@ attack_config:
     target_labels_config:
       target_labels: []
   attack_parameters:
-    object_detector: yolov5
-    attack_type: vanishing
+    attack_type: fabrication
     mislabeling_mode: ml
     patch_shape:
     - 3
     - 200
     - 200
     learning_rate: 1.99
-    max_iter: 4
-    eps: 0.126
-    eps_iter: 0.008
+    max_iter: 13
+    eps: 0.09412
+    eps_iter: 0.0078
     random_location: false

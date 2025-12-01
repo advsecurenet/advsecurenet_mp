@@ -32,7 +32,7 @@ dataset:
   dataset_part: test
   train_dataset_path: "advsecurenet/data/train2017"
   test_dataset_path: "advsecurenet/data/val2017"
-  random_sample_size: 5
+  random_sample_size: 20
   preprocessing:
     steps:
     - name: Resize
@@ -45,7 +45,7 @@ dataset:
         dtype: torch.float32
 dataloader: 
   default: !include ../shared/dataloader_config.yml
-  default.batch_size: 16 # Override default batch size
+  default.batch_size: 5 #16 # Override default batch size
   default.num_workers: 0 # Override default num workers
 device: !include ../shared/device_config.yml
 device.processor: cuda:0 # Override default processor
@@ -60,12 +60,11 @@ attack_config:
     target_labels_config:
       target_labels: []
   attack_parameters:
-    object_detector: yolov5
     attack_type: fabrication
     mislabeling_mode: ml
     patch_shape: [3, 200, 200]
     learning_rate: 1.99
-    max_iter: 90
-    eps: 0.03
-    eps_iter: 0.01
+    max_iter: 130
+    eps: 0.09412
+    eps_iter: 0.0078
     random_location: false 

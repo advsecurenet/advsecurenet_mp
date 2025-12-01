@@ -74,27 +74,32 @@ training:
     processor: cuda:0
     gpu_ids:
   training:
-    epochs: 1
-    learning_rate: 0.0025
-    optimizer: sgd
-    optimizer_kwargs:
-      weight_decay: 0.0005
-      momentum: 0.9
-    scheduler: COSINE_ANNEALING_LR
-    scheduler_kwargs:
-      T_max: 2000
-      eta_min: 0.00025
-    criterion: cross_entropy
-    save_final_model: true
-    save_model_path:
-    save_model_name:
-    save_checkpoint: false
-    save_checkpoint_path:
-    save_checkpoint_name:
-    checkpoint_interval: 1
-    load_checkpoint: false
-    load_checkpoint_path:
-    verbose: true
+    training_hyperparameter:
+      epochs: 2
+      learning_rate: 0.0025
+      criterion: cross_entropy
+      verbose: true
+    optimization:
+      optimizer: sgd
+      optimizer_kwargs:
+        weight_decay: 0.0005
+        momentum: 0.9
+      scheduler: COSINE_ANNEALING_LR
+      scheduler_kwargs:
+        T_max: 2000
+        eta_min: 0.00025
+      criterion: cross_entropy
+    final_model:
+      save_final_model: true
+      save_model_path:
+      save_model_name:
+    checkpoint:
+      save_checkpoint: false
+      save_checkpoint_path:
+      save_checkpoint_name:
+      checkpoint_interval: 1
+      load_checkpoint: false
+      load_checkpoint_path:
 adversarial_training:
   models: []
   attacks:
