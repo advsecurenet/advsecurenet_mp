@@ -13,5 +13,5 @@ class DPatchAttackConfig(AttackConfig):
     object_detector: str = "yolov5"
     patch_shape: tuple[int, int, int] = (3, 200, 200)
     learning_rate: float = 1.99
-    max_iter: int = 1000
+    max_iter: int = 800
     target_label: Optional[int] = None

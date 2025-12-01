@@ -15,6 +15,11 @@ from advsecurenet.computer_vision.object_detection.attacks.attacker.od_attacker 
     ODAttackerConfig,
 )
 from cli.shared.types.attack import BaseAttackCLIConfigType
+from advsecurenet.distributed.ddp_coordinator import DDPCoordinator
+from advsecurenet.utils.ddp import set_visible_gpus
+from advsecurenet.computer_vision.object_detection.attacks.attacker.ddp_od_attacker import (
+    DDPODAttacker,
+)
 from advsecurenet.dataloader.data_loader_factory import od_collate_fn, DataLoaderFactory
 from advsecurenet.shared.types.configs.dataloader_config import DataLoaderConfig
 from cli.shared.utils.dataset import get_datasets
@@ -49,9 +54,64 @@ class CLIODAttacker:
         logger.info(
             "Starting %s attack (object detection).", self.od_main_attack_type.name
         )
-        self._execute_attack()
+        if getattr(self._config.device, "use_ddp", False):
+            logger.info(
+                "Using DDP for attack with GPUs: %s", self._config.device.gpu_ids
+            )
+            self._execute_ddp_attack()
+        else:
+            self._execute_attack()
         click.secho("Attack completed successfully.", fg="green")
         logger.info("%s attack completed successfully.", self.od_main_attack_type.name)
+
+    def _execute_ddp_attack(self):
+        if not self._config.device.gpu_ids or len(self._config.device.gpu_ids) == 0:
+            self._config.device.gpu_ids = list(range(torch.cuda.device_count()))
+        world_size = len(self._config.device.gpu_ids)
+        set_visible_gpus(self._config.device.gpu_ids)
+        ddp_attacker = DDPCoordinator(self._ddp_attack_fn, world_size)
+        ddp_attacker.run()
+        # Only rank0 process collects results (after spawn join) – gather stored per-rank files
+        if self._config.attack_procedure.save_result_images:
+            try:
+                adv_imgs = DDPODAttacker.gather_results(world_size)
+                if adv_imgs:
+                    self._save_images_if_needed(adv_imgs)
+            except Exception as e:
+                logger.error("Failed to gather DDP OD adversarial images: %s", e)
+
+    def _ddp_attack_fn(self, rank: int, world_size: int) -> None:
+        try:
+            torch.cuda.set_device(rank)
+            self._config.device.processor = f"cuda:{rank}"
+            logger.info(
+                "[DDP OD] Rank %d using device %s (physical GPU %s)",
+                rank,
+                self._config.device.processor,
+                (
+                    getattr(self._config.device, "gpu_ids", [None])[rank]
+                    if getattr(self._config.device, "gpu_ids", None)
+                    else rank
+                ),
+            )
+        except Exception as e:
+            logger.error("[DDP OD] Failed to set device for rank %d: %s", rank, e)
+        config, extra_kwargs = self._prepare_attack_config()
+        ddp_wrapper = DDPODAttacker(
+            attacker_class=self._build_concrete_attacker_class(),
+            config=config,
+            **extra_kwargs,
+        )
+        ddp_wrapper.setup()
+        ddp_wrapper.run_task()
+
+    def _build_concrete_attacker_class(self):
+        if self.od_main_attack_type.name.upper() == "DPATCH":
+            return AdversarialPatchODAttacker
+        elif self.od_main_attack_type.name.upper() == "TOG":
+            return PixelPerturbationODAttacker
+        else:
+            raise ValueError(f"Unknown attack type: {self.od_main_attack_type}")
 
     def _execute_attack(self):
         config, extra_kwargs = self._prepare_attack_config()
@@ -81,14 +141,24 @@ class CLIODAttacker:
             logger.info("No adversarial images to save.")
 
     def _prepare_attack_config(self):
-        model = create_model(self._config.model)
+        model = create_model(self._config.model).model
+        if getattr(self._config, "device", None) and getattr(
+            self._config.device, "processor", None
+        ):
+            model = model.to(self._config.device.processor)
         dataloader_config = self._create_dataloader_config()
         attack_config = self._config.attack_config.attack_parameters
         # Extract object_detector_config from model config if present
         detector_config = {}
-        if hasattr(self._config.model, "object_detector_config"):
-            detector_config = self._config.model.object_detector_config
-        detector = get_object_detector(attack_config.object_detector, detector_config)
+        if hasattr(model, "object_detector_config"):
+            detector_config = model.object_detector_config
+        # Forward device info into detector config
+        if getattr(self._config, "device", None):
+            detector_config = dict(detector_config)  # shallow copy
+            detector_config["device_type"] = getattr(
+                self._config.device, "processor", "cuda:0"
+            )
+        detector = get_object_detector(detector_config, existing_model=model)
         attack_config.object_detector = detector
         attack_config.device = self._config.device
 
@@ -111,11 +181,11 @@ class CLIODAttacker:
             raise ValueError(f"Unknown attack type: {self.od_main_attack_type}")
 
         config = ODAttackerConfig(
-            model=model,
             dataloader=dataloader_config,
             device=self._config.device,
             attack=attack,
             return_adversarial_images=self._config.attack_procedure.save_result_images,
+            dataset_name=self._config.dataset.dataset_name,
             evaluators=self._get_evaluators(),
         )
         return config, extra_kwargs
@@ -155,9 +225,6 @@ class CLIODAttacker:
         return data
 
     def _sample_data_if_required(self, all_data):
-        """
-        Sample data from the dataset if random_sample_size is specified in the config.
-        """
         sample_size = self._config.dataset.random_sample_size
         if sample_size is not None and sample_size > 0:
             logger.info("Sampling %d data points from the dataset.", sample_size)
@@ -165,16 +232,6 @@ class CLIODAttacker:
         return all_data
 
     def _sample_data(self, data, sample_size):
-        """
-        Sample data from the dataset.
-
-        Args:
-            data (torch.utils.data.Dataset): The dataset.
-            sample_size (int): The sample size.
-
-        Returns:
-            torch.utils.data.Subset: The sampled data.
-        """
         if len(data) < sample_size:
             logger.warning(
                 "The dataset size (%d) is smaller than the requested sample size (%d). Using the entire dataset.",
@@ -182,7 +239,6 @@ class CLIODAttacker:
                 sample_size,
             )
             sample_size = len(data)
-
         random_samples = min(sample_size, len(data))
         lengths = [random_samples, len(data) - random_samples]
         subset, _ = random_split(data, lengths)
@@ -196,5 +252,4 @@ class CLIODAttacker:
         Returns:
             list[str]: List of evaluator names.
         """
-        # Get evaluators from CLI kwargs (same as image classification attacks)
         return self._kwargs.get("evaluators", ["mean_average_precision"])

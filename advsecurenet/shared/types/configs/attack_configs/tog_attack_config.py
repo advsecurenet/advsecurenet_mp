@@ -10,8 +10,8 @@ class TOGAttackConfig(AttackConfig):
     """
 
     object_detector: str = "yolov5"
-    max_iter: int = 60
-    eps: float = 0.03
-    eps_iter: float = 0.01
-    attack_type: str = "mislabeling"
+    max_iter: int = 130
+    eps: float = 24 / 255.0
+    eps_iter: float = 2.0 / 255.0
+    attack_type: str = "fabrication"
     mislabeling_mode: str = "ml"

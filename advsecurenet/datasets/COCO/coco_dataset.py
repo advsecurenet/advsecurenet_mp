@@ -12,6 +12,7 @@ from advsecurenet.datasets.base_dataset import DatasetWrapper
 from advsecurenet.shared.normalization_params import NormalizationParameters
 from advsecurenet.shared.types.configs.preprocess_config import PreprocessConfig
 from advsecurenet.shared.types import DatasetType, DataType
+from advsecurenet.datasets.COCO.coco_utils import map_raw_to_contiguous
 
 
 @contextmanager
@@ -23,6 +24,15 @@ def temporarily_disable_ssl_verification():
         yield
     finally:
         ssl._create_default_https_context = original_context
+
+
+def _to_contiguous(anns):
+    out = []
+    for a in anns:
+        a = dict(a)
+        a["category_id"] = int(map_raw_to_contiguous(int(a["category_id"])))
+        out.append(a)
+    return out
 
 
 class COCODataset(BaseDataset):
@@ -118,7 +128,10 @@ class COCODataset(BaseDataset):
 
         # 5) instantiate the torchvision dataset
         coco_ds = datasets.CocoDetection(
-            root=img_root, annFile=ann_file, transform=transform
+            root=img_root,
+            annFile=ann_file,
+            transform=transform,
+            target_transform=_to_contiguous,
         )
 
         # 6) wrap and return

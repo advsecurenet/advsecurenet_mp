@@ -12,6 +12,8 @@ import secrets
 import numpy as np
 import torch
 import logging
+import torch.distributed as dist
+from torch.utils.data.distributed import DistributedSampler
 from tqdm.auto import trange, tqdm
 from typing import Union, Optional, List, Dict, Tuple
 from torch.utils.data import DataLoader
@@ -98,60 +100,121 @@ class DPatch(AdversarialAttack):
         self._object_detector.model.eval()
         ignore_true_labels = self._target_label is not None
         for i_step in trange(self._max_iterations, desc="DPatch iteration"):
-            if i_step == 0 or (i_step + 1) % 100 == 0:
-                logger.info("Training Step: %d/%d", i_step + 1, self._max_iterations)
-
-            patch_gradients_sum = torch.zeros_like(self._patch, device=device)
-            self._patch = self.device_manager.to_device(self._patch)
-            for data_batch in tqdm(
-                dataloader,
-                desc=f"Epoch {i_step + 1}/{self._max_iterations}",
-                leave=False,
+            self._maybe_log_training_step(i_step)
+            if hasattr(dataloader, "sampler") and isinstance(
+                dataloader.sampler, DistributedSampler
             ):
-                images, targets_dict = data_batch
-                images, targets_dict = move_batch_to_device(
-                    images, targets_dict, device
-                )
-                images_np_for_dpatch = (images.detach().cpu().numpy() * 255.0).astype(
-                    np.float32
-                )
-                images_np_for_dpatch = np.clip(images_np_for_dpatch, 0, 255)
-                targets = None
-                if not ignore_true_labels:
-                    targets = []
-                    for b, l in zip(targets_dict["boxes"], targets_dict["labels"]):
-                        raw = l.detach().cpu().numpy().astype(int)
-                        targets.append(
-                            {
-                                "boxes": b.detach().cpu().numpy(),
-                                "labels": np.array(raw, dtype=int),
-                                "scores": np.ones(len(raw), dtype=float),
-                            }
-                        )
-                patch_gradients, untargeted_should_suppress = self._attack_step(
-                    x=images_np_for_dpatch,
-                    y=targets,
-                    mask=mask,
+                try:
+                    dataloader.sampler.set_epoch(i_step)
+                except Exception as e:
+                    logger.debug("Failed to set sampler epoch %d: %s", i_step, e)
+            patch_gradients_sum, suppress_flag_any = (
+                self._accumulate_gradients_over_batches(
                     device=device,
+                    dataloader=dataloader,
+                    ignore_true_labels=ignore_true_labels,
+                    mask=mask,
+                    i_step=i_step,
                 )
-                patch_gradients = self.device_manager.to_device(patch_gradients)
-                patch_gradients_sum += patch_gradients
+            )
+            # Distributed aggregation: sum gradients, OR suppression flag across ranks
+            if dist.is_available() and dist.is_initialized():
+                dist.all_reduce(patch_gradients_sum, op=dist.ReduceOp.SUM)
+                suppress_tensor = torch.tensor(
+                    1 if suppress_flag_any else 0, device=patch_gradients_sum.device
+                )
+                dist.all_reduce(suppress_tensor, op=dist.ReduceOp.MAX)
+                suppress_flag_any = bool(suppress_tensor.item())
+            self._apply_patch_update(patch_gradients_sum, suppress_flag_any)
+            self._check_patch_consistency()
+        return self._patch
 
-            if self._target_label is not None:
+    def _maybe_log_training_step(self, i_step: int) -> None:
+        if i_step == 0 or (i_step + 1) % 100 == 0:
+            logger.info("Training Step: %d/%d", i_step + 1, self._max_iterations)
+
+    def _accumulate_gradients_over_batches(
+        self,
+        device: Union[str, torch.device],
+        dataloader: DataLoader,
+        ignore_true_labels: bool,
+        mask: Union[np.ndarray, torch.Tensor, None],
+        i_step: int,
+    ) -> tuple[torch.Tensor, bool]:
+        patch_gradients_sum = torch.zeros_like(self._patch, device=device)
+        suppress_flag_any = False
+        self._patch = self.device_manager.to_device(self._patch)
+        for data_batch in tqdm(
+            dataloader,
+            desc=f"Epoch {i_step + 1}/{self._max_iterations}",
+            leave=False,
+        ):
+            images, targets_dict = data_batch
+            images, targets_dict = move_batch_to_device(images, targets_dict, device)
+            images_np_for_dpatch = (images.detach().cpu().numpy() * 255.0).astype(
+                np.float32
+            )
+            images_np_for_dpatch = np.clip(images_np_for_dpatch, 0, 255)
+            targets = None
+            if not ignore_true_labels:
+                targets = []
+                for b, l in zip(targets_dict["boxes"], targets_dict["labels"]):
+                    raw = l.detach().cpu().numpy().astype(int)
+                    targets.append(
+                        {
+                            "boxes": b.detach().cpu().numpy(),
+                            "labels": np.array(raw, dtype=int),
+                            "scores": np.ones(len(raw), dtype=float),
+                        }
+                    )
+            patch_gradients, untargeted_should_suppress = self._attack_step(
+                x=images_np_for_dpatch,
+                y=targets,
+                mask=mask,
+                device=device,
+            )
+            patch_gradients = self.device_manager.to_device(patch_gradients)
+            patch_gradients_sum += patch_gradients
+            if untargeted_should_suppress:
+                suppress_flag_any = True
+        return patch_gradients_sum, suppress_flag_any
+
+    def _apply_patch_update(
+        self, patch_gradients_sum: torch.Tensor, suppress_flag_any: bool
+    ) -> None:
+        if self._target_label is not None:
+            self._patch = self._patch - self._learning_rate * torch.sign(
+                patch_gradients_sum
+            )
+        else:
+            if suppress_flag_any:
                 self._patch = self._patch - self._learning_rate * torch.sign(
                     patch_gradients_sum
                 )
             else:
-                if untargeted_should_suppress:
-                    self._patch = self._patch - self._learning_rate * torch.sign(
-                        patch_gradients_sum
-                    )
-                else:
-                    self._patch = self._patch + self._learning_rate * torch.sign(
-                        patch_gradients_sum
-                    )
-            self._patch = self._patch.clamp(0.0, 255.0)
-        return self._patch
+                self._patch = self._patch + self._learning_rate * torch.sign(
+                    patch_gradients_sum
+                )
+        self._patch = self._patch.clamp(0.0, 255.0)
+
+    def _check_patch_consistency(self) -> None:
+        if dist.is_available() and dist.is_initialized():
+            with torch.no_grad():
+                checksum = torch.sum(self._patch.float()).unsqueeze(0)
+                gathered = [
+                    torch.zeros_like(checksum) for _ in range(dist.get_world_size())
+                ]
+                try:
+                    dist.all_gather(gathered, checksum)
+                    diffs = [abs(checksum.item() - g.item()) for g in gathered]
+                    max_diff = max(diffs) if diffs else 0.0
+                    if max_diff > 1e-4:
+                        logger.error(
+                            "[DPATCH]Patch checksum divergence detected across ranks: diffs=%s",
+                            diffs,
+                        )
+                except Exception as e:
+                    logger.debug("Patch consistency check failed: %s", e)
 
     def _attack_step_prepare_x(
         self,

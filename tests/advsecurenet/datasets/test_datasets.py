@@ -6,10 +6,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 from PIL import Image
 
-import tempfile
-import shutil
-import os
 from advsecurenet.datasets.COCO import coco_utils
+from advsecurenet.datasets.PascalVOC import pascalvoc_utils
+from advsecurenet.datasets.PascalVOC.pascalvoc_dataset import PascalVOCDataset
+from torchvision import datasets
 
 from advsecurenet.datasets.base_dataset import BaseDataset, ImageFolderBaseDataset
 from advsecurenet.datasets.Cifar10.cifar10_dataset import (
@@ -449,55 +449,277 @@ def test_coco_utils_map_raw_to_contiguous_invalid():
 
 
 @pytest.mark.advsecurenet
-def test_coco_utils_extract_predictions_empty():
-    preds = {"labels": [], "boxes": [], "scores": []}
-    classes, boxes, scores = coco_utils.extract_predictions(preds, 0.5)
-    assert classes == boxes == scores == []
+def test_voc_to_coco_anns_normalization_and_clipping():
+    target = {
+        "annotation": {
+            "size": {"width": 100, "height": 50},
+            "object": [
+                {
+                    "name": "TV / Monitor",  # normalization → tvmonitor
+                    "bndbox": {"xmin": -10, "ymin": 5, "xmax": 120, "ymax": 30},
+                    "difficult": "1",
+                },
+                {
+                    "name": "dog",
+                    "bndbox": {"xmin": 10, "ymin": 10, "xmax": 20, "ymax": 25},
+                },
+            ],
+        }
+    }
+    anns = pascalvoc_utils.voc_to_coco_anns(target)
+    # Both valid; first is clipped to image bounds
+    assert len(anns) == 2
+    a0 = anns[0]
+    # tvmonitor id maps to index (raw id - 1)
+    assert a0["category_id"] == pascalvoc_utils.NAME_TO_RAW_ID["tvmonitor"] - 1
+    # Clipped bbox: xmin -> 0, xmax -> 100
+    assert a0["bbox"][0] == 0.0 and a0["bbox"][1] == 5.0
+    assert a0["bbox"][2] == 100.0 - 0.0 and a0["bbox"][3] == 30.0 - 5.0
+    assert a0["difficult"] == 1
+    # Dog entry untouched
+    a1 = anns[1]
+    assert a1["category_id"] == pascalvoc_utils.NAME_TO_RAW_ID["dog"] - 1
+    assert a1["bbox"] == [10.0, 10.0, 10.0, 15.0]
 
 
 @pytest.mark.advsecurenet
-def test_coco_utils_extract_predictions_all_below_thresh():
-    preds = {
-        "labels": [0, 1],
-        "boxes": [[0, 0, 1, 1], [1, 1, 2, 2]],
-        "scores": [0.1, 0.2],
+def test_voc_to_coco_anns_filters_invalid():
+    # invalid name + invalid bbox (zero/negative size) should be filtered
+    target = {
+        "annotation": {
+            "size": {"width": 20, "height": 20},
+            "object": [
+                {
+                    "name": "unknown",
+                    "bndbox": {"xmin": 0, "ymin": 0, "xmax": 5, "ymax": 5},
+                },
+                {
+                    "name": "cat",
+                    "bndbox": {"xmin": 10, "ymin": 10, "xmax": 10, "ymax": 12},
+                },
+                {
+                    "name": "cat",
+                    "bndbox": {"xmin": 12, "ymin": 12, "xmax": 10, "ymax": 9},
+                },
+            ],
+        }
     }
-    classes, boxes, scores = coco_utils.extract_predictions(preds, 0.5)
-    assert classes == boxes == scores == []
+    anns = pascalvoc_utils.voc_to_coco_anns(target)
+    assert anns == []
 
 
 @pytest.mark.advsecurenet
-def test_coco_utils_extract_predictions_some_above_thresh():
-    preds = {
-        "labels": [0, 1],
-        "boxes": [[0, 0, 1, 1], [1, 1, 2, 2]],
-        "scores": [0.1, 0.9],
-    }
-    classes, boxes, scores = coco_utils.extract_predictions(preds, 0.5)
-    assert classes == [coco_utils.COCO_INSTANCE_CATEGORY_NAMES[1]]
-    assert boxes == [[(1, 1), (2, 2)]]
-    assert scores == [0.9]
+def test_pascalvoc_validate_year():
+    # valid years
+    PascalVOCDataset._validate_year("2007")
+    PascalVOCDataset._validate_year("2012")
+    # invalid
+    with pytest.raises(ValueError):
+        PascalVOCDataset._validate_year("1999")
 
 
 @pytest.mark.advsecurenet
-def test_coco_utils_extract_predictions_all_above_thresh():
-    preds = {
-        "labels": [0, 1],
-        "boxes": [[0, 0, 1, 1], [1, 1, 2, 2]],
-        "scores": [0.6, 0.9],
+def test_pascalvoc_load_dataset_success(monkeypatch, tmp_path):
+    # patch VOCDetection to prevent IO and capture target_transform
+    captured_tt = {}
+
+    class _DummyVOC:
+        def __init__(self, *args, **kwargs):
+            captured_tt["target_transform"] = kwargs.get("target_transform")
+
+    monkeypatch.setattr(
+        "advsecurenet.datasets.PascalVOC.pascalvoc_dataset.datasets.VOCDetection",
+        _DummyVOC,
+    )
+    ds = PascalVOCDataset()
+    wrapper = ds.load_dataset(
+        root=str(tmp_path), train=True, download=False, year="2007"
+    )
+    assert wrapper is not None
+    # data_type TRAIN for train/trainval; val -> TEST
+    assert str(ds.data_type).endswith("TRAIN")
+    # target_transform should be callable and produce list of dicts with bbox and category_id
+    tt = captured_tt.get("target_transform")
+    assert callable(tt)
+    sample = {
+        "annotation": {
+            "size": {"width": 100, "height": 100},
+            "object": [
+                {
+                    "name": "dog",
+                    "bndbox": {"xmin": 1, "ymin": 1, "xmax": 20, "ymax": 30},
+                }
+            ],
+        }
     }
-    classes, boxes, scores = coco_utils.extract_predictions(preds, 0.5)
-    assert classes == [
-        coco_utils.COCO_INSTANCE_CATEGORY_NAMES[0],
-        coco_utils.COCO_INSTANCE_CATEGORY_NAMES[1],
+    out = tt(sample)
+    assert isinstance(out, list)
+    assert len(out) > 0
+    assert "bbox" in out[0] and "category_id" in out[0]
+
+
+@pytest.mark.advsecurenet
+def test_pascalvoc_load_dataset_fallback(monkeypatch, tmp_path):
+    calls = {"ctor": 0, "fallback": 0}
+
+    def _ctor_fail_once(*args, **kwargs):
+        calls["ctor"] += 1
+        if calls["ctor"] == 1:
+            raise RuntimeError("fail first")
+        return object()
+
+    def _fallback(*args, **kwargs):
+        calls["fallback"] += 1
+
+    monkeypatch.setattr(
+        "advsecurenet.datasets.PascalVOC.pascalvoc_dataset.datasets.VOCDetection",
+        _ctor_fail_once,
+    )
+    monkeypatch.setattr(
+        PascalVOCDataset, "_fallback_voc_download", staticmethod(_fallback)
+    )
+    ds = PascalVOCDataset()
+    wrapper = ds.load_dataset(
+        root=str(tmp_path), train=False, download=True, year="2012"
+    )
+    assert wrapper is not None
+    assert calls["fallback"] == 1
+
+
+@pytest.mark.advsecurenet
+def test_pascalvoc_temporarily_disable_ssl_verification(monkeypatch):
+    from advsecurenet.datasets.PascalVOC.pascalvoc_dataset import (
+        temporarily_disable_ssl_verification,
+    )
+    import ssl
+
+    original = ssl._create_default_https_context
+    with temporarily_disable_ssl_verification():
+        assert ssl._create_default_https_context != original
+    assert ssl._create_default_https_context == original
+
+
+@pytest.mark.advsecurenet
+def test_pascalvoc_init_with_preprocess_config():
+    preprocess_steps = [
+        PreprocessStep(name="Resize", params={"size": (256, 256)}),
+        PreprocessStep(name="CenterCrop", params={"size": (224, 224)}),
     ]
-    assert boxes == [[(0, 0), (1, 1)], [(1, 1), (2, 2)]]
-    assert scores == [0.6, 0.9]
+    preprocess_config = PreprocessConfig(steps=preprocess_steps)
+    dataset = PascalVOCDataset(preprocess_config)
+    assert dataset.input_size == (256, 256)
+    assert dataset.name == "pascal_voc"
+    assert dataset.num_classes == 20
 
 
 @pytest.mark.advsecurenet
-def test_coco_utils_extract_predictions_invalid_input():
-    # labels index out of range
-    preds = {"labels": [999], "boxes": [[0, 0, 1, 1]], "scores": [0.9]}
-    with pytest.raises(IndexError):
-        coco_utils.extract_predictions(preds, 0.5)
+def test_pascalvoc_init_without_preprocess_config():
+    dataset = PascalVOCDataset()
+    assert dataset.input_size == (224, 224)
+    assert dataset.name == "pascal_voc"
+
+
+@pytest.mark.advsecurenet
+def test_pascalvoc_init_with_preprocess_config_no_resize():
+    preprocess_steps = [
+        PreprocessStep(name="CenterCrop", params={"size": (224, 224)}),
+    ]
+    preprocess_config = PreprocessConfig(steps=preprocess_steps)
+    dataset = PascalVOCDataset(preprocess_config)
+    assert dataset.input_size == (224, 224)  # fallback
+
+
+@pytest.mark.advsecurenet
+def test_pascalvoc_get_dataset_class():
+    dataset = PascalVOCDataset()
+    assert dataset.get_dataset_class() == datasets.VOCDetection
+
+
+@pytest.mark.advsecurenet
+def test_pascalvoc_load_dataset_root_none(monkeypatch, tmp_path):
+    class _DummyVOC:
+        def __init__(self, *args, **kwargs):
+            pass
+
+    monkeypatch.setattr(
+        "advsecurenet.datasets.PascalVOC.pascalvoc_dataset.datasets.VOCDetection",
+        _DummyVOC,
+    )
+    monkeypatch.setattr("pkg_resources.resource_filename", lambda *args: str(tmp_path))
+    ds = PascalVOCDataset()
+    wrapper = ds.load_dataset(root=None, train=True, download=False, year="2012")
+    assert wrapper is not None
+
+
+@pytest.mark.advsecurenet
+def test_pascalvoc_load_dataset_image_set_overrides_train(monkeypatch, tmp_path):
+    class _DummyVOC:
+        def __init__(self, *args, **kwargs):
+            self.image_set = kwargs.get("image_set")
+
+    monkeypatch.setattr(
+        "advsecurenet.datasets.PascalVOC.pascalvoc_dataset.datasets.VOCDetection",
+        _DummyVOC,
+    )
+    ds = PascalVOCDataset()
+    # image_set="test" should override train=True
+    wrapper = ds.load_dataset(
+        root=str(tmp_path), train=True, download=False, year="2012", image_set="test"
+    )
+    assert wrapper is not None
+    assert str(ds.data_type).endswith("TEST")  # test is not train/trainval
+
+
+@pytest.mark.advsecurenet
+def test_pascalvoc_load_dataset_trainval_data_type(monkeypatch, tmp_path):
+    class _DummyVOC:
+        def __init__(self, *args, **kwargs):
+            pass
+
+    monkeypatch.setattr(
+        "advsecurenet.datasets.PascalVOC.pascalvoc_dataset.datasets.VOCDetection",
+        _DummyVOC,
+    )
+    ds = PascalVOCDataset()
+    wrapper = ds.load_dataset(
+        root=str(tmp_path),
+        train=False,
+        download=False,
+        year="2012",
+        image_set="trainval",
+    )
+    assert wrapper is not None
+    assert str(ds.data_type).endswith("TRAIN")  # trainval is TRAIN
+
+
+@pytest.mark.advsecurenet
+def test_pascalvoc_load_dataset_download_false_on_exception(monkeypatch, tmp_path):
+    calls = {"ctor": 0}
+
+    def _ctor_always_fail(*args, **kwargs):
+        calls["ctor"] += 1
+        raise RuntimeError("always fail")
+
+    monkeypatch.setattr(
+        "advsecurenet.datasets.PascalVOC.pascalvoc_dataset.datasets.VOCDetection",
+        _ctor_always_fail,
+    )
+    monkeypatch.setattr(PascalVOCDataset, "_fallback_voc_download", MagicMock())
+    ds = PascalVOCDataset()
+    with pytest.raises(RuntimeError):
+        ds.load_dataset(root=str(tmp_path), train=True, download=False, year="2012")
+
+
+@pytest.mark.advsecurenet
+def test_pascalvoc_fallback_voc_download_existing_dir(tmp_path, monkeypatch):
+    ds = PascalVOCDataset()
+    voc_dir = os.path.join(str(tmp_path), "VOCdevkit", "VOC2012")
+    os.makedirs(voc_dir, exist_ok=True)
+    # Mock urlretrieve to ensure it's never called when dir exists
+    urlretrieve_calls = []
+    monkeypatch.setattr(
+        "urllib.request.urlretrieve", lambda *args: urlretrieve_calls.append(args)
+    )
+    ds._fallback_voc_download(str(tmp_path), year="2012")
+    # Should skip download when dir exists
+    assert len(urlretrieve_calls) == 0

@@ -1,0 +1,35 @@
+# Description: Adversarial training config for Object Detection (uses TOG attack).
+
+task: detection # either detection or classification; if left empty/unspecified, defaults to classification
+
+training:
+  # --- Model (same as tog_attack_config.yml) ---
+  model: !include ../shared/od_model_config.yml
+  dataset:
+    dataset_name: coco
+    download: true
+    num_classes: 80
+    split: train
+    path: advsecurenet/data
+    random_sample_size: 5
+    preprocessing:
+      steps:
+        - name: Resize
+          params:
+            size: [640, 640]
+        - name: ToTensor
+          params: {}
+        - name: ToDtype
+          params:
+            dtype: torch.float32
+  dataloader:
+    train: !include ../shared/dataloader_config.yml 
+    test: !include ../shared/dataloader_config.yml
+  device: !include ../shared/device_config.yml
+  training: !include ../shared/training_config.yml
+
+adversarial_training:
+  # Optional: explicit models list (attack-generation pool). Using the same OD model.
+  models: []
+  attacks:
+    - tog: ../attacks/tog_attack_config.yml

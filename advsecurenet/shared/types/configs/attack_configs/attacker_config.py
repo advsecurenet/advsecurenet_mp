@@ -17,10 +17,10 @@ class AttackerConfig:
     Configuration class for the Attacker module.
     """
 
-    model: torch.nn.Module
     attack: AdversarialAttack
     dataloader: Union[DataLoader, DataLoaderConfig]
     device: DeviceConfig
+    model: Optional[torch.nn.Module] = None
     return_adversarial_images: Optional[bool] = False
     evaluators: Optional[list[str]] = field(
         default_factory=lambda: ["attack_success_rate"]
