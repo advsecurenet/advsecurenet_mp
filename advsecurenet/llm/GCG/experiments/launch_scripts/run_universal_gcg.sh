@@ -1,6 +1,4 @@
-#!/bin/bash
 
-export WANDB_MODE=disabled
 
 # Parse arguments with defaults
 MODEL_NAME=${1:-"microsoft/DialoGPT-medium"}  # Changed default from gpt2

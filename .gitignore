@@ -52,4 +52,6 @@ attack/
 .venv-mp20
 examples/advsecurenet/adversarial_attacks/*.pt
 
+
+results/
 clean_venv
