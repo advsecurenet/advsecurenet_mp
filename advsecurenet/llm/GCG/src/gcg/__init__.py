@@ -6,9 +6,9 @@ Exposes the sophisticated GCG classes for dynamic import.
 # Import only the classes that actually exist in gcg_attack.py
 from .gcg_attack import (
     GCGAttackPrompt,
-    GCGPromptManager, 
+    GCGPromptManager,
     GCGMultiPromptAttack,
-    token_gradients
+    token_gradients,
 )
 
 # Import fallbacks for classes that don't exist in GCG
@@ -16,7 +16,7 @@ from ..attacks.individual import IndividualPromptAttack
 
 # Alias them to the expected names for dynamic import
 AttackPrompt = GCGAttackPrompt
-PromptManager = GCGPromptManager  
+PromptManager = GCGPromptManager
 MultiPromptAttack = GCGMultiPromptAttack
 
 # Use the regular individual attack since GCG doesn't have its own
@@ -25,13 +25,13 @@ ProgressiveMultiPromptAttack = GCGMultiPromptAttack
 
 # Export all classes
 __all__ = [
-    'AttackPrompt',
-    'PromptManager', 
-    'MultiPromptAttack',
-    'IndividualPromptAttack',
-    'ProgressiveMultiPromptAttack',
-    'GCGAttackPrompt',
-    'GCGPromptManager',
-    'GCGMultiPromptAttack',
-    'token_gradients'
+    "AttackPrompt",
+    "PromptManager",
+    "MultiPromptAttack",
+    "IndividualPromptAttack",
+    "ProgressiveMultiPromptAttack",
+    "GCGAttackPrompt",
+    "GCGPromptManager",
+    "GCGMultiPromptAttack",
+    "token_gradients",
 ]

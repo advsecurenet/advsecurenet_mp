@@ -2,21 +2,27 @@ from transformers import AutoModelForCausalLM
 import torch
 import torch.multiprocessing as mp
 from copy import deepcopy
+
+
 class ModelWorker(object):
 
     def __init__(self, model_path, model_kwargs, tokenizer, conv_template, device):
-        self.model = AutoModelForCausalLM.from_pretrained(
-            model_path,
-            torch_dtype=torch.float32,
-            trust_remote_code=True,
-            **model_kwargs
-        ).to(device).eval()
+        self.model = (
+            AutoModelForCausalLM.from_pretrained(
+                model_path,
+                torch_dtype=torch.float32,
+                trust_remote_code=True,
+                **model_kwargs,
+            )
+            .to(device)
+            .eval()
+        )
         self.tokenizer = tokenizer
         self.conv_template = conv_template
         self.tasks = mp.JoinableQueue()
         self.results = mp.JoinableQueue()
         self.process = None
-    
+
     @staticmethod
     def run(model, tasks, results):
         while True:
@@ -43,13 +49,12 @@ class ModelWorker(object):
 
     def start(self):
         self.process = mp.Process(
-            target=ModelWorker.run,
-            args=(self.model, self.tasks, self.results)
+            target=ModelWorker.run, args=(self.model, self.tasks, self.results)
         )
         self.process.start()
         print(f"Started worker {self.process.pid} for model {self.model.name_or_path}")
         return self
-    
+
     def stop(self):
         self.tasks.put(None)
         if self.process is not None:
