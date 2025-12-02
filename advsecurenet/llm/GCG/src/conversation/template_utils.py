@@ -3,6 +3,7 @@ from transformers import (AutoModelForCausalLM, AutoTokenizer, GPT2LMHeadModel,
                           LlamaForCausalLM)
 from fastchat.model import get_conversation_template
 from advsecurenet.llm.GCG.src.models.model_worker import ModelWorker
+import pandas as pd
 
 def get_workers(params, eval=False):
     tokenizers = []

@@ -88,23 +88,72 @@ class MultiPromptAttack(object):
             self.prompts[i].control_toks = control[i]
     
     def get_filtered_cands(self, worker_index, control_cand, filter_cand=True, curr_control=None):
+        """Filter candidate controls with model-aware tokenization."""
         cands, count = [], 0
         worker = self.workers[worker_index]
+        
         for i in range(control_cand.shape[0]):
-            decoded_str = worker.tokenizer.decode(control_cand[i], skip_special_tokens=True)
-            if filter_cand:
-                if decoded_str != curr_control and len(worker.tokenizer(decoded_str, add_special_tokens=False).input_ids) == len(control_cand[i]):
-                    cands.append(decoded_str)
-                else:
-                    count += 1
-            else:
-                cands.append(decoded_str)
+            try:
+                # FIX: Filter out None tokens before decoding
+                valid_tokens = control_cand[i]
+                if hasattr(valid_tokens, 'tolist'):
+                    valid_tokens = valid_tokens.tolist()
                 
-        if filter_cand:
-            cands = cands + [cands[-1]] * (len(control_cand) - len(cands))
-            # print(f"Warning: {round(count / len(control_cand), 2)} control candidates were not valid")
+                # Remove None values and invalid token IDs
+                valid_tokens = [t for t in valid_tokens if t is not None and isinstance(t, (int, np.integer)) and t >= 0]
+                
+                # Skip if no valid tokens remain
+                if not valid_tokens:
+                    if not filter_cand:
+                        cands.append("! !")  # Fallback for no filtering
+                    count += 1
+                    continue
+                
+                # Convert back to tensor if needed
+                if isinstance(control_cand[i], torch.Tensor):
+                    valid_tokens = torch.tensor(valid_tokens, dtype=control_cand[i].dtype, device=control_cand[i].device)
+                
+                # Decode with error handling
+                decoded_str = worker.tokenizer.decode(valid_tokens, skip_special_tokens=True)
+                
+                if filter_cand:
+                    # Validate the decoded string
+                    if decoded_str and decoded_str != curr_control:
+                        try:
+                            # Test re-encoding to ensure validity
+                            re_encoded = worker.tokenizer(decoded_str, add_special_tokens=False).input_ids
+                            if len(re_encoded) > 0:  # Valid if we get some tokens back
+                                cands.append(decoded_str)
+                            else:
+                                count += 1
+                        except Exception:
+                            count += 1
+                    else:
+                        count += 1
+                else:
+                    cands.append(decoded_str)
+                    
+            except (TypeError, AttributeError, ValueError) as e:
+                # Handle any tokenization errors
+                if not filter_cand:
+                    cands.append("! !")  # Fallback
+                count += 1
+                continue
+        
+        # Ensure we have enough candidates
+        if filter_cand and len(cands) == 0:
+            # Use current control as fallback
+            fallback = curr_control if curr_control else "! ! ! ! ! !"
+            cands = [fallback] * min(control_cand.shape[0], 10)
+        elif filter_cand and len(cands) < control_cand.shape[0]:
+            # Pad with existing candidates or fallback
+            while len(cands) < control_cand.shape[0]:
+                if cands:
+                    cands.append(cands[-1])
+                else:
+                    cands.append(curr_control if curr_control else "! ! ! !")
+                    
         return cands
-
     def step(self, *args, **kwargs):
         
         raise NotImplementedError("Attack step function not yet implemented")

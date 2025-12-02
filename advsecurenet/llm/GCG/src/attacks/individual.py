@@ -1,7 +1,7 @@
-from advsecurenet.llm.GCG.src.attacks.individual import IndividualPromptAttack
 import json
 import torch
 from typing import Optional, Any
+import numpy as np
 
 class IndividualPromptAttack(object):
     """ A class used to manage attacks for each target string / behavior."""

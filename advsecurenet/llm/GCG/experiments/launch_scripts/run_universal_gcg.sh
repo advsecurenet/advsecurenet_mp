@@ -1,13 +1,13 @@
-
+#!/bin/bash
 
 # Parse arguments with defaults
-MODEL_NAME=${1:-"microsoft/DialoGPT-medium"}  # Changed default from gpt2
+MODEL_NAME=${1:-"microsoft/DialoGPT-medium"}
 ATTACK_TYPE=${2:-"individual"}
 DATA_TYPE=${3:-"behaviors"}
 DEVICE=${4:-"auto"}
-N_STEPS=${5:-100}  # Reduced for testing
-N_TRAIN_DATA=${6:-1}  # Reduced for testing
-BATCH_SIZE=${7:-32}  # Reduced for testing
+N_STEPS=${5:-100}
+N_TRAIN_DATA=${6:-1}
+BATCH_SIZE=${7:-32}
 LEARNING_RATE=${8:-0.01}
 CONTROL_INIT=${9:-"! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! !"}
 
@@ -32,13 +32,16 @@ else
     echo "Folder '../results' already exists."
 fi
 
-# Run attack with different offsets (reduced for testing)
-for data_offset in 0 10; do  # Just test 2 offsets instead of 10
+# Run attack with different offsets
+for data_offset in 0 10; do
     echo "📊 Running experiment with data offset $data_offset"
     
+    # FIX: Use tuple syntax for lists as the error message suggests
     python3 ../main.py \
         --config ../configs/universal_config.py \
         --config.model_name="$MODEL_NAME" \
+        --config.model_paths="('$MODEL_NAME',)" \
+        --config.tokenizer_paths="('$MODEL_NAME',)" \
         --config.device="$DEVICE" \
         --config.attack_type="$ATTACK_TYPE" \
         --config.data_type="$DATA_TYPE" \
@@ -54,7 +57,7 @@ for data_offset in 0 10; do  # Just test 2 offsets instead of 10
         echo "✅ Completed offset $data_offset"
     else
         echo "❌ Failed offset $data_offset"
-        break  # Stop on first failure for debugging
+        break
     fi
 done
 

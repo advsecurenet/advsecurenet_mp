@@ -14,10 +14,10 @@ def get_config():
     
     # === UNIVERSAL MODE SETTINGS ===
     config.universal_mode = True        # Enable universal model support
-    config.auto_template_detection = True  # Let attack_manager handle templates
+    config.auto_template_detection = False  # Let attack_manager handle templates
     
     # === MODEL PARAMETERS ===
-    config.model_name = "gpt2"  # Default - can be overridden
+    config.model_name = "microsoft/DialoGPT-small"  # Default - can be overridden
     config.device = "auto"
     
     # === ATTACK PARAMETERS ===  
@@ -34,12 +34,12 @@ def get_config():
     config.test_data = ''
     
     # === OPTIMIZATION PARAMETERS ===
-    config.n_steps = 1000
-    config.test_steps = 50
-    config.batch_size = 512
-    config.lr = 0.01
+    config.n_steps = 100
+    config.test_steps = 10
+    config.batch_size = 256
+    config.lr = 0.1
     config.topk = 256
-    config.temp = 1
+    config.temp = 1.5
     
     # === CONTROL PARAMETERS ===
     config.control_init = "! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! !"
@@ -77,10 +77,10 @@ def get_config():
     # These MUST exist for the framework to work
     def get_current_model_name():
         return getattr(config, 'model_name', 'gpt2')
-    config.model_paths = [get_current_model_name()]
-    config.tokenizer_paths = [get_current_model_name()] 
-    config.devices = [config.device]
-    config.conversation_templates = ["zero_shot"]  # Universal template
+    config.model_paths = (config.model_name,)  # Tuple instead of list
+    config.tokenizer_paths = (config.model_name,)  # Tuple instead of list  
+    config.devices = (config.device,)  # Tuple instead of list
+    config.conversation_templates = ("zero_shot",)  # Tuple instead of list
     
     # === MODEL KWARGS ===
     config.model_kwargs = [{"low_cpu_mem_usage": config.low_cpu_mem_usage, "use_cache": config.use_cache}]
