@@ -17,7 +17,7 @@ def get_config():
     config.auto_template_detection = False  # Let attack_manager handle templates
     
     # === MODEL PARAMETERS ===
-    config.model_name = "microsoft/DialoGPT-small"  # Default - can be overridden
+    config.model_name = "Qwen/Qwen2.5-0.5B-Instruct"  # Default - can be overridden
     config.device = "auto"
     
     # === ATTACK PARAMETERS ===  

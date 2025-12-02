@@ -47,6 +47,11 @@ class ConversationTemplateAdapter:
         """Get FastChat conversation template for any model."""
         if not FASTCHAT_AVAILABLE:
             return None
+        
+        # Handle None or empty model name
+        if not model_name:
+            print(f"⚠️ Invalid model name: {model_name}")
+            return None
             
         try:
             # First, try direct model name lookup (FastChat's auto-detection)

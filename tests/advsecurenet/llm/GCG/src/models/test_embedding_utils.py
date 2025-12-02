@@ -7,6 +7,7 @@ from advsecurenet.llm.GCG.src.models.embedding_utils import (
     NpEncoder, get_embedding_layer, get_embedding_matrix, 
     get_embeddings, get_nonascii_toks
 )
+from transformers import LlamaForCausalLM, GPTNeoXForCausalLM
 
 
 class TestNpEncoder:
@@ -52,6 +53,15 @@ class TestNpEncoder:
         with pytest.raises(TypeError):
             encoder.default(regular_obj)
 
+    def test_numpy_bool_encoding(self):
+        encoder = NpEncoder()
+        np_bool = np.bool_(True)
+        
+        result = encoder.default(np_bool)
+        
+        assert result is True
+        assert isinstance(result, bool)
+
     def test_json_dumps_integration(self):
         data = {
             'int': np.int64(123),
@@ -68,158 +78,158 @@ class TestNpEncoder:
 
 
 class TestGetEmbeddingLayer:
-    def test_gptj_model(self):
-        mock_model = MagicMock()
-        mock_model.__class__.__name__ = 'GPTJForCausalLM'
+    def test_gpt_neox_model_isinstance(self):
+        # Test direct GPTNeoXForCausalLM isinstance check (line 23)
+        from advsecurenet.llm.GCG.src.models.embedding_utils import GPTNeoXForCausalLM
         
-        # Mock isinstance to return True for GPTJForCausalLM
-        with patch('advsecurenet.llm.GCG.src.models.embedding_utils.GPTJForCausalLM') as mock_gptj:
-            mock_model.__class__ = mock_gptj
-            
-            mock_embedding = MagicMock()
-            mock_model.transformer.wte = mock_embedding
-            
-            result = get_embedding_layer(mock_model)
-            
-            assert result == mock_embedding
+        # Create a mock that will pass the isinstance check for GPTNeoXForCausalLM
+        mock_model = MagicMock(spec=GPTNeoXForCausalLM)
+        mock_embedding = MagicMock()
+        mock_model.base_model.embed_in = mock_embedding
+        
+        # Set the __class__ attribute to make isinstance work
+        mock_model.__class__ = GPTNeoXForCausalLM
+        
+        result = get_embedding_layer(mock_model)
+        
+        assert result == mock_embedding
 
-    def test_gpt2_model(self):
+    def test_embeddings_word_embeddings_fallback(self):
+        # Test embeddings.word_embeddings fallback (line 35)
         mock_model = MagicMock()
+        mock_embedding = MagicMock()
         
-        # Mock isinstance to return True for GPT2LMHeadModel
-        with patch('advsecurenet.llm.GCG.src.models.embedding_utils.GPT2LMHeadModel') as mock_gpt2:
-            mock_model.__class__ = mock_gpt2
-            
-            mock_embedding = MagicMock()
-            mock_model.transformer.wte = mock_embedding
-            
-            result = get_embedding_layer(mock_model)
-            
-            assert result == mock_embedding
+        # Remove all other attributes to force embeddings fallback
+        mock_model.transformer = None
+        mock_model.model = None
+        mock_model.gpt_neox = None
+        mock_model.embeddings.word_embeddings = mock_embedding
+        
+        result = get_embedding_layer(mock_model)
+        
+        assert result == mock_embedding
 
-    def test_llama_model(self):
+    def test_gptj_model_fallback_transformer_wte(self):
+        # Test the transformer.wte fallback path (GPT-J style)
         mock_model = MagicMock()
+        mock_embedding = MagicMock()
+        mock_model.transformer.wte = mock_embedding
         
-        # Mock isinstance to return True for LlamaForCausalLM
-        with patch('advsecurenet.llm.GCG.src.models.embedding_utils.LlamaForCausalLM') as mock_llama:
-            mock_model.__class__ = mock_llama
-            
-            mock_embedding = MagicMock()
-            mock_model.model.embed_tokens = mock_embedding
-            
-            result = get_embedding_layer(mock_model)
-            
-            assert result == mock_embedding
+        result = get_embedding_layer(mock_model)
+        
+        assert result == mock_embedding
 
-    def test_gpt_neox_model(self):
+    def test_llama_model_fallback_model_embed_tokens(self):
+        # Test the model.embed_tokens fallback path (LLaMA style)
         mock_model = MagicMock()
+        mock_embedding = MagicMock()
         
-        # Mock isinstance to return True for GPTNeoXForCausalLM
-        with patch('advsecurenet.llm.GCG.src.models.embedding_utils.GPTNeoXForCausalLM') as mock_neox:
-            mock_model.__class__ = mock_neox
-            
-            mock_embedding = MagicMock()
-            mock_model.base_model.embed_in = mock_embedding
-            
-            result = get_embedding_layer(mock_model)
-            
-            assert result == mock_embedding
+        # Remove transformer to avoid that fallback
+        mock_model.transformer = None
+        mock_model.model.embed_tokens = mock_embedding
+        
+        result = get_embedding_layer(mock_model)
+        
+        assert result == mock_embedding
+
+    def test_gpt_neox_fallback_gpt_neox_embed_in(self):
+        # Test the gpt_neox.embed_in fallback path (GPT-NeoX style)
+        mock_model = MagicMock()
+        mock_embedding = MagicMock()
+        
+        # Remove other attributes to force this fallback
+        mock_model.transformer = None
+        mock_model.model = None
+        mock_model.gpt_neox.embed_in = mock_embedding
+        
+        result = get_embedding_layer(mock_model)
+        
+        assert result == mock_embedding
+
+    def test_transformer_word_embeddings_fallback(self):
+        # Test transformer.word_embeddings fallback (BERT-style)
+        mock_model = MagicMock()
+        mock_embedding = MagicMock()
+        
+        # Create proper nested mocking to control hasattr behavior
+        mock_transformer = MagicMock()
+        # Explicitly remove wte attribute so hasattr returns False
+        del mock_transformer.wte
+        mock_transformer.word_embeddings = mock_embedding
+        mock_model.transformer = mock_transformer
+        
+        # Remove model and gpt_neox to force transformer path
+        mock_model.model = None
+        mock_model.gpt_neox = None
+        
+        result = get_embedding_layer(mock_model)
+        
+        assert result == mock_embedding
 
     def test_transformer_wte_fallback(self):
         mock_model = MagicMock()
+        mock_embedding = MagicMock()
+        mock_model.transformer.wte = mock_embedding
         
-        # Mock all isinstance checks to return False
-        with patch('advsecurenet.llm.GCG.src.models.embedding_utils.GPTJForCausalLM'), \
-             patch('advsecurenet.llm.GCG.src.models.embedding_utils.GPT2LMHeadModel'), \
-             patch('advsecurenet.llm.GCG.src.models.embedding_utils.LlamaForCausalLM'), \
-             patch('advsecurenet.llm.GCG.src.models.embedding_utils.GPTNeoXForCausalLM'):
-            
-            mock_embedding = MagicMock()
-            mock_model.transformer.wte = mock_embedding
-            
-            # Make hasattr checks work
-            def mock_hasattr(obj, name):
-                if name == 'transformer':
-                    return True
-                elif name == 'wte' and hasattr(obj, 'transformer'):
-                    return True
-                return False
-            
-            with patch('builtins.hasattr', side_effect=mock_hasattr):
-                result = get_embedding_layer(mock_model)
-                
-                assert result == mock_embedding
+        # Simply test the fallback path by not setting __class__ to any specific type
+        result = get_embedding_layer(mock_model)
+        
+        assert result == mock_embedding
 
     def test_model_embed_tokens_fallback(self):
         mock_model = MagicMock()
+        mock_embedding = MagicMock()
         
-        # Mock all isinstance checks to return False
-        with patch('advsecurenet.llm.GCG.src.models.embedding_utils.GPTJForCausalLM'), \
-             patch('advsecurenet.llm.GCG.src.models.embedding_utils.GPT2LMHeadModel'), \
-             patch('advsecurenet.llm.GCG.src.models.embedding_utils.LlamaForCausalLM'), \
-             patch('advsecurenet.llm.GCG.src.models.embedding_utils.GPTNeoXForCausalLM'):
-            
-            mock_embedding = MagicMock()
-            mock_model.model.embed_tokens = mock_embedding
-            
-            # Mock hasattr to match the fallback pattern
-            def mock_hasattr(obj, name):
-                if name == 'transformer':
-                    return False
-                elif name == 'model':
-                    return True
-                elif name == 'embed_tokens' and hasattr(obj, 'model'):
-                    return True
-                return False
-            
-            with patch('builtins.hasattr', side_effect=mock_hasattr):
-                result = get_embedding_layer(mock_model)
-                
-                assert result == mock_embedding
+        # Remove transformer to force model.embed_tokens path
+        mock_model.transformer = None
+        mock_model.model.embed_tokens = mock_embedding
+        
+        # Simply test the fallback path by not setting __class__ to any specific type
+        result = get_embedding_layer(mock_model)
+        
+        assert result == mock_embedding
 
     def test_embedding_layer_search_fallback(self):
         mock_model = MagicMock()
         mock_embedding = MagicMock()
         
-        # Mock all isinstance and hasattr checks to return False initially
-        with patch('advsecurenet.llm.GCG.src.models.embedding_utils.GPTJForCausalLM'), \
-             patch('advsecurenet.llm.GCG.src.models.embedding_utils.GPT2LMHeadModel'), \
-             patch('advsecurenet.llm.GCG.src.models.embedding_utils.LlamaForCausalLM'), \
-             patch('advsecurenet.llm.GCG.src.models.embedding_utils.GPTNeoXForCausalLM'), \
-             patch('builtins.hasattr', return_value=False):
-            
-            # Mock named_modules to return an embedding layer
-            mock_model.named_modules.return_value = [
-                ('other_layer', MagicMock()),
-                ('word_embeddings', mock_embedding)
-            ]
-            
-            with patch('builtins.isinstance') as mock_isinstance:
-                mock_isinstance.side_effect = lambda obj, cls: (
-                    cls == torch.nn.Embedding and obj == mock_embedding
-                )
-                
-                result = get_embedding_layer(mock_model)
-                
-                assert result == mock_embedding
+        # Remove all other attributes to force named_modules search
+        mock_model.transformer = None
+        mock_model.model = None
+        mock_model.gpt_neox = None
+        
+        # Delete embeddings attribute entirely to avoid hasattr issue
+        if hasattr(mock_model, 'embeddings'):
+            delattr(mock_model, 'embeddings')
+        
+        # Mock named_modules to return an embedding layer
+        mock_model.named_modules.return_value = [
+            ('other_layer', MagicMock()),
+            ('word_embeddings', mock_embedding)
+        ]
+        
+        # Make the embedding layer be recognized as torch.nn.Embedding
+        mock_embedding.__class__ = torch.nn.Embedding
+        
+        result = get_embedding_layer(mock_model)
+        
+        assert result == mock_embedding
 
     def test_no_embedding_layer_found(self):
         mock_model = MagicMock()
         
-        # Mock all checks to fail
-        with patch('advsecurenet.llm.GCG.src.models.embedding_utils.GPTJForCausalLM'), \
-             patch('advsecurenet.llm.GCG.src.models.embedding_utils.GPT2LMHeadModel'), \
-             patch('advsecurenet.llm.GCG.src.models.embedding_utils.LlamaForCausalLM'), \
-             patch('advsecurenet.llm.GCG.src.models.embedding_utils.GPTNeoXForCausalLM'), \
-             patch('builtins.hasattr', return_value=False):
-            
-            mock_model.named_modules.return_value = [
-                ('other_layer', MagicMock())
-            ]
-            
-            with patch('builtins.isinstance', return_value=False):
-                with pytest.raises(ValueError, match="Could not find embedding layer"):
-                    get_embedding_layer(mock_model)
+        # Remove all potential embedding attributes completely
+        for attr in ['transformer', 'model', 'gpt_neox', 'embeddings']:
+            if hasattr(mock_model, attr):
+                delattr(mock_model, attr)
+        
+        # Mock named_modules to return no embedding layers
+        mock_model.named_modules.return_value = [
+            ('other_layer', MagicMock())
+        ]
+        
+        with pytest.raises(ValueError, match="Could not find embedding layer"):
+            get_embedding_layer(mock_model)
 
 
 class TestGetEmbeddingMatrix:
@@ -234,7 +244,7 @@ class TestGetEmbeddingMatrix:
             
             result = get_embedding_matrix(mock_model)
             
-            assert result == mock_weight
+            assert torch.equal(result, mock_weight)
             mock_get_layer.assert_called_once_with(mock_model)
 
 
@@ -264,22 +274,22 @@ class TestGetEmbeddings:
         mock_embedding_layer = MagicMock()
         mock_output = MagicMock()
         mock_embedding_layer.return_value = mock_output
-        mock_embedding_layer.weight = MagicMock()
         
-        # Remove half attribute to simulate no half precision support
-        if hasattr(mock_embedding_layer.weight, 'half'):
-            delattr(mock_embedding_layer.weight, 'half')
+        # Create a mock weight without half attribute
+        mock_weight = MagicMock()
+        if hasattr(mock_weight, 'half'):
+            delattr(mock_weight, 'half')
+        mock_embedding_layer.weight = mock_weight
         
         input_ids = torch.tensor([1, 2, 3])
         
         with patch('advsecurenet.llm.GCG.src.models.embedding_utils.get_embedding_layer') as mock_get_layer:
             mock_get_layer.return_value = mock_embedding_layer
             
-            with patch('builtins.hasattr', return_value=False):
-                result = get_embeddings(mock_model, input_ids)
-                
-                assert result == mock_output
-                mock_embedding_layer.assert_called_once_with(input_ids)
+            result = get_embeddings(mock_model, input_ids)
+            
+            assert result == mock_output
+            mock_embedding_layer.assert_called_once_with(input_ids)
 
 
 class TestGetNonasciiToks:
@@ -312,6 +322,28 @@ class TestGetNonasciiToks:
         # Sort both tensors for comparison since order might vary
         assert torch.equal(torch.sort(result)[0], torch.sort(expected)[0])
 
+    def test_get_nonascii_toks_with_unk_token(self):
+        # Test the unk_token_id branch (line 70)
+        mock_tokenizer = MagicMock()
+        mock_tokenizer.vocab_size = 6
+        
+        mock_tokenizer.decode.side_effect = lambda x: {
+            3: "a",      # ascii
+            4: "é",      # non-ascii
+            5: "b"       # ascii
+        }[x[0]] if len(x) == 1 else "multi"
+        
+        mock_tokenizer.bos_token_id = None
+        mock_tokenizer.eos_token_id = None
+        mock_tokenizer.pad_token_id = None
+        mock_tokenizer.unk_token_id = 99  # Test this specific branch
+        
+        result = get_nonascii_toks(mock_tokenizer, device='cpu')
+        
+        # Should include non-ascii token (4) and unk token (99)
+        expected = torch.tensor([4, 99], device='cpu')
+        assert torch.equal(torch.sort(result)[0], torch.sort(expected)[0])
+
     def test_get_nonascii_toks_no_special_tokens(self):
         mock_tokenizer = MagicMock()
         mock_tokenizer.vocab_size = 6
@@ -333,6 +365,7 @@ class TestGetNonasciiToks:
         expected = torch.tensor([4], device='cpu')
         assert torch.equal(result, expected)
 
+    @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
     def test_get_nonascii_toks_cuda_device(self):
         mock_tokenizer = MagicMock()
         mock_tokenizer.vocab_size = 5
@@ -430,22 +463,29 @@ class TestIntegration:
         mock_weight = torch.randn(100, 64)
         mock_embedding_layer.weight = mock_weight
         
-        # Test full workflow
+        # Test matrix retrieval
         with patch('advsecurenet.llm.GCG.src.models.embedding_utils.get_embedding_layer') as mock_get_layer:
             mock_get_layer.return_value = mock_embedding_layer
             
-            # Test matrix retrieval
             matrix = get_embedding_matrix(mock_model)
-            assert matrix == mock_weight
+            assert torch.equal(matrix, mock_weight)
+        
+        # Test embedding computation
+        input_ids = torch.tensor([1, 2, 3])
+        mock_output = torch.randn(3, 64)
+        mock_embedding_layer.return_value = mock_output
+        
+        # Create a mock weight without half attribute
+        mock_weight_no_half = MagicMock()
+        if hasattr(mock_weight_no_half, 'half'):
+            delattr(mock_weight_no_half, 'half')
+        mock_embedding_layer.weight = mock_weight_no_half
+        
+        with patch('advsecurenet.llm.GCG.src.models.embedding_utils.get_embedding_layer') as mock_get_layer:
+            mock_get_layer.return_value = mock_embedding_layer
             
-            # Test embedding computation
-            input_ids = torch.tensor([1, 2, 3])
-            mock_output = torch.randn(3, 64)
-            mock_embedding_layer.return_value = mock_output
-            
-            with patch('builtins.hasattr', return_value=False):
-                embeddings = get_embeddings(mock_model, input_ids)
-                assert torch.equal(embeddings, mock_output)
+            embeddings = get_embeddings(mock_model, input_ids)
+            assert torch.equal(embeddings, mock_output)
 
     def test_npencoder_with_complex_data(self):
         # Test NpEncoder with nested structures
@@ -465,7 +505,8 @@ class TestIntegration:
         json_str = json.dumps(complex_data, cls=NpEncoder)
         parsed = json.loads(json_str)
         
-        assert parsed['metrics']['accuracy'] == 0.95
+        # Use approximate equality for float comparison
+        assert abs(parsed['metrics']['accuracy'] - 0.95) < 1e-6
         assert parsed['metrics']['loss'] == 0.123
         assert parsed['metrics']['counts'] == [10, 20, 30]
         assert parsed['metrics']['confusion_matrix'] == [[5, 1], [2, 8]]

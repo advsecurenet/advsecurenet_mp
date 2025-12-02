@@ -282,6 +282,12 @@ class TestGetGoalsAndTargets:
         params.n_test_data = 0
         params.data_offset = 0
         
+        # Set default values for getattr calls to avoid MagicMock confusion
+        params.goals = []
+        params.targets = []
+        params.test_goals = []
+        params.test_targets = []
+        
         # Mock CSV with both goal and target columns
         mock_df = pd.DataFrame({
             'goal': ['goal1', 'goal2', 'goal3'],
@@ -394,13 +400,25 @@ class TestGetGoalsAndTargets:
         params.n_test_data = 0
         params.data_offset = 0
         
-        # Create mismatched data
+        # Set default values for getattr calls to avoid MagicMock confusion
+        params.goals = []
+        params.targets = []
+        params.test_goals = []
+        params.test_targets = []
+        
+        # Create a mock DataFrame that has the columns but we'll mock the tolist() to return mismatched
         mock_df = pd.DataFrame({
-            'goal': ['goal1'],  # Only one goal
-            'target': ['target1', 'target2']  # But two targets
+            'goal': ['goal1', 'goal2', 'goal3'],
+            'target': ['target1', 'target2', 'target3']
         })
+        
+        # Mock tolist() to return different lengths
+        mock_df['target'].tolist = MagicMock(return_value=['target1', 'target2'])  # 2 targets
+        mock_df['goal'].tolist = MagicMock(return_value=['goal1'])  # 1 goal - mismatch!
+        
         mock_read_csv.return_value = mock_df
         
+        # The function should raise AssertionError due to length mismatch
         with pytest.raises(AssertionError):
             get_goals_and_targets(params)
 

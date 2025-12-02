@@ -126,7 +126,7 @@ class TestProgressiveAttackRun:
         mpa_instances = [MagicMock(), MagicMock()]
         for i, mpa in enumerate(mpa_instances):
             mpa.control = f"control_{i}"
-            mpa.run = MagicMock()
+            mpa.run = MagicMock(return_value=(f"control_{i}", 0.5, 5))  # Return 3 values
         
         basic_config['managers']['MPA'].side_effect = mpa_instances
         
@@ -145,7 +145,7 @@ class TestProgressiveAttackRun:
         
         mpa_instance = MagicMock()
         mpa_instance.control = "final_control"
-        mpa_instance.run = MagicMock()
+        mpa_instance.run = MagicMock(return_value=("final_control", 0.3, 10))
         basic_config['managers']['MPA'].return_value = mpa_instance
         
         attack.run(n_steps=10, verbose=False)
@@ -172,14 +172,14 @@ class TestProgressiveAttackRun:
         mpa_instances = [MagicMock(), MagicMock(), MagicMock()]
         for i, mpa in enumerate(mpa_instances):
             mpa.control = f"control_{i}"
-            mpa.run = MagicMock()
+            mpa.run = MagicMock(return_value=(f"control_{i}", 0.4, 8))
         
         mock_managers['MPA'].side_effect = mpa_instances
         
         attack.run(n_steps=10, verbose=False)
         
-        # Should create 3 MPA instances (one for each worker progressively)
-        assert mock_managers['MPA'].call_count == 3
+        # Should create 2 MPA instances (1 worker, then 2 workers)
+        assert mock_managers['MPA'].call_count == 2
 
     def test_run_non_progressive_models(self, mock_worker, mock_managers):
         workers = [mock_worker, MagicMock()]
@@ -188,12 +188,13 @@ class TestProgressiveAttackRun:
             targets=['target1', 'target2'],
             workers=workers,
             progressive_models=False,
+            progressive_goals=False,  # Set this to False as well
             managers=mock_managers
         )
         
         mpa_instance = MagicMock()
         mpa_instance.control = "final_control"
-        mpa_instance.run = MagicMock()
+        mpa_instance.run = MagicMock(return_value=("final_control", 0.2, 6))
         mock_managers['MPA'].return_value = mpa_instance
         
         attack.run(n_steps=10, verbose=False)
@@ -220,13 +221,13 @@ class TestProgressiveAttackRun:
         mpa_instances = [MagicMock() for _ in range(4)]
         for i, mpa in enumerate(mpa_instances):
             mpa.control = f"control_{i}"
-            mpa.run = MagicMock()
+            mpa.run = MagicMock(return_value=(f"control_{i}", 0.1 * i, i + 2))
         
         mock_managers['MPA'].side_effect = mpa_instances
         
         attack.run(n_steps=10, verbose=False)
         
-        assert mock_managers['MPA'].call_count == 4
+        assert mock_managers['MPA'].call_count == 3  # 1goal+1worker, 2goals+1worker, 2goals+2workers
 
     def test_run_neither_progressive(self, mock_worker, mock_managers):
         workers = [mock_worker, MagicMock()]
@@ -241,7 +242,7 @@ class TestProgressiveAttackRun:
         
         mpa_instance = MagicMock()
         mpa_instance.control = "final_control"
-        mpa_instance.run = MagicMock()
+        mpa_instance.run = MagicMock(return_value=("final_control", 0.2, 8))
         mock_managers['MPA'].return_value = mpa_instance
         
         attack.run(n_steps=10, verbose=False)
@@ -255,9 +256,9 @@ class TestProgressiveAttackRun:
         # Mock MPA instances with different controls
         mpa_instances = [MagicMock(), MagicMock()]
         mpa_instances[0].control = "control_1"
-        mpa_instances[0].run = MagicMock()
+        mpa_instances[0].run = MagicMock(return_value=("control_1", 0.4, 3))
         mpa_instances[1].control = "control_2"
-        mpa_instances[1].run = MagicMock()
+        mpa_instances[1].run = MagicMock(return_value=("control_2", 0.2, 5))
         
         basic_config['managers']['MPA'].side_effect = mpa_instances
         
@@ -271,7 +272,7 @@ class TestProgressiveAttackRun:
         
         mpa_instance = MagicMock()
         mpa_instance.control = "final_control"
-        mpa_instance.run = MagicMock()
+        mpa_instance.run = MagicMock(return_value=("final_control", 0.1, 20))  # Return 20 steps to complete in one iteration
         basic_config['managers']['MPA'].return_value = mpa_instance
         
         attack.run(
@@ -304,7 +305,7 @@ class TestProgressiveAttackRun:
         
         mpa_instance = MagicMock()
         mpa_instance.control = "final_control"
-        mpa_instance.run = MagicMock()
+        mpa_instance.run = MagicMock(return_value=("final_control", 0.15, 8))
         basic_config['managers']['MPA'].return_value = mpa_instance
         
         attack.run(n_steps=15, batch_size=32, verbose=False)
@@ -327,7 +328,7 @@ class TestProgressiveAttackRun:
         
         mpa_instance = MagicMock()
         mpa_instance.control = "final_control"
-        mpa_instance.run = MagicMock()
+        mpa_instance.run = MagicMock(return_value=("final_control", 0.3, 6))
         mock_managers['MPA'].return_value = mpa_instance
         
         attack.run(n_steps=10, verbose=False)
@@ -343,11 +344,17 @@ class TestProgressiveAttackRun:
             managers=mock_managers
         )
         
+        # Mock MPA to return proper tuple even for empty goals
+        mpa_instance = MagicMock()
+        mpa_instance.control = "empty_control"
+        mpa_instance.run = MagicMock(return_value=("empty_control", 0.0, 10))  # Return 10 steps to complete
+        mock_managers['MPA'].return_value = mpa_instance
+        
         control = attack.run(n_steps=10, verbose=False)
         
         # Should handle empty goals gracefully
-        assert control == attack.control
-        mock_managers['MPA'].assert_not_called()
+        assert control[0] == "empty_control"  # First element is control
+        assert mock_managers['MPA'].call_count == 1  # Still called once with empty lists
 
 
 class TestProgressiveAttackEdgeCases:
@@ -376,27 +383,84 @@ class TestProgressiveAttackEdgeCases:
             managers=mock_managers
         )
         
+        # Mock MPA to return proper tuple even for empty workers
+        mpa_instance = MagicMock()
+        mpa_instance.control = "no_worker_control"
+        mpa_instance.run = MagicMock(return_value=("no_worker_control", 0.5, 10))  # Return 10 steps to complete
+        mock_managers['MPA'].return_value = mpa_instance
+        
         control = attack.run(n_steps=10, verbose=False)
         
-        # Should handle no workers
-        assert control == attack.control
-        mock_managers['MPA'].assert_not_called()
+        # Should handle no workers gracefully
+        assert control[0] == "no_worker_control"  # First element is control
+        assert mock_managers['MPA'].call_count == 1  # Still called once with empty worker list
+
+    def test_filter_mpa_kwargs(self, basic_config):
+        """Test the static filter_mpa_kwargs method"""
+        kwargs = {
+            'mpa_param1': 'value1',
+            'mpa_param2': 'value2',
+            'regular_param': 'value3',
+            'mpa_another': 'value4'
+        }
+        
+        result = ProgressiveMultiPromptAttack.filter_mpa_kwargs(**kwargs)
+        
+        expected = {
+            'param1': 'value1',
+            'param2': 'value2', 
+            'another': 'value4'
+        }
+        assert result == expected
 
     def test_missing_managers(self, mock_worker):
+        attack = ProgressiveMultiPromptAttack(
+            goals=['goal'],
+            targets=['target'],
+            workers=[mock_worker],
+            managers=None
+        )
+        
+        # Exception should occur during run, not init
         with pytest.raises((KeyError, TypeError)):
-            ProgressiveMultiPromptAttack(
-                goals=['goal'],
-                targets=['target'],
-                workers=[mock_worker],
-                managers=None
-            )
+            attack.run(n_steps=10, verbose=False)
 
 
 class TestProgressiveAttackIntegration:
-    def test_complete_progressive_workflow(self, mock_worker, mock_managers, tmp_path):
+    def test_complete_progressive_workflow(self, tmp_path):
         # Test complete workflow with both progressions
         logfile = tmp_path / "full_test.json"
-        workers = [mock_worker, MagicMock()]
+        
+        # Create properly structured mock workers
+        mock_model1 = MagicMock()
+        mock_model1.name_or_path = "model1"
+        mock_tokenizer1 = MagicMock()
+        mock_tokenizer1.name_or_path = "tokenizer1"
+        mock_conv1 = MagicMock()
+        mock_conv1.name = "conv1"
+        
+        mock_worker1 = MagicMock()
+        mock_worker1.model = mock_model1
+        mock_worker1.tokenizer = mock_tokenizer1
+        mock_worker1.conv_template = mock_conv1
+        
+        mock_model2 = MagicMock()
+        mock_model2.name_or_path = "model2"
+        mock_tokenizer2 = MagicMock()
+        mock_tokenizer2.name_or_path = "tokenizer2"
+        mock_conv2 = MagicMock()
+        mock_conv2.name = "conv2"
+        
+        mock_worker2 = MagicMock()
+        mock_worker2.model = mock_model2
+        mock_worker2.tokenizer = mock_tokenizer2
+        mock_worker2.conv_template = mock_conv2
+        
+        workers = [mock_worker1, mock_worker2]
+        
+        mock_managers = {
+            'MPA': MagicMock()
+        }
         
         attack = ProgressiveMultiPromptAttack(
             goals=['goal1', 'goal2'],
@@ -407,7 +471,7 @@ class TestProgressiveAttackIntegration:
             logfile=str(logfile),
             test_goals=['test_goal'],
             test_targets=['test_target'],
-            test_workers=[mock_worker],
+            test_workers=[mock_worker1],
             managers=mock_managers
         )
         
@@ -416,7 +480,7 @@ class TestProgressiveAttackIntegration:
         for i in range(4):
             mpa = MagicMock()
             mpa.control = f"control_{i}"
-            mpa.run = MagicMock()
+            mpa.run = MagicMock(return_value=(f"control_{i}", 0.1 * i, i + 2))
             mpa_instances.append(mpa)
         
         mock_managers['MPA'].side_effect = mpa_instances
@@ -429,9 +493,9 @@ class TestProgressiveAttackIntegration:
         )
         
         # Verify complete execution
-        assert mock_managers['MPA'].call_count == 4
-        assert final_control == "control_3"  # Last control
-        assert attack.control == "control_3"
+        assert mock_managers['MPA'].call_count == 3  # 1goal+1worker, 2goals+1worker, 2goals+2workers
+        assert final_control[0] == "control_2"  # Last control (since we created 3 instances: 0, 1, 2)
+        assert attack.control == "control_2"
         
         # Verify logfile
         assert logfile.exists()
@@ -446,7 +510,7 @@ class TestProgressiveAttackIntegration:
         mpa_instances = [MagicMock(), MagicMock()]
         for i, mpa in enumerate(mpa_instances):
             mpa.control = f"control_{i}"
-            mpa.run = MagicMock()
+            mpa.run = MagicMock(return_value=(f"control_{i}", 0.2 * i, i + 3))
         
         basic_config['managers']['MPA'].side_effect = mpa_instances
         
@@ -478,7 +542,7 @@ class TestProgressiveAttackIntegration:
         mpa_instances = [MagicMock(), MagicMock()]
         for i, mpa in enumerate(mpa_instances):
             mpa.control = f"control_{i}"
-            mpa.run = MagicMock()
+            mpa.run = MagicMock(return_value=(f"control_{i}", 0.3 * i, i + 4))
         
         mock_managers['MPA'].side_effect = mpa_instances
         

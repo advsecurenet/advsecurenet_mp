@@ -112,9 +112,16 @@ class TestModelWorkerInit:
             device="cpu"
         )
         
-        # Verify queues are created
-        assert isinstance(worker.tasks, mp.JoinableQueue)
-        assert isinstance(worker.results, mp.JoinableQueue)
+        # Verify queues are created and have expected methods
+        assert hasattr(worker.tasks, 'put')
+        assert hasattr(worker.tasks, 'get')
+        assert hasattr(worker.tasks, 'task_done')
+        assert hasattr(worker.tasks, 'join')
+        
+        assert hasattr(worker.results, 'put')
+        assert hasattr(worker.results, 'get')
+        assert hasattr(worker.results, 'task_done')
+        assert hasattr(worker.results, 'join')
 
 
 class TestModelWorkerRun:

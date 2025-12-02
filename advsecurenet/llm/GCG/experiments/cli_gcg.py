@@ -13,22 +13,21 @@ def gcg():
 @gcg.command()
 @click.option('--config', '-c', default='configs/universal_config.py',
               help='Config file to use (default: universal_config.py)')
-@click.option('--model', '-m', default='microsoft/DialoGPT-medium', 
-              help='HuggingFace model name or path')
-@click.option('--attack-type', default='individual', 
+@click.option('--model', '-m', default=None,  
+              help='HuggingFace model name or path (overrides config)')
+@click.option('--attack-type', default=None,  
               type=click.Choice(['individual', 'transfer']),
-              help='Type of attack to run')
-@click.option('--data-type', default='behaviors',
+              help='Type of attack to run (overrides config)')
+@click.option('--data-type', default=None,  
               type=click.Choice(['behaviors', 'strings']),
-              help='Data type for attack')
-@click.option('--device', default='auto', help='Device to use (auto, cpu, cuda:0)')
-@click.option('--steps', '-s', default=100, help='Number of optimization steps')
-@click.option('--train-data', default=1, help='Number of training examples')
-@click.option('--batch-size', '-b', default=32, help='Batch size for optimization')
-@click.option('--learning-rate', '-lr', default=0.01, help='Learning rate')
-@click.option('--control-init', default='! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! !',
-              help='Initial control string')
-@click.option('--data-offset', default=0, help='Data offset for experiments')
+              help='Data type for attack (overrides config)')
+@click.option('--device', default=None, help='Device to use (overrides config)')
+@click.option('--steps', '-s', default=None, help='Number of optimization steps (overrides config)')
+@click.option('--train-data', default=None, help='Number of training examples (overrides config)')
+@click.option('--batch-size', '-b', default=None, help='Batch size for optimization (overrides config)')
+@click.option('--learning-rate', '-lr', default=None, help='Learning rate (overrides config)')
+@click.option('--control-init', default=None, help='Initial control string (overrides config)')
+@click.option('--data-offset', default=None, help='Data offset for experiments (overrides config)')
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose output')
 @click.option('--config-override', multiple=True, 
               help='Override config parameters (format: key=value)')
@@ -56,50 +55,61 @@ def attack(config, model, attack_type, data_type, device, steps, train_data, bat
         
         sys.exit(1)
     
-    # Verify other required files
-    required_files = ['main.py']
-    missing_files = []
-    
-    for file_path in required_files:
-        if not (gcg_dir / file_path).exists():
-            missing_files.append(file_path)
-    
-    if missing_files:
-        click.echo(f"❌ Missing required files: {missing_files}", err=True)
-        click.echo(f"   Please run this command from: .../GCG/experiments/", err=True)
-        click.echo(f"   Current directory: {gcg_dir}", err=True)
-        sys.exit(1)
-    
     click.echo(f"🚀 Running Universal GCG Attack")
     click.echo(f"================================")
     click.echo(f"Config: {config_path}")
-    click.echo(f"Model: {model}")
-    click.echo(f"Attack Type: {attack_type}")
-    click.echo(f"Data Type: {data_type}")
-    click.echo(f"Device: {device}")
-    click.echo(f"Steps: {steps}")
-    click.echo(f"Training Data: {train_data}")
-    click.echo(f"Batch Size: {batch_size}")
-    click.echo(f"Learning Rate: {learning_rate}")
+    if model:
+        click.echo(f"Model Override: {model}")
+    if attack_type:
+        click.echo(f"Attack Type Override: {attack_type}")
+    if data_type:
+        click.echo(f"Data Type Override: {data_type}")
+    if device:
+        click.echo(f"Device Override: {device}")
+    if steps:
+        click.echo(f"Steps Override: {steps}")
+    if train_data:
+        click.echo(f"Training Data Override: {train_data}")
+    if batch_size:
+        click.echo(f"Batch Size Override: {batch_size}")
+    if learning_rate:
+        click.echo(f"Learning Rate Override: {learning_rate}")
     click.echo(f"Working Directory: {gcg_dir}")
     click.echo(f"================================")
     
-    # Build command - KEY FIX: Use absolute path for config
+    # Build command - MATCH THE EXACT SHELL SCRIPT SYNTAX
     cmd = [
         sys.executable, 'main.py',
-        '--config', str(config_path),  # Convert to absolute path
-        f'--config.model_name={model}',
-        f'--config.device={device}',
-        f'--config.attack_type={attack_type}',
-        f'--config.data_type={data_type}',
-        f'--config.n_steps={steps}',
-        f'--config.n_train_data={train_data}',
-        f'--config.batch_size={batch_size}',
-        f'--config.lr={learning_rate}',
-        f'--config.control_init={control_init}',
-        f'--config.data_offset={data_offset}',
+        '--config', str(config_path),
         f'--config.verbose={verbose}'
     ]
+    
+    # Only add overrides if values are provided - USE THE EXACT SHELL SCRIPT SYNTAX
+    if model:
+        cmd.extend([
+            f'--config.model_name="{model}"',                    # FIXED: Add quotes like shell script
+            f'--config.model_paths="(\'{model}\',)"',            # FIXED: Exact shell script syntax  
+            f'--config.tokenizer_paths="(\'{model}\',)"'         # FIXED: Exact shell script syntax
+        ])
+    
+    if device:
+        cmd.append(f'--config.device="{device}"')               # FIXED: Add quotes
+    if attack_type:
+        cmd.append(f'--config.attack_type="{attack_type}"')     # FIXED: Add quotes
+    if data_type:
+        cmd.append(f'--config.data_type="{data_type}"')         # FIXED: Add quotes
+    if steps:
+        cmd.append(f'--config.n_steps={steps}')
+    if train_data:
+        cmd.append(f'--config.n_train_data={train_data}')
+    if batch_size:
+        cmd.append(f'--config.batch_size={batch_size}')
+    if learning_rate:
+        cmd.append(f'--config.lr={learning_rate}')
+    if control_init:
+        cmd.append(f'--config.control_init="{control_init}"')   # FIXED: Add quotes
+    if data_offset is not None:
+        cmd.append(f'--config.data_offset={data_offset}')
     
     # Add any additional config overrides
     for override in config_override:
@@ -132,9 +142,6 @@ def attack(config, model, attack_type, data_type, device, steps, train_data, bat
     except Exception as e:
         click.echo(f"❌ Unexpected error: {e}", err=True)
         sys.exit(1)
-
-# ... rest of the functions remain the same ...
-
 @gcg.command()
 def list_configs():
     """List available configuration files."""

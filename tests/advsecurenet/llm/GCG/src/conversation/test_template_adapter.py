@@ -40,8 +40,11 @@ class TestConversationTemplateAdapter:
 
     @patch('advsecurenet.llm.GCG.src.conversation.template_adapter.FASTCHAT_AVAILABLE', True)
     @patch('advsecurenet.llm.GCG.src.conversation.template_adapter.get_conversation_template')
-    def test_get_fastchat_template_exception_handling(self, mock_get_template):
+    @patch('advsecurenet.llm.GCG.src.conversation.template_adapter.get_conv_template')
+    def test_get_fastchat_template_exception_handling(self, mock_get_conv_template, mock_get_template):
+        # Mock both functions to fail so all fallbacks fail
         mock_get_template.side_effect = Exception("Template not found")
+        mock_get_conv_template.side_effect = Exception("Template not found")
         
         result = ConversationTemplateAdapter.get_fastchat_template("unknown-model")
         
@@ -65,24 +68,23 @@ class TestConversationTemplateAdapter:
             assert isinstance(template_name, str)
             assert len(template_name) > 0
 
-    def test_get_conversation_template_method_exists(self):
-        adapter = ConversationTemplateAdapter()
-        
-        # Method should exist even if not implemented
-        assert hasattr(adapter, 'get_conversation_template')
+    def test_get_fastchat_template_method_exists(self):
+        # Method should exist as static method on class
+        assert hasattr(ConversationTemplateAdapter, 'get_fastchat_template')
+        assert callable(getattr(ConversationTemplateAdapter, 'get_fastchat_template'))
 
     @patch('advsecurenet.llm.GCG.src.conversation.template_adapter.FASTCHAT_AVAILABLE', True)
     @patch('advsecurenet.llm.GCG.src.conversation.template_adapter.get_conversation_template')
-    def test_fastchat_template_detection_flow(self, mock_get_template, mock_fastchat_conversation):
+    def test_fastchat_template_detection_flow(self, mock_get_template):
         # Test the flow from model name to template
-        mock_get_template.return_value = mock_fastchat_conversation
+        mock_conv = MagicMock()
+        mock_conv.name = "test_template"
+        mock_get_template.return_value = mock_conv
         
-        adapter = ConversationTemplateAdapter()
-        
-        # Test with a known model pattern
+        # Test with a known model pattern (using static method correctly)
         for model_name in ["llama-7b-chat", "microsoft/DialoGPT-medium", "Qwen/Qwen-7B-Chat"]:
-            result = adapter.get_fastchat_template(model_name)
-            assert result == mock_fastchat_conversation
+            result = ConversationTemplateAdapter.get_fastchat_template(model_name)
+            assert result == mock_conv
 
     def test_template_map_coverage(self):
         # Ensure template map covers major model families
@@ -95,6 +97,67 @@ class TestConversationTemplateAdapter:
         
         for family in expected_families:
             assert family in template_map, f"Missing template mapping for {family}"
+
+    @patch('advsecurenet.llm.GCG.src.conversation.template_adapter.FASTCHAT_AVAILABLE', True)
+    @patch('advsecurenet.llm.GCG.src.conversation.template_adapter.get_conversation_template')
+    @patch('advsecurenet.llm.GCG.src.conversation.template_adapter.get_conv_template')
+    def test_get_fastchat_template_pattern_matching(self, mock_get_conv_template, mock_get_template):
+        # Auto-detection fails, pattern matching succeeds
+        mock_get_template.side_effect = Exception("Auto-detection failed")
+        
+        mock_conv = MagicMock()
+        mock_conv.name = "llama-2"
+        mock_get_conv_template.return_value = mock_conv
+        
+        result = ConversationTemplateAdapter.get_fastchat_template("llama-chat-model")
+        
+        assert result == mock_conv
+        mock_get_conv_template.assert_called_with("llama-2")
+
+    @patch('advsecurenet.llm.GCG.src.conversation.template_adapter.FASTCHAT_AVAILABLE', True)
+    @patch('advsecurenet.llm.GCG.src.conversation.template_adapter.get_conversation_template')
+    @patch('advsecurenet.llm.GCG.src.conversation.template_adapter.get_conv_template')
+    def test_get_fastchat_template_final_fallback(self, mock_get_conv_template, mock_get_template):
+        # Auto-detection and pattern matching fail, fallback succeeds
+        mock_get_template.side_effect = Exception("Auto-detection failed")
+        
+        # Pattern matching fails for all families
+        def pattern_side_effect(template_name):
+            if template_name == "zero_shot":  # First fallback template succeeds
+                mock_conv = MagicMock()
+                mock_conv.name = "zero_shot"
+                return mock_conv
+            raise Exception("Template not found")
+        
+        mock_get_conv_template.side_effect = pattern_side_effect
+        
+        result = ConversationTemplateAdapter.get_fastchat_template("completely-unknown-model")
+        
+        assert result.name == "zero_shot"
+
+    def test_get_fastchat_template_invalid_model_name_handling(self):
+        # Test None and empty string handling
+        with patch('advsecurenet.llm.GCG.src.conversation.template_adapter.FASTCHAT_AVAILABLE', True):
+            result_none = ConversationTemplateAdapter.get_fastchat_template(None)
+            result_empty = ConversationTemplateAdapter.get_fastchat_template("")
+            
+            assert result_none is None
+            assert result_empty is None
+
+    def test_detect_model_family(self):
+        # Test model family detection
+        test_cases = [
+            ("microsoft/DialoGPT-medium", "dialogpt"),
+            ("meta-llama/Llama-2-7b-chat", "llama"),
+            ("mistralai/Mistral-7B-Instruct", "mistral"),
+            ("Qwen/Qwen-7B-Chat", "qwen"),
+            ("facebook/opt-350m", "opt"),
+            ("some-unknown-model", "generic")
+        ]
+        
+        for model_name, expected_family in test_cases:
+            result = ConversationTemplateAdapter.detect_model_family(model_name)
+            assert result == expected_family
 
     @patch('advsecurenet.llm.GCG.src.conversation.template_adapter.FASTCHAT_AVAILABLE', True)
     def test_template_adapter_class_structure(self):
@@ -150,8 +213,9 @@ class TestConversationTemplateAdapter:
 
     @patch('advsecurenet.llm.GCG.src.conversation.template_adapter.FASTCHAT_AVAILABLE', True)
     @patch('advsecurenet.llm.GCG.src.conversation.template_adapter.get_conversation_template')
-    def test_fastchat_template_error_scenarios(self, mock_get_template):
-        # Test different types of errors
+    @patch('advsecurenet.llm.GCG.src.conversation.template_adapter.get_conv_template')
+    def test_fastchat_template_error_scenarios(self, mock_get_conv_template, mock_get_template):
+        # Test different types of errors - mock both functions to fail all fallbacks
         error_scenarios = [
             ValueError("Invalid model"),
             RuntimeError("Template error"),
@@ -161,6 +225,7 @@ class TestConversationTemplateAdapter:
         
         for error in error_scenarios:
             mock_get_template.side_effect = error
+            mock_get_conv_template.side_effect = error
             
             result = ConversationTemplateAdapter.get_fastchat_template("error-model")
             assert result is None
@@ -203,6 +268,87 @@ class TestConversationTemplateAdapter:
         assert "Universal adapter" in adapter.__class__.__doc__
         assert "HuggingFace" in adapter.__class__.__doc__
         assert "FastChat" in adapter.__class__.__doc__
+
+    @patch('advsecurenet.llm.GCG.src.conversation.template_adapter.FASTCHAT_AVAILABLE', True)
+    def test_format_for_gcg_fastchat_format(self):
+        mock_tokenizer = MagicMock()
+        mock_tokenizer.eos_token = "</s>"
+        mock_tokenizer.bos_token = "<s>"
+        
+        mock_conv = MagicMock()
+        mock_conv.name = "test-template"
+        mock_conv.roles = ["User", "Assistant"]
+        mock_conv.messages = []
+        mock_conv.get_prompt.return_value = "User: test prompt\nAssistant: test target</s>"
+        
+        with patch('advsecurenet.llm.GCG.src.conversation.template_adapter.ConversationTemplateAdapter.get_universal_conversation_format') as mock_get_format:
+            mock_get_format.return_value = {
+                'format_type': 'fastchat',
+                'fastchat_template': mock_conv,
+                'template_name': 'test-template'
+            }
+            
+            result = ConversationTemplateAdapter.format_for_gcg("test prompt", "test target", "test-model", mock_tokenizer)
+            
+            assert "User: test prompt" in result
+            assert "Assistant: test target" in result
+            assert "</s>" not in result  # Should be removed for GCG
+    
+    def test_format_for_gcg_chat_template_format(self):
+        mock_tokenizer = MagicMock()
+        mock_tokenizer.eos_token = "</s>"
+        mock_tokenizer.apply_chat_template.return_value = "User: test prompt\nAssistant: test target</s>"
+        
+        with patch('advsecurenet.llm.GCG.src.conversation.template_adapter.ConversationTemplateAdapter.get_universal_conversation_format') as mock_get_format:
+            mock_get_format.return_value = {
+                'format_type': 'chat_template',
+                'eos_token': '</s>',
+                'template_name': 'huggingface_builtin'
+            }
+            
+            result = ConversationTemplateAdapter.format_for_gcg("test prompt", "test target", "test-model", mock_tokenizer)
+            
+            assert "User: test prompt" in result
+            assert "Assistant: test target" in result
+            assert "</s>" not in result  # Should be removed for GCG
+
+    def test_format_for_gcg_manual_format(self):
+        mock_tokenizer = MagicMock()
+        
+        with patch('advsecurenet.llm.GCG.src.conversation.template_adapter.ConversationTemplateAdapter.get_universal_conversation_format') as mock_get_format:
+            mock_get_format.return_value = {
+                'format_type': 'manual',
+                'template': "Human: {user_message}\nAssistant: {bot_response}",
+                'roles': ['Human', 'Assistant'],
+                'template_name': 'manual_generic'
+            }
+            
+            result = ConversationTemplateAdapter.format_for_gcg("test prompt", "test target", "test-model", mock_tokenizer)
+            
+            assert result == "Human: test prompt\nAssistant: test target"
+
+    @patch('advsecurenet.llm.GCG.src.conversation.template_adapter.FASTCHAT_AVAILABLE', True)
+    def test_normalize_template(self):
+        mock_tokenizer = MagicMock()
+        mock_tokenizer.name_or_path = "test-model"
+        
+        mock_conv_template = MagicMock()
+        
+        mock_fastchat_conv = MagicMock()
+        mock_fastchat_conv.name = "test-template"
+        mock_fastchat_conv.roles = ["User", "Assistant"]
+        mock_fastchat_conv.sep = "\n"
+        mock_fastchat_conv.sep2 = None
+        mock_fastchat_conv.system = "System message"
+        
+        with patch('advsecurenet.llm.GCG.src.conversation.template_adapter.ConversationTemplateAdapter.get_fastchat_template') as mock_get_template:
+            mock_get_template.return_value = mock_fastchat_conv
+            
+            result = ConversationTemplateAdapter.normalize_template(mock_conv_template, mock_tokenizer)
+            
+            assert result.roles == ("User", "Assistant")
+            assert result.sep == "\n"
+            assert result.eos_token == ""  # Should be disabled for GCG
 
 
 class TestConversationTemplateAdapterIntegration:
@@ -255,22 +401,226 @@ class TestConversationTemplateAdapterIntegration:
             assert found_family == expected_family, f"Failed to map {model_name} to {expected_family}"
 
 
+class TestConversationTemplateAdapterMissingMethods:
+    def test_detect_model_family(self):
+        # Test model family detection
+        test_cases = [
+            ("microsoft/DialoGPT-medium", "dialogpt"),
+            ("meta-llama/Llama-2-7b-chat", "llama"),
+            ("mistralai/Mistral-7B-Instruct", "mistral"),
+            ("Qwen/Qwen-7B-Chat", "qwen"),
+            ("facebook/opt-350m", "opt"),
+            ("some-unknown-model", "generic")
+        ]
+        
+        for model_name, expected_family in test_cases:
+            result = ConversationTemplateAdapter.detect_model_family(model_name)
+            assert result == expected_family
+    
+    @patch('advsecurenet.llm.GCG.src.conversation.template_adapter.FASTCHAT_AVAILABLE', True)
+    def test_get_universal_conversation_format_with_fastchat(self):
+        mock_tokenizer = MagicMock()
+        mock_tokenizer.eos_token = "</s>"
+        
+        mock_conv = MagicMock()
+        mock_conv.name = "test-template"
+        mock_conv.roles = ["User", "Assistant"]
+        mock_conv.sep = "\n"
+        mock_conv.sep2 = None
+        mock_conv.system = "System message"
+        
+        with patch('advsecurenet.llm.GCG.src.conversation.template_adapter.ConversationTemplateAdapter.get_fastchat_template') as mock_get_template:
+            mock_get_template.return_value = mock_conv
+            
+            result = ConversationTemplateAdapter.get_universal_conversation_format("test-model", mock_tokenizer)
+            
+            assert result['format_type'] == 'fastchat'
+            assert result['fastchat_template'] == mock_conv
+            assert result['roles'] == ["User", "Assistant"]
+            assert result['template_name'] == "test-template"
+    
+    @patch('advsecurenet.llm.GCG.src.conversation.template_adapter.FASTCHAT_AVAILABLE', True)
+    def test_get_universal_conversation_format_chat_template_fallback(self):
+        mock_tokenizer = MagicMock()
+        mock_tokenizer.eos_token = "</s>"
+        mock_tokenizer.chat_template = "some template"
+        
+        with patch('advsecurenet.llm.GCG.src.conversation.template_adapter.ConversationTemplateAdapter.get_fastchat_template') as mock_get_template:
+            mock_get_template.return_value = None  # FastChat fails
+            
+            result = ConversationTemplateAdapter.get_universal_conversation_format("test-model", mock_tokenizer)
+            
+            assert result['format_type'] == 'chat_template'
+            assert result['use_builtin'] == True
+            assert result['template_name'] == 'huggingface_builtin'
+    
+    @patch('advsecurenet.llm.GCG.src.conversation.template_adapter.FASTCHAT_AVAILABLE', False)
+    def test_get_universal_conversation_format_manual_fallback(self):
+        mock_tokenizer = MagicMock()
+        mock_tokenizer.eos_token = "</s>"
+        mock_tokenizer.chat_template = None
+        
+        result = ConversationTemplateAdapter.get_universal_conversation_format("llama-model", mock_tokenizer)
+        
+        assert result['format_type'] == 'manual'
+        assert result['template_name'] == 'manual_instruct'
+        assert result['roles'] == ['[INST]', '[/INST]']
+    
+    def test_manual_fallback_dialogpt(self):
+        mock_tokenizer = MagicMock()
+        
+        result = ConversationTemplateAdapter._get_manual_fallback("dialogpt-model", mock_tokenizer)
+        
+        assert result['format_type'] == 'manual'
+        assert result['template_name'] == 'manual_dialogpt'
+        assert result['roles'] == ['User', 'Bot']
+    
+    def test_manual_fallback_generic(self):
+        mock_tokenizer = MagicMock()
+        
+        result = ConversationTemplateAdapter._get_manual_fallback("unknown-model", mock_tokenizer)
+        
+        assert result['format_type'] == 'manual'
+        assert result['template_name'] == 'manual_generic'
+        assert result['roles'] == ['Human', 'Assistant']
+    
+    def test_get_special_tokens_info(self):
+        mock_tokenizer = MagicMock()
+        mock_tokenizer.bos_token_id = 1
+        mock_tokenizer.eos_token_id = 2
+        mock_tokenizer.pad_token_id = 0
+        mock_tokenizer.unk_token_id = 3
+        mock_tokenizer.bos_token = "<s>"
+        mock_tokenizer.eos_token = "</s>"
+        mock_tokenizer.pad_token = "<pad>"
+        mock_tokenizer.unk_token = "<unk>"
+        
+        result = ConversationTemplateAdapter.get_special_tokens_info(mock_tokenizer)
+        
+        assert result['bos_token_id'] == 1
+        assert result['eos_token_id'] == 2
+        assert result['bos_token'] == "<s>"
+        assert result['eos_token'] == "</s>"
+    
+    @patch('advsecurenet.llm.GCG.src.conversation.template_adapter.FASTCHAT_AVAILABLE', True)
+    @patch('advsecurenet.llm.GCG.src.conversation.template_adapter.get_conv_template')
+    def test_list_supported_templates_success(self, mock_get_conv_template):
+        # Mock successful template retrieval for some templates
+        mock_get_conv_template.side_effect = lambda x: MagicMock() if x in ['vicuna_v1.1', 'llama-2'] else Exception("Not found")
+        
+        result = ConversationTemplateAdapter.list_supported_templates()
+        
+        assert isinstance(result, list)
+        assert 'vicuna_v1.1' in result
+        assert 'llama-2' in result
+    
+    @patch('advsecurenet.llm.GCG.src.conversation.template_adapter.FASTCHAT_AVAILABLE', False)
+    def test_list_supported_templates_no_fastchat(self):
+        result = ConversationTemplateAdapter.list_supported_templates()
+        
+        assert result == ["FastChat not installed"]
+
+
+class TestConversationTemplateAdapterErrorHandling:
+    """Test error handling scenarios to improve coverage."""
+    
+    @patch('advsecurenet.llm.GCG.src.conversation.template_adapter.FASTCHAT_AVAILABLE', True)
+    def test_format_for_gcg_fastchat_exception(self):
+        mock_tokenizer = MagicMock()
+        
+        mock_conv = MagicMock()
+        mock_conv.get_prompt.side_effect = Exception("FastChat error")
+        
+        with patch('advsecurenet.llm.GCG.src.conversation.template_adapter.ConversationTemplateAdapter.get_universal_conversation_format') as mock_get_format:
+            mock_get_format.return_value = {
+                'format_type': 'fastchat',
+                'fastchat_template': mock_conv,
+                'template_name': 'test-template'
+            }
+            
+            # Should catch exception and fall through to manual formatting
+            result = ConversationTemplateAdapter.format_for_gcg("test prompt", "test target", "test-model", mock_tokenizer)
+            assert isinstance(result, str)
+    
+    def test_format_for_gcg_chat_template_exception(self):
+        mock_tokenizer = MagicMock()
+        mock_tokenizer.apply_chat_template.side_effect = Exception("Chat template error")
+        
+        with patch('advsecurenet.llm.GCG.src.conversation.template_adapter.ConversationTemplateAdapter.get_universal_conversation_format') as mock_get_format:
+            mock_get_format.return_value = {
+                'format_type': 'chat_template',
+                'template_name': 'huggingface_builtin'
+            }
+            
+            # Should catch exception and fall through to manual formatting
+            result = ConversationTemplateAdapter.format_for_gcg("test prompt", "test target", "test-model", mock_tokenizer)
+            assert isinstance(result, str)
+    
+    @patch('advsecurenet.llm.GCG.src.conversation.template_adapter.FASTCHAT_AVAILABLE', True)
+    def test_normalize_template_fallback(self):
+        mock_tokenizer = MagicMock()
+        mock_tokenizer.name_or_path = "test-model"
+        mock_conv_template = MagicMock()
+        
+        # FastChat normalization fails
+        with patch('advsecurenet.llm.GCG.src.conversation.template_adapter.ConversationTemplateAdapter.get_fastchat_template') as mock_get_template:
+            mock_get_template.side_effect = Exception("FastChat normalization failed")
+            
+            with patch('advsecurenet.llm.GCG.src.conversation.template_adapter.ConversationTemplateAdapter.get_universal_conversation_format') as mock_get_format:
+                mock_get_format.return_value = {
+                    'roles': ['Human', 'Assistant'],
+                    'sep': '\n',
+                    'sep2': '\n\n'
+                }
+                
+                result = ConversationTemplateAdapter.normalize_template(mock_conv_template, mock_tokenizer)
+                
+                assert result.roles == ('Human', 'Assistant')
+                assert result.eos_token == ""
+    
+    @patch('advsecurenet.llm.GCG.src.conversation.template_adapter.FASTCHAT_AVAILABLE', True)
+    @patch('advsecurenet.llm.GCG.src.conversation.template_adapter.get_conv_template')
+    def test_list_supported_templates_exception(self, mock_get_conv_template):
+        # All template checks raise exceptions - return empty list as that's the actual behavior
+        mock_get_conv_template.side_effect = Exception("All templates fail")
+        
+        result = ConversationTemplateAdapter.list_supported_templates()
+        
+        # When all templates fail, it returns an empty list, not the error message
+        assert result == []
+    
+    def test_import_handling_simulation(self):
+        # Test that import statements are properly handled (lines 9-11)
+        # We can't directly test the import since it happens at module load,
+        # but we can test that FASTCHAT_AVAILABLE is set correctly
+        from advsecurenet.llm.GCG.src.conversation.template_adapter import FASTCHAT_AVAILABLE
+        
+        # FASTCHAT_AVAILABLE should be a boolean
+        assert isinstance(FASTCHAT_AVAILABLE, bool)
+
+
 class TestConversationTemplateAdapterEdgeCases:
     def test_empty_model_name(self):
         with patch('advsecurenet.llm.GCG.src.conversation.template_adapter.FASTCHAT_AVAILABLE', True):
             with patch('advsecurenet.llm.GCG.src.conversation.template_adapter.get_conversation_template') as mock_get_template:
-                mock_get_template.side_effect = Exception("Empty model name")
-                
-                result = ConversationTemplateAdapter.get_fastchat_template("")
-                assert result is None
+                with patch('advsecurenet.llm.GCG.src.conversation.template_adapter.get_conv_template') as mock_get_conv_template:
+                    # Mock both functions to fail so all fallbacks fail
+                    mock_get_template.side_effect = Exception("Empty model name")
+                    mock_get_conv_template.side_effect = Exception("Empty model name")
+                    
+                    result = ConversationTemplateAdapter.get_fastchat_template("")
+                    assert result is None
 
     def test_none_model_name(self):
         with patch('advsecurenet.llm.GCG.src.conversation.template_adapter.FASTCHAT_AVAILABLE', True):
             with patch('advsecurenet.llm.GCG.src.conversation.template_adapter.get_conversation_template') as mock_get_template:
-                mock_get_template.side_effect = Exception("None model name")
-                
-                result = ConversationTemplateAdapter.get_fastchat_template(None)
-                assert result is None
+                with patch('advsecurenet.llm.GCG.src.conversation.template_adapter.get_conv_template') as mock_get_conv_template:
+                    # Mock both functions to fail so all fallbacks fail
+                    mock_get_template.side_effect = Exception("None model name")
+                    mock_get_conv_template.side_effect = Exception("None model name")
+                    
+                    result = ConversationTemplateAdapter.get_fastchat_template(None)
+                    assert result is None
 
     def test_special_characters_in_model_name(self):
         with patch('advsecurenet.llm.GCG.src.conversation.template_adapter.FASTCHAT_AVAILABLE', True):
