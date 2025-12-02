@@ -1,43 +1,44 @@
 model:
   model_name: vgg16
-  num_input_channels: 3
-  num_classes: 10
+  architecture:
+    num_input_channels: 3
+    num_classes: 10
   pretrained: true
   weights: IMAGENET1K_V1
   is_external: false
-  random_seed:
+  random_seed: null
   path_configs:
-    model_arch_path:
-    model_weights_path:
+    model_arch_path: null
+    model_weights_path: null
   norm_config:
     add_norm_layer: true
     norm_mean:
-    - 0.4914
-    - 0.4822
-    - 0.4465
+      - 0.4914
+      - 0.4822
+      - 0.4465
     norm_std:
-    - 0.2470
-    - 0.2435
-    - 0.2616
+      - 0.2470
+      - 0.2435
+      - 0.2616
 dataset:
   dataset_name: cifar10
-  download: true
   num_classes: 10
-  dataset_part: test
-  train_dataset_path:
-  test_dataset_path:
+  load_splits:
+    - test
+  train_dataset_path: null
+  test_dataset_path: null
   random_sample_size: 100
   preprocessing:
     steps:
-    - name: ToImage
-      params:
-    - name: ToDtype
-      params:
-        dtype: torch.float32
-        scale: true
+      - name: ToImage
+        params: null
+      - name: ToDtype
+        params:
+          dtype: torch.float32
+          scale: true
 dataloader:
   default:
-    num_workers: 4
+    num_workers: 0
     shuffle: true
     drop_last: false
     pin_memory: true
@@ -45,7 +46,13 @@ dataloader:
 device:
   use_ddp: true
   processor: cuda
-  gpu_ids: [0,1,2,3,4,5]
+  gpu_ids:
+    - 0
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
 attack_procedure:
   verbose: false
   save_result_images: true
@@ -56,10 +63,10 @@ attack_config:
     targeted: false
     auto_generate_target: true
     target_images_config:
-      target_images_dir:
+      target_images_dir: null
     target_labels_config:
       target_labels: []
-      target_labels_path:
-      target_labels_separator: ','
+      target_labels_path: null
+      target_labels_separator: ","
   attack_parameters:
     epsilon: 0.1

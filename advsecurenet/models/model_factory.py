@@ -1,6 +1,7 @@
 import logging
 from enum import EnumMeta
-from typing import Optional
+from typing import Optional, Dict, Any
+import dataclasses
 
 from torch import nn
 
@@ -8,14 +9,21 @@ from advsecurenet.models.base_model import BaseModel
 from advsecurenet.models.custom_model import CustomModel
 from advsecurenet.models.external_model import ExternalModel
 from advsecurenet.models.standard_model import StandardModel
+from advsecurenet.models.huggingface_model import HuggingFaceModel
 from advsecurenet.shared.types.configs.model_config import (
     CreateModelConfig,
     CustomModelConfig,
     ExternalModelConfig,
     StandardModelConfig,
+    HuggingFaceResolvedConfig,
+    determine_identifier_and_source,
 )
 from advsecurenet.shared.types.model import ModelType
 from advsecurenet.utils.reproducibility_utils import set_seed
+from advsecurenet.utils.huggingface_utils import (
+    huggingface_model_utils,
+    huggingface_general_utils,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +32,64 @@ class ModelFactory:
     """
     This class is a factory class for creating models. It provides a single interface for creating models. It supports both standard models and custom models.
     """
+
+    @staticmethod
+    def _resolve_config_and_warn(
+        config: Optional[CreateModelConfig], kwargs: Dict[str, Any]
+    ) -> CreateModelConfig:
+        """
+        Resolves the final CreateModelConfig by handling None config, merging kwargs,
+        and issuing a warning on overlap. Prioritizes kwargs values.
+
+        Args:
+            config: The initially provided config object (or None).
+            kwargs: Keyword arguments passed to create_model.
+
+        Returns:
+            The definitive CreateModelConfig instance.
+        """
+        if config is None or not isinstance(config, CreateModelConfig):
+            # Case 1: No valid config provided, create purely from kwargs
+            logger.debug("No valid model config provided, creating from kwargs.")
+            return CreateModelConfig(**kwargs)
+        elif not kwargs:
+            # Case 2: Valid config provided, and kwargs is empty. Use the provided config directly.
+            logger.debug(
+                "Valid CreateModelConfig provided and kwargs is empty. Using provided config directly."
+            )
+            return config
+        else:
+            # Case 3: Config and kwargs are provided. Check for overlap and merge config and kwargs.
+            overlapping_keys = []
+            config_field_names = {f.name for f in dataclasses.fields(CreateModelConfig)}
+            kwargs_to_merge = {}  # Only store kwargs that are actual config fields
+
+            for key, kwarg_value in kwargs.items():
+                if key in config_field_names:
+                    kwargs_to_merge[key] = kwarg_value  # Prepare for merge
+                    config_value = getattr(
+                        config, key, None
+                    )  # Safely get current value
+                    if kwarg_value != config_value:
+                        overlapping_keys.append(key)
+
+            if overlapping_keys:
+                keys_str = ", ".join(f"'{k}'" for k in overlapping_keys)
+                warning_msg = (
+                    f"Overlap detected between provided 'config' object and keyword arguments "
+                    f"for keys: [{keys_str}]. Values from keyword arguments will be prioritized."
+                )
+                logger.warning(warning_msg)
+                # Merge kwargs into the config (prioritizing kwargs)
+                config_dict = dataclasses.asdict(config)
+                config_dict.update(kwargs_to_merge)
+                logger.debug("Merging overlapping kwargs into provided config.")
+                return CreateModelConfig(**config_dict)
+            else:
+                # No overlap affecting config fields, return original config
+                # (kwargs might still contain non-config extras, but they won't be used later)
+                logger.debug("Provided config used, no overlapping kwargs detected.")
+                return config
 
     @staticmethod
     def infer_model_type(model_name: str) -> ModelType:
@@ -51,6 +117,9 @@ class ModelFactory:
         if model_name in CustomModel.models():
             return ModelType.CUSTOM
 
+        if huggingface_model_utils.verify_hf_model_identifier_exists(model_name):
+            return ModelType.HUGGINGFACE
+
         raise ValueError(
             "Unsupported model. If you are trying to load an external model, please set is_external=True in the CreateModelConfig."
         )
@@ -64,8 +133,7 @@ class ModelFactory:
             config (Optional[CreateModelConfig]): The configuration for creating the model. If not provided, the model will be created with the passed keyword arguments.
             CreateModelConfig contains the following fields:
                 - model_name: str
-                - num_classes: Optional[int] = 1000
-                - num_input_channels: Optional[int] = 3
+                - architecture: dict
                 - pretrained: Optional[bool] = True
                 - weights: Optional[str] = "IMAGENET1K_V1"
                 - custom_models_path: Optional[str] = "CustomModels"
@@ -84,45 +152,62 @@ class ModelFactory:
             You can use your external model by setting is_external=True in the CreateModelConfig and providing the model_arch_path and model_weights_path.
         """
         try:
+            resolved_config = ModelFactory._resolve_config_and_warn(config, kwargs)
 
-            if config is None or not isinstance(config, CreateModelConfig):
-                config = CreateModelConfig(**kwargs)
-            if config.is_external:
+            if resolved_config.is_external:
                 cfg = ExternalModelConfig(
-                    model_name=config.model_name,
-                    num_classes=config.num_classes,
-                    model_arch_path=config.model_arch_path,
-                    pretrained=config.pretrained,
-                    model_weights_path=config.model_weights_path,
+                    model_name=resolved_config.model_name,
+                    model_arch_path=resolved_config.model_arch_path,
+                    pretrained=resolved_config.pretrained,
+                    model_weights_path=resolved_config.model_weights_path,
+                    architecture=resolved_config.architecture,
                 )
-                return ExternalModel(cfg, **kwargs)
+                return ExternalModel(cfg)
 
-            inferred_type: ModelType = ModelFactory.infer_model_type(config.model_name)
+            identifier, _ = determine_identifier_and_source(resolved_config)
 
-            ModelFactory._validate_create_model_config(inferred_type, config)
+            inferred_type: ModelType = ModelFactory.infer_model_type(identifier)
 
-            if config.random_seed is not None:
-                set_seed(config.random_seed)
+            ModelFactory._validate_create_model_config(inferred_type, resolved_config)
+
+            if resolved_config.random_seed is not None:
+                set_seed(resolved_config.random_seed)
+
             if inferred_type == ModelType.STANDARD:
                 cfg = StandardModelConfig(
-                    model_name=config.model_name,
-                    num_classes=config.num_classes,
-                    pretrained=config.pretrained,
-                    weights=config.weights,
+                    model_name=resolved_config.model_name,
+                    pretrained=resolved_config.pretrained,
+                    weights=resolved_config.weights,
+                    architecture=resolved_config.architecture,
                 )
-                return StandardModel(cfg, **kwargs)
+                return StandardModel(cfg)
 
             if inferred_type == ModelType.CUSTOM:
                 # The custom model name would typically be without the 'Custom' prefix for the filename.
                 # For example: 'MnistModel' for 'CustomMnistModel.py'. Adjust as necessary.
                 cfg = CustomModelConfig(
-                    model_name=config.model_name,
-                    num_classes=config.num_classes,
-                    num_input_channels=config.num_input_channels,
-                    custom_models_path=config.custom_models_path,
-                    pretrained=config.pretrained,
+                    model_name=resolved_config.model_name,
+                    custom_models_path=resolved_config.custom_models_path,
+                    pretrained=resolved_config.pretrained,
+                    architecture=resolved_config.architecture,
                 )
-                return CustomModel(cfg, **kwargs)
+                return CustomModel(cfg)
+
+            if inferred_type == ModelType.HUGGINGFACE:
+                model_id = huggingface_general_utils.process_hf_identifier(identifier)
+
+                cfg = HuggingFaceResolvedConfig(
+                    model_name=resolved_config.model_name,
+                    architecture=resolved_config.architecture,
+                    pretrained=resolved_config.pretrained,
+                    model_id=model_id,
+                    revision=resolved_config.revision,
+                    cache_dir=resolved_config.cache_dir,
+                    trust_remote_code=resolved_config.trust_remote_code,
+                    model_class_name=resolved_config.model_class_name,
+                )
+                return HuggingFaceModel(cfg)
+
         except Exception as e:
             err = f"Error creating model. Please check the model_name and other arguments. Error: {str(e)}"
             logger.error(err)

@@ -6,7 +6,18 @@ import torch
 
 from advsecurenet.distributed.ddp_coordinator import DDPCoordinator
 from advsecurenet.models.base_model import BaseModel
-from advsecurenet.shared.types.configs import TrainConfig
+from advsecurenet.shared.types.configs.train_config import (
+    TrainConfig,
+    ModelConfig,
+    TrainingProcessConfig,
+)
+
+from advnet_common.types.configs.base import (
+    OptimizationBase,
+    DifferentialPrivacyBase,
+    CheckpointBase,
+    FinalModelBase,
+)
 from advsecurenet.trainer.ddp_trainer import DDPTrainer
 from advsecurenet.trainer.trainer import Trainer
 from advsecurenet.utils.ddp import set_visible_gpus
@@ -66,7 +77,7 @@ class CLITrainer:
             world_size,
         )
 
-        if self.config.training.verbose:
+        if self.config.training.training_hyperparameter.verbose:
             click.echo(
                 f"Running DDP training on {world_size} GPUs with the following IDs: {self.config.device.gpu_ids}"
             )
@@ -116,9 +127,14 @@ class CLITrainer:
         train_data, _ = get_datasets(config=self.config.dataset)
         return train_data
 
-    def _prepare_dataloader(self) -> torch.utils.data.DataLoader:
+    def _prepare_dataloader(
+        self, is_object_detection: bool = False
+    ) -> torch.utils.data.DataLoader:
         """
         Initialize the dataloader for single process training.
+
+        Args:
+            is_object_detection (bool): Whether the task is object detection.
 
         Returns:
 
@@ -129,6 +145,7 @@ class CLITrainer:
             dataset=self.train_dataset,
             dataset_type="train",
             use_ddp=self.config.device.use_ddp,
+            is_object_detection=is_object_detection,
         )
         return train_data_loader
 
@@ -138,10 +155,18 @@ class CLITrainer:
         """
         Prepare the training config.
         """
-        config = TrainConfig(
-            model=model,
+        training_process_config = TrainingProcessConfig(
             train_loader=train_data_loader,
-            **asdict(self.config.training),
-            **asdict(self.config.device),
+            **asdict(self.config.training.training_hyperparameter),
+        )
+
+        config = TrainConfig(
+            model_config=ModelConfig(model),
+            training_process_config=training_process_config,
+            device_config=self.config.device,
+            optimization_config=self.config.training.optimization,
+            checkpoint_config=self.config.training.checkpoint,
+            final_model_config=self.config.training.final_model,
+            differential_privacy_config=self.config.training.differential_privacy,
         )
         return config

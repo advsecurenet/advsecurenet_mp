@@ -6,7 +6,10 @@ import torch
 import torch.distributed as dist
 from tqdm.auto import tqdm
 
-from advsecurenet.computer_vision.image_classification.attacks.attacker import Attacker, AttackerConfig
+from advsecurenet.computer_vision.image_classification.attacks.attacker import (
+    Attacker,
+    AttackerConfig,
+)
 from advsecurenet.dataloader.distributed_eval_sampler import DistributedEvalSampler
 from advsecurenet.distributed.ddp_base_task import DDPBaseTask
 

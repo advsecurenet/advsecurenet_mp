@@ -1,0 +1,6 @@
+optimizer: adam #
+optimizer_kwargs: # Optional arguments for the optimizer. If not provided, default values will be used.
+  weight_decay: 0.0001
+scheduler: LINEAR_LR # Scheduler to use for training. Options: [CONSTANT_LR, LINEAR_LR, STEP_LR, EXP_LR, COSINE_LR] If not provided, no scheduler will be used.
+scheduler_kwargs: null # Optional arguments for the scheduler. If not provided, default values will be used.
+criterion: cross_entropy

@@ -3,7 +3,7 @@ evaluation_config:
     name: fgsm
     config: ./fgsm_attack_config.yml
   evaluators:
-  - attack_success_rate
-  - transferability
+    - attack_success_rate
+    - transferability
   target_models:
-  - config: ./target_model_config.yml
+    - config: ./target_model_config.yml

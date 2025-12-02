@@ -8,6 +8,7 @@ import requests
 import torch
 from torch import nn
 from tqdm.auto import tqdm
+from contextlib import contextmanager
 
 logger = logging.getLogger(__name__)
 
@@ -149,3 +150,23 @@ def download_weights(
 
     else:
         logger.info("Weights file already exists. Skipping download.")
+
+        # disable_inplace_operations(self.model)
+
+
+@contextmanager
+def non_inplace_operations():
+    """
+    A context manager to temporarily disable in-place tensor operations by
+    monkey-patching torch.Tensor.__iadd__ to its out-of-place equivalent.
+    """
+    original_iadd = torch.Tensor.__iadd__
+    torch.Tensor.__iadd__ = torch.Tensor.__add__
+    logger.info(
+        "Temporarily patched 'torch.Tensor.__iadd__' to enforce out-of-place addition for DP compatibility."
+    )
+    try:
+        yield
+    finally:
+        torch.Tensor.__iadd__ = original_iadd
+        logger.info("Restored original 'torch.Tensor.__iadd__' method.")

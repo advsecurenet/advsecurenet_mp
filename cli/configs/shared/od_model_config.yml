@@ -1,0 +1,27 @@
+# --- Model Configurations ---
+model_name: CustomYolov5Model
+num_input_channels: 3
+architecture:
+  num_classes: 80  # COCO dataset classes
+pretrained: false
+weights: "DEFAULT"
+is_external: true
+random_seed: null
+path_configs:
+  model_weights_path: "model_weights/yolov5s.pt"
+  model_arch_path: "../../../advsecurenet/models/CustomODModels/CustomYolov5Model.py" # path to CustomYolov5Model.py file
+norm_config:
+  add_norm_layer: false
+  norm_mean:
+  - 0.485
+  - 0.456
+  - 0.406
+  norm_std:
+  - 0.229
+  - 0.224
+  - 0.225
+object_detector_config:
+  conf_thresh: 0.25
+  input_shape: [3, 640, 640]
+  clip_values: [0, 255]
+  attack_losses: ["loss_total", "loss_cls", "loss_box", "loss_obj"]

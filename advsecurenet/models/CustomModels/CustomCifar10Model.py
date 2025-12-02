@@ -2,7 +2,7 @@ import torch.nn as nn
 
 
 class CustomCifar10Model(nn.Module):
-    def __init__(self, num_classes=10, num_input_channels=3, **kwargs):
+    def __init__(self, num_classes=10, num_input_channels=3):
         super().__init__()
         self.conv1 = nn.Conv2d(
             num_input_channels, 32, kernel_size=3, stride=1, padding=1

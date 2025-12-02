@@ -6,7 +6,7 @@ class CustomMnistModel(nn.Module):
     Custom MNIST model with two convolutional layers and two fully connected layers.
     """
 
-    def __init__(self, num_classes=10, num_input_channels=1, **kwargs):
+    def __init__(self, num_classes=10, num_input_channels=1):
         super().__init__()
         self.conv1 = nn.Conv2d(
             num_input_channels, 32, kernel_size=3, stride=1, padding=1

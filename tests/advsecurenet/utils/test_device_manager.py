@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 import torch
 
-from advsecurenet.utils.device_manager import DeviceManager
+from advsecurenet.utils.device_utils import DeviceManager
 
 
 @pytest.fixture

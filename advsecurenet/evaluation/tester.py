@@ -68,7 +68,7 @@ class Tester:
         # topk can't be less than 1 and greater than the number of classes
         if self._topk < 1:
             raise ValueError("Top-k value must be greater than 0.")
-        if self._topk > self._model._num_classes:
+        if self._topk > self._model._architecture["num_classes"]:
             raise ValueError(
                 "Top-k value must be less than or equal to the number of classes."
             )

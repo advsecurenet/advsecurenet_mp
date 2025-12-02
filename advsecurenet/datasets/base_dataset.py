@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Any, List, Optional, Tuple, Union
+import inspect
 
 import pkg_resources
 import torch
@@ -12,6 +13,11 @@ from advsecurenet.shared.types.configs.preprocess_config import (
     PreprocessStep,
 )
 from advsecurenet.shared.types.dataset import DataType
+from advsecurenet.utils.kwargs_utils import (
+    filter_kwargs_for_callable,
+    pop_string_keys_from_dict,
+    map_kwargs,
+)
 
 
 class ImageFolderBaseDataset:
@@ -81,14 +87,14 @@ class BaseDataset(TorchDataset, ABC):
 
     def __init__(self, preprocess_config: Optional[PreprocessConfig] = None):
         self._dataset: DatasetWrapper
-        self.mean: List[float] = []
-        self.std: List[float] = []
-        self.input_size: Tuple[int, int]
-        self.crop_size: Tuple[int, int]
+        self.mean: Optional[List[float]] = []
+        self.std: Optional[List[float]] = []
+        self.input_size: Optional[Tuple[int, int]]
+        self.crop_size: Optional[Tuple[int, int]]
         self.name: str = ""
-        self.num_classes: int
-        self.num_input_channels: int
-        self.data_type: DataType
+        self.num_classes: Optional[int]
+        self.num_input_channels: Optional[int]
+        self.data_type: Optional[DataType]
         self._preprocess_config = preprocess_config
 
     @abstractmethod
@@ -97,43 +103,29 @@ class BaseDataset(TorchDataset, ABC):
         Returns the dataset class.
         """
 
-    def load_dataset(
-        self,
-        root: Optional[str] = None,
-        train: Optional[bool] = True,
-        download: Optional[bool] = True,
-        **kwargs,
-    ) -> DatasetWrapper:
+    def load_dataset(self, **kwargs) -> DatasetWrapper:
         """
         Loads the dataset.
 
         Args:
-            root (str, optional): The root directory where the dataset should be stored. Defaults to './data'.
-            train (bool, optional): If True, loads the training data. Otherwise, loads the test data. Defaults to True.
-            download (bool, optional): If True, downloads the dataset from the internet. Defaults to True.
             **kwargs: Arbitrary keyword arguments for the dataset.
+                      Common ones: root, train, download, split, etc.
 
         Returns:
             DatasetWrapper: The dataset loaded into memory.
         """
-        if root is None:
-            root = pkg_resources.resource_filename("advsecurenet", "data")
+        if not kwargs.get("root"):
+            kwargs["root"] = pkg_resources.resource_filename("advsecurenet", "data")
 
-        transform = self.get_transforms()
+        kwargs["transform"] = self.get_transforms()
 
         dataset_class = self.get_dataset_class()
 
-        dataset = self._create_dataset(
-            dataset_class=dataset_class,
-            transform=transform,
-            root=root,
-            train=train,
-            download=download,
-            **kwargs,
-        )
+        dataset = self._create_dataset(dataset_class=dataset_class, **kwargs)
+
+        self.data_type = DataType.TRAIN if kwargs.get("train") else DataType.TEST
 
         self._dataset = DatasetWrapper(dataset=dataset, name=self.name)
-        self.data_type = DataType.TRAIN if train else DataType.TEST
         return self._dataset
 
     def get_transforms(self):
@@ -210,15 +202,11 @@ class BaseDataset(TorchDataset, ABC):
     def _create_dataset(
         self,
         dataset_class: datasets,
-        transform: transforms.Compose,
-        root: Optional[str] = None,
-        train: Optional[bool] = True,
-        download: Optional[bool] = True,
         **kwargs,
     ):
-        return dataset_class(
-            root=root, train=train, transform=transform, download=download, **kwargs
-        )
+        filtered_kwargs = filter_kwargs_for_callable(dataset_class, kwargs)
+
+        return dataset_class(**filtered_kwargs)
 
     def _available_transforms(self) -> List[str]:
         """
@@ -257,3 +245,32 @@ class BaseDataset(TorchDataset, ABC):
         if self._dataset:
             return self._dataset[idx]
         raise NotImplementedError("Dataset not loaded or specified.")
+
+    def _map_split_to_train(self, kwargs: dict) -> dict:
+        """
+        A transformation function that maps a 'split' key to a 'train' boolean key.
+        This is designed to be used with the process_kwargs utility.
+        """
+        if "split" in kwargs:
+            split_value = kwargs.pop("split").lower()
+            if split_value in ["train", "test"]:
+                kwargs["train"] = split_value == "train"
+        return kwargs
+
+    def process_dataset_kwargs(self, kwargs: dict) -> dict:
+        """
+        Processes and maps generic dataset kwargs to dataset-specific arguments.
+        """
+        mapping = {"split": self._map_split_to_train}  # Custom transformation
+        return map_kwargs(kwargs, mapping)
+
+    def process_kwargs_load_dataset(self, kwargs: dict) -> dict:
+        """
+        Processes kwargs for loading the dataset, mapping generic keys to dataset-specific ones.
+        """
+        # Map generic keys to dataset-specific ones
+        kwargs = self.process_dataset_kwargs(kwargs)
+
+        kwargs = pop_string_keys_from_dict(kwargs, ["dataset_name", "num_classes"])
+
+        return kwargs

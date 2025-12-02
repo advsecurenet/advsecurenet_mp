@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from advsecurenet.shared.types.configs.device_config import DeviceConfig
 from cli.shared.types.utils.dataloader import DataLoaderCliConfigType
-from cli.shared.types.utils.dataset import DatasetCliConfigType
+from advsecurenet.shared.types.configs.dataset_config import CreateDatasetCliConfig
 from cli.shared.types.utils.model import ModelCliConfigType
 
 
@@ -23,7 +23,7 @@ class TestingCliConfigType:
     """
 
     model: ModelCliConfigType
-    dataset: DatasetCliConfigType
+    dataset: CreateDatasetCliConfig
     dataloader: DataLoaderCliConfigType
     device: DeviceConfig
     testing: Testing

@@ -26,9 +26,9 @@ class BaseModel(ABC, nn.Module):
     Abstract class for models.
 
     Attributes:
-        num_classes (int): The number of classes in the dataset.
+        architecture (Dict[str, Any]): Any argument for the initialisaion of the Model
         pretrained (bool): Whether to load the pretrained weights or not.
-        target_layer (str): The name of the layer to be used as the target layer.
+        model_name (str): Model Name
     """
 
     def __init__(self):
@@ -46,13 +46,17 @@ class BaseModel(ABC, nn.Module):
     @check_model_loaded
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
-        Forward pass of the model.
+        Default forward pass. Assumes self.model returns a logits tensor directly.
+        Subclasses handling complex output objects should override this method.
 
         Args:
-            x (torch.Tensor): The input tensor.
+            x (torch.Tensor): The primary input tensor to the model.
 
         Returns:
-            torch.Tensor: The output tensor.
+            torch.Tensor: The output logits tensor from the model.
+
+        Raises:
+            TypeError: If the underlying model's output is not a Tensor and this method hasn't been overridden by a subclass.
         """
         return self.model(x)
 
@@ -97,9 +101,13 @@ class BaseModel(ABC, nn.Module):
         """
         Return a list of layer names in the model.
         """
-
-        _, eval_nodes = get_graph_node_names(self.model)
-        return eval_nodes
+        try:
+            # Try the torch.fx-based method
+            _, eval_nodes = get_graph_node_names(self.model)
+            return eval_nodes
+        except torch.fx.proxy.TraceError:
+            # Fallback: use named_modules to get layer names
+            return [name for name, _ in self.model.named_modules() if name]
 
     @check_model_loaded
     def get_layer(self, layer_name: str) -> nn.Module:
@@ -107,7 +115,7 @@ class BaseModel(ABC, nn.Module):
         Retrieve a specific layer module based on its name.
 
         Examples:
-            >>> model = StandardModel(model_name='resnet18', num_classes=10)
+            >>> model = StandardModel(model_name='resnet18', architecture{\"num_classes\": 10})
             >>> model.get_layer('layer1.0.conv1')
         """
         return dict(self.model.named_modules()).get(layer_name, None)
@@ -118,7 +126,7 @@ class BaseModel(ABC, nn.Module):
         Replace a specific layer module based on its name with a new module.
 
         Examples:
-            >>> model = StandardModel(model_name='resnet18', num_classes=10)
+            >>> model = StandardModel(model_name='resnet18', architecture{\"num_classes\": 10})
             >>> model.set_layer('layer1.0.conv1', nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False))
         """
 
@@ -178,3 +186,32 @@ class BaseModel(ABC, nn.Module):
             parent = self.model
             child_name = layer_name
         return parent, child_name
+
+    @check_model_loaded
+    def infer_num_classes(self) -> Optional[int]:
+        """
+        Infers the number of output classes based on the model's architecture.
+
+        Returns:
+            Optional[int]: The inferred number of classes, or None if it cannot be inferred.
+        """
+        # For Hugging Face models, try extracting from the configuration.
+        if hasattr(self.model, "config") and hasattr(self.model.config, "num_labels"):
+            return self.model.config.num_labels
+
+        # For models with a classifier attribute.
+        if hasattr(self.model, "classifier"):
+            # If classifier is a single linear layer.
+            if hasattr(self.model.classifier, "out_features"):
+                return self.model.classifier.out_features
+            # If classifier is a sequential container, try its last module.
+            elif isinstance(self.model.classifier, nn.Sequential):
+                last_layer = list(self.model.classifier.children())[-1]
+                if hasattr(last_layer, "out_features"):
+                    return last_layer.out_features
+
+        # For models with an fc attribute (common in ResNet-like architectures).
+        if hasattr(self.model, "fc") and hasattr(self.model.fc, "out_features"):
+            return self.model.fc.out_features
+
+        return None

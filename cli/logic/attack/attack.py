@@ -2,11 +2,14 @@ import logging
 
 from advsecurenet.shared.types.configs import ConfigType
 from cli.logic.attack.attacker import CLIAttacker
+from cli.logic.attack.od_attacker import CLIODAttacker
 from cli.shared.types.attack import BaseAttackCLIConfigType
 from cli.shared.utils.attack_mappings import attack_cli_mapping
 from cli.shared.utils.config import load_and_instantiate_config
 
 logger = logging.getLogger(__name__)
+
+OD_ATTACKS = {"DPATCH", "TOG"}
 
 
 def cli_attack(attack_name: str, config: str, **kwargs) -> None:
@@ -27,7 +30,7 @@ def cli_attack(attack_name: str, config: str, **kwargs) -> None:
         logger.error("Unknown attack type %s", attack_name)
         raise ValueError(f"Unknown attack type: {attack_name}")
 
-    attack_type, attack_config_class = attack_cli_mapping[attack_name]
+    od_main_attack_type, attack_config_class = attack_cli_mapping[attack_name]
 
     config_data: BaseAttackCLIConfigType = load_and_instantiate_config(
         config=config,
@@ -38,7 +41,10 @@ def cli_attack(attack_name: str, config: str, **kwargs) -> None:
     )
     logger.info("Loaded attack configuration: %s", config_data)
     try:
-        attacker = CLIAttacker(config_data, attack_type, **kwargs)
+        if attack_name in OD_ATTACKS:
+            attacker = CLIODAttacker(config_data, od_main_attack_type, **kwargs)
+        else:
+            attacker = CLIAttacker(config_data, od_main_attack_type, **kwargs)
         attacker.execute()
         logger.info("Attack completed successfully")
     except Exception as e:

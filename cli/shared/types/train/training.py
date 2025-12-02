@@ -3,33 +3,30 @@ from typing import Optional
 
 from advsecurenet.shared.types.configs.device_config import DeviceConfig
 from cli.shared.types.utils.dataloader import DataLoaderCliConfigType
-from cli.shared.types.utils.dataset import DatasetCliConfigType
+from advsecurenet.shared.types.configs.dataset_config import CreateDatasetCliConfig
 from cli.shared.types.utils.model import ModelCliConfigType
+from advnet_common.types.configs.base import (
+    TrainingHyperparametersBase,
+    OptimizationBase,
+    CheckpointBase,
+    FinalModelBase,
+    DifferentialPrivacyBase,
+)
 
 
 @dataclass
 class Training:
     """
     This dataclass is used to store the configuration of the training.
+    Uses base classes directly since no CLI-specific customization is needed.
     """
 
-    epochs: int
-    learning_rate: float
-    optimizer: str
-    criterion: str
-    save_final_model: bool
-    save_model_path: str
-    save_model_name: str
-    save_checkpoint: bool
-    save_checkpoint_path: str
-    save_checkpoint_name: str
-    checkpoint_interval: int
-    load_checkpoint: bool
-    load_checkpoint_path: str
-    verbose: bool
-    scheduler: Optional[str] = None
-    scheduler_kwargs: Optional[dict] = None
-    optimizer_kwargs: Optional[dict] = None
+    training_hyperparameter: TrainingHyperparametersBase
+    optimization: OptimizationBase
+    checkpoint: CheckpointBase
+    final_model: FinalModelBase
+    differential_privacy: Optional[DifferentialPrivacyBase] = None
+    verbose: bool = False
 
 
 @dataclass
@@ -39,7 +36,7 @@ class TrainingCliConfigType:
     """
 
     model: ModelCliConfigType
-    dataset: DatasetCliConfigType
+    dataset: CreateDatasetCliConfig
     dataloader: DataLoaderCliConfigType
     training: Training
     device: DeviceConfig

@@ -5,13 +5,19 @@ import click
 import torch
 from torch.utils.data import Subset, random_split
 
-from advsecurenet.computer_vision.image_classification.attacks.attacker import Attacker, AttackerConfig
-from advsecurenet.computer_vision.image_classification.attacks.attacker.ddp_attacker import DDPAttacker
+from advsecurenet.computer_vision.image_classification.attacks.attacker import (
+    Attacker,
+    AttackerConfig,
+)
+from advsecurenet.computer_vision.image_classification.attacks.attacker.ddp_attacker import (
+    DDPAttacker,
+)
 from advsecurenet.datasets.base_dataset import DatasetWrapper
 from advsecurenet.datasets.targeted_adv_dataset import AdversarialDataset
 from advsecurenet.distributed.ddp_coordinator import DDPCoordinator
 from advsecurenet.shared.types.attacks import AttackType
 from advsecurenet.shared.types.configs.dataloader_config import DataLoaderConfig
+from advsecurenet.shared.types.configs.dataset_config import resolve_dataset_config
 from advsecurenet.utils.adversarial_target_generator import AdversarialTargetGenerator
 from advsecurenet.utils.ddp import set_visible_gpus
 from cli.shared.types.attack import BaseAttackCLIConfigType
@@ -19,6 +25,7 @@ from cli.shared.types.utils.target import TargetCLIConfigType
 from cli.shared.utils.dataset import get_datasets
 from cli.shared.utils.helpers import read_data_from_file, save_images
 from cli.shared.utils.model import create_model
+from advsecurenet.shared.types.configs.dataset_config import resolve_dataset_config
 
 logger = logging.getLogger(__name__)
 
@@ -42,13 +49,13 @@ class CLIAttacker:
         The main attack function. This function parses the CLI arguments and executes the attack.
         """
         logger.info("Starting %s attack.", self._attack_type.value)
+
         if self._config.device.use_ddp:
             logger.info(
                 "Using DDP for attack with the following GPUs: %s",
                 self._config.device.gpu_ids,
             )
             self._execute_ddp_attack()
-
         else:
             logger.info("Using single GPU or CPU for attack.")
             self._execute_attack()
@@ -218,16 +225,31 @@ class CLIAttacker:
         return None
 
     def _select_data_partition(self, train_data, test_data):
-        dataset_part = self._config.dataset.dataset_part
-        if dataset_part == "train":
+        # Use the resolved config approach: get the first available split from the config
+        # This is much more flexible than hardcoded dataset_part
+        resolved_config = resolve_dataset_config(self._config.dataset)
+        available_splits = list(resolved_config.splits.keys())
+
+        if not available_splits:
+            # Fallback: if no splits specified, prefer test over train for attacks
+            return (
+                self._validate_dataset_availability(test_data, "test")
+                if test_data
+                else train_data
+            )
+
+        # Use the first specified split
+        first_split = available_splits[0]
+        if first_split == "train":
             return self._validate_dataset_availability(train_data, "train")
-        elif dataset_part == "test":
+        elif first_split == "test":
             return self._validate_dataset_availability(test_data, "test")
         else:
+            # For custom splits, prefer test data as fallback
             return (
-                train_data + test_data
-                if train_data and test_data
-                else train_data or test_data
+                self._validate_dataset_availability(test_data, "test")
+                if test_data
+                else train_data
             )
 
     def _sample_data_if_required(self, all_data):

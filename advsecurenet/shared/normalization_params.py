@@ -16,6 +16,8 @@ class NormalizationParameters:
     - MNIST
     - SVHN
     - Fashion-MNIST
+    - COCO
+    - PascalVOC
     """
 
     DATASETS = {
@@ -37,6 +39,14 @@ class NormalizationParameters:
             "std": [0.1980, 0.2010, 0.1970],
         },
         DatasetType.FASHION_MNIST: {"mean": [0.2860], "std": [0.3530]},
+        DatasetType.COCO: {
+            "mean": [0.485, 0.456, 0.406],
+            "std": [0.229, 0.224, 0.225],
+        },
+        DatasetType.PASCAL_VOC: {
+            "mean": [0.485, 0.456, 0.406],
+            "std": [0.229, 0.224, 0.225],
+        },
     }
 
     @staticmethod

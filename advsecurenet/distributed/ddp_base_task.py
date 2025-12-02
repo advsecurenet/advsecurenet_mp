@@ -15,7 +15,6 @@ class DDPBaseTask:
     """
 
     def __init__(self, model: BaseModel, rank: int, world_size: int):
-        self._model = model
         self._rank = rank
         self._world_size = world_size
 
@@ -29,12 +28,12 @@ class DDPBaseTask:
         torch.cuda.set_device(self._rank)
         return torch.device(f"cuda:{self._rank}")
 
-    def _setup_model(self) -> torch.nn.parallel.DistributedDataParallel:
+    def _setup_model(self, model) -> torch.nn.parallel.DistributedDataParallel:
         """
         Initializes the model based on the rank of the current process.
 
         Returns:
             DistributedDataParallel: The model.
         """
-        model = self._model.to(self._rank)
+        model = model.to(self._rank)
         return DDP(model, device_ids=[self._rank])

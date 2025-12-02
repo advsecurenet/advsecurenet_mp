@@ -1,11 +1,25 @@
 from dataclasses import asdict
 from typing import List
 
+from torch.utils.data import Subset
+
 import click
 
-from advsecurenet.computer_vision.image_classification.attacks.base.adversarial_attack import AdversarialAttack
-from advsecurenet.computer_vision.image_classification.defenses.adversarial_training import AdversarialTraining
-from advsecurenet.computer_vision.image_classification.defenses.ddp_adversarial_training import DDPAdversarialTraining
+from advsecurenet.computer_vision.base.adversarial_attack import (
+    AdversarialAttack,
+)
+from advsecurenet.computer_vision.image_classification.defenses.adversarial_training import (
+    AdversarialTraining,
+)
+from advsecurenet.computer_vision.image_classification.defenses.ddp_adversarial_training import (
+    DDPAdversarialTraining,
+)
+from advsecurenet.computer_vision.object_detection.defenses.adversarial_od_training import (
+    AdversarialODTraining,
+)
+from advsecurenet.computer_vision.image_classification.defenses.ddp_adversarial_training import (
+    DDPAdversarialTraining,
+)
 from advsecurenet.models.base_model import BaseModel
 from advsecurenet.shared.types.configs.attack_configs.attack_config import AttackConfig
 from advsecurenet.shared.types.configs.configs import ConfigType
@@ -31,6 +45,7 @@ class ATCLITrainer(CLITrainer):
     def __init__(self, config: ATCliConfigType):
         super().__init__(config.training)
         self.at_config = config.adversarial_training
+        self._task_override = config.task
         self.adversarial_target_generator = AdversarialTargetGenerator()
 
     def train(self):
@@ -38,11 +53,52 @@ class ATCLITrainer(CLITrainer):
         Public method to run adversarial training.
         """
         click.secho("Starting Adversarial Training", fg="green")
-
         if self.config.device.use_ddp:
-            self._execute_ddp_training()
+            if self._ddp_blocked_for(self._task_override):
+                click.secho(
+                    "DDP requested but not supported for adversarial training for object detection yet."
+                    "Falling back to single-process OD training.",
+                    fg="yellow",
+                )
+                self._execute_training()
+            else:
+                self._execute_ddp_training()
         else:
             self._execute_training()
+
+    def _ddp_blocked_for(self, task: str) -> bool:
+        return task == "detection"
+
+    def _infer_task(self, model, train_loader=None):
+        # 1) explicit override from config
+        if self._task_override in ("classification", "detection"):
+            return self._task_override
+        click.secho(
+            "Task not explicitly set. Inferring task automatically...", fg="yellow"
+        )
+        # 2) dataset-driven inference (most reliable)
+        try:
+            sample = train_loader.dataset[0]
+            if isinstance(sample, tuple) and len(sample) == 2:
+                _, tgt = sample
+                if isinstance(tgt, list) and all(isinstance(d, dict) for d in tgt):
+                    return "detection"
+                if isinstance(tgt, list) and all(isinstance(d, dict) for d in tgt):
+                    return "detection"
+        except Exception:
+            pass
+        # 3) model hint as a fallback
+        if getattr(model, "task", None) == "detection" or getattr(
+            model, "is_detection", False
+        ):
+            return "detection"
+        # Default: classification (backward compatible)
+        return "classification"
+
+    def _select_trainer_cls(self, task: str):
+        if task == "detection":
+            return AdversarialODTraining
+        return AdversarialTraining
 
     def _prepare_attacks(self) -> list[AdversarialAttack]:
         """
@@ -99,11 +155,33 @@ class ATCLITrainer(CLITrainer):
         return models
 
     def _prepare_training_environment(self) -> AdversarialTrainingConfig:
-
         # configure the model that will be adversarially trained
         model = self._initialize_model()
-
-        train_loader = self._prepare_dataloader()
+        task = self._infer_task(model)
+        is_od = task == "detection"
+        train_loader = self._prepare_dataloader(is_object_detection=is_od)
+        # apply random sampling if requested - to narrow down the dataset size
+        try:
+            rs = getattr(self.config.dataset, "random_sample_size", None)
+            if rs and rs > 0 and len(train_loader.dataset) > rs:
+                # deterministic first rs samples; adjust if you prefer random selection
+                train_subset = Subset(train_loader.dataset, list(range(rs)))
+                # rebuild dataloader with same params (keep shuffle=False to avoid reordering subset unexpectedly)
+                train_loader = type(train_loader)(
+                    train_subset,
+                    batch_size=train_loader.batch_size,
+                    shuffle=(
+                        train_loader.shuffle
+                        if hasattr(train_loader, "shuffle")
+                        else False
+                    ),
+                    num_workers=train_loader.num_workers,
+                    pin_memory=train_loader.pin_memory,
+                    drop_last=train_loader.drop_last,
+                    collate_fn=train_loader.collate_fn,
+                )
+        except Exception:
+            pass
         train_config = self._prepare_train_config(model, train_loader)
 
         attacks = self._prepare_attacks()
@@ -113,7 +191,7 @@ class ATCLITrainer(CLITrainer):
         models.append(model)
 
         config = AdversarialTrainingConfig(
-            models=models, attacks=attacks, **asdict(train_config)
+            models=models, attacks=attacks, train_config=train_config
         )
         return config
 
@@ -128,6 +206,21 @@ class ATCLITrainer(CLITrainer):
         # the model must be initialized in each process
 
         config = self._prepare_training_environment()
+
+        task = self._infer_task(
+            config.train_config.model_config.model,
+            config.train_config.training_process_config.train_loader,
+        )
+        if task == "detection":
+            if rank == 0:
+                click.secho(
+                    "DDP requested but not supported for detection yet. "
+                    "Falling back to single-process OD training.",
+                    fg="yellow",
+                )
+                trainer = AdversarialODTraining(config)
+                trainer.train()
+            return
 
         ddp_trainer = DDPAdversarialTraining(config, rank, world_size)
         ddp_trainer.train()
@@ -144,6 +237,11 @@ class ATCLITrainer(CLITrainer):
             ValueError: If the dataset name is not supported.
         """
         config = self._prepare_training_environment()
-
-        adversarial_training = AdversarialTraining(config)
+        task = self._infer_task(
+            config.train_config.model_config.model,
+            config.train_config.training_process_config.train_loader,
+        )
+        trainer_cls = self._select_trainer_cls(task)
+        click.secho(f"Task detected: {task}. Using {trainer_cls.__name__}.", fg="blue")
+        adversarial_training = trainer_cls(config)
         adversarial_training.train()

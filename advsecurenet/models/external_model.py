@@ -5,7 +5,9 @@ from types import ModuleType
 import torch
 
 from advsecurenet.models.base_model import BaseModel
+from advsecurenet.models.custom_model_utils import get_object_detector_model_names
 from advsecurenet.shared.types.configs.model_config import ExternalModelConfig
+from advsecurenet.utils.kwargs_utils import filter_kwargs_for_callable
 
 
 class ExternalModel(BaseModel):
@@ -13,13 +15,13 @@ class ExternalModel(BaseModel):
     This class is used to load external models that are not provided by the package. These models are loaded from external Python files.
     """
 
-    def __init__(self, config: ExternalModelConfig, **kwargs):
+    def __init__(self, config: ExternalModelConfig):
 
         self._model_name = config.model_name
         self._model_arch_path = config.model_arch_path
         self._pretrained = config.pretrained
         self._model_weights_path = config.model_weights_path
-        self._kwargs = kwargs
+        self._architecture = config.architecture
 
         self.model = None
         super().__init__()
@@ -45,12 +47,23 @@ class ExternalModel(BaseModel):
 
         model_class = getattr(custom_module, self._model_name)
 
-        self.model = model_class()
-        if self._pretrained:
-            try:
-                self.model.load_state_dict(torch.load(self._model_weights_path))
-            except Exception as e:
-                raise ValueError(f"Error loading model weights! Details: {e}") from e
+        filtered_architecture = filter_kwargs_for_callable(
+            model_class, self._architecture
+        )
+        if (
+            self._model_name in get_object_detector_model_names()
+        ):  # custom object detector models have model_weights_path in the architecture
+            filtered_architecture["model_weights_path"] = self._model_weights_path
+            self.model = model_class(**filtered_architecture)
+        else:
+            self.model = model_class(**filtered_architecture)
+            if self._pretrained:
+                try:
+                    self.model.load_state_dict(torch.load(self._model_weights_path))
+                except Exception as e:
+                    raise ValueError(
+                        f"Error loading model weights! Details: {e}"
+                    ) from e
 
     def models(self):
         """

@@ -1,38 +1,38 @@
 model:
   model_name: resnet18
-  num_input_channels: 3
-  num_classes: 10
+  architecture:
+    num_input_channels: 3
+    num_classes: 10
   pretrained: true
   weights: IMAGENET1K_V1
   is_external: false
-  random_seed:
+  random_seed: null
   path_configs:
-    model_arch_path:
-    model_weights_path:
+    model_arch_path: null
+    model_weights_path: null
   norm_config:
     add_norm_layer: false
     norm_mean:
-    - 0.5
-    - 0.5
-    - 0.5
+      - 0.5
+      - 0.5
+      - 0.5
     norm_std:
-    - 0.5
-    - 0.5
-    - 0.5
+      - 0.5
+      - 0.5
+      - 0.5
 dataset:
   dataset_name: cifar10
   num_classes: 10
-  train_dataset_path:
-  test_dataset_path:
+  train_dataset_path: null
+  test_dataset_path: null
   preprocessing:
     steps:
-    - name: ToImage
-      params:
-    - name: ToDtype
-      params:
-        dtype: torch.float32
-        scale: true
-  download: true
+      - name: ToImage
+        params: null
+      - name: ToDtype
+        params:
+          dtype: torch.float32
+          scale: true
 dataloader:
   test:
     num_workers: 4
@@ -41,9 +41,10 @@ dataloader:
     pin_memory: true
     batch_size: 32
 device:
-  use_ddp: false
-  processor: cpu
+  use_ddp: true
+  processor: cuda
   gpu_ids:
+    - 1
 testing:
   criterion: cross_entropy
   topk: 1

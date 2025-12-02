@@ -5,6 +5,7 @@ from advsecurenet.evaluation.evaluators import (
     RobustnessGapEvaluator,
     SimilarityEvaluator,
     TransferabilityEvaluator,
+    MeanAveragePrecisionEvaluator,
 )
 
 adversarial_evaluators = {
@@ -14,4 +15,5 @@ adversarial_evaluators = {
     "perturbation_effectiveness": PerturbationEffectivenessEvaluator(),
     "perturbation_distance": PerturbationDistanceEvaluator(),
     "transferability": TransferabilityEvaluator([]),
+    "mean_average_precision": MeanAveragePrecisionEvaluator(),
 }

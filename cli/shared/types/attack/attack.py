@@ -4,7 +4,7 @@ from typing import Generic, Optional, TypeVar
 from advsecurenet.shared.types.configs.attack_configs.attack_config import AttackConfig
 from advsecurenet.shared.types.configs.device_config import DeviceConfig
 from cli.shared.types.utils.dataloader import DataLoaderCliConfigType
-from cli.shared.types.utils.dataset import AttacksDatasetCliConfigType
+from advsecurenet.shared.types.configs.dataset_config import CreateDatasetCliConfig
 from cli.shared.types.utils.model import ModelCliConfigType
 from cli.shared.types.utils.target import TargetCLIConfigType
 
@@ -59,7 +59,7 @@ class BaseAttackCLIConfigType:
     """
 
     model: ModelCliConfigType
-    dataset: AttacksDatasetCliConfigType
+    dataset: CreateDatasetCliConfig
     dataloader: DataLoaderCliConfigType
     device: DeviceConfig
     attack_procedure: AttackProcedureCliConfigType

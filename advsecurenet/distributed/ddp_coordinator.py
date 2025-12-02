@@ -1,5 +1,6 @@
 import os
 
+import torch
 import torch.multiprocessing as mp
 from torch.distributed import destroy_process_group, init_process_group
 
@@ -29,7 +30,29 @@ class DDPCoordinator:
 
         """
         self.ddp_func = ddp_func
-        self.world_size = world_size
+        self.requested_world_size = world_size
+        if torch.cuda.is_available():
+            available = torch.cuda.device_count()
+            if available == 0:
+                print(
+                    "[DDPCoordinator][WARN] torch.cuda.is_available() but device_count=0. Falling back to world_size=1 (CPU)."
+                )
+                self.world_size = 1
+            elif world_size > available:
+                print(
+                    f"[DDPCoordinator][WARN] Requested world_size={world_size} exceeds available GPUs={available}. Clamping to {available}."
+                )
+                self.world_size = available
+            elif world_size < 1:
+                self.world_size = 1
+            else:
+                self.world_size = world_size
+        else:
+            if world_size != 1:
+                print(
+                    f"[DDPCoordinator][INFO] No GPUs detected; overriding requested world_size={world_size} to 1 (CPU)."
+                )
+            self.world_size = 1
         self.args = args
         self.kwargs = kwargs
         self.port = find_free_port()
@@ -45,6 +68,11 @@ class DDPCoordinator:
 
         The default backend is nccl.
         """
+        if torch.cuda.is_available():
+            torch.cuda.set_device(rank)
+            os.environ["LOCAL_RANK"] = str(rank)
+            os.environ["RANK"] = str(rank)
+            os.environ["WORLD_SIZE"] = str(self.world_size)
         init_process_group(backend=self.backend, rank=rank, world_size=self.world_size)
 
     def run_process(self, rank: int):

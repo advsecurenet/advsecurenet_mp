@@ -1,0 +1,140 @@
+import os
+import pkg_resources
+from typing import Optional
+import ssl
+from contextlib import contextmanager
+
+from torchvision import datasets
+from torchvision.datasets.utils import download_and_extract_archive
+
+from advsecurenet.datasets.base_dataset import BaseDataset
+from advsecurenet.datasets.base_dataset import DatasetWrapper
+from advsecurenet.shared.normalization_params import NormalizationParameters
+from advsecurenet.shared.types.configs.preprocess_config import PreprocessConfig
+from advsecurenet.shared.types import DatasetType, DataType
+from advsecurenet.datasets.COCO.coco_utils import map_raw_to_contiguous
+
+
+@contextmanager
+def temporarily_disable_ssl_verification():
+    """A context manager to temporarily disable SSL verification for faulty servers."""
+    original_context = ssl._create_default_https_context
+    ssl._create_default_https_context = ssl._create_unverified_context
+    try:
+        yield
+    finally:
+        ssl._create_default_https_context = original_context
+
+
+def _to_contiguous(anns):
+    out = []
+    for a in anns:
+        a = dict(a)
+        a["category_id"] = int(map_raw_to_contiguous(int(a["category_id"])))
+        out.append(a)
+    return out
+
+
+class COCODataset(BaseDataset):
+    """
+    A BaseDataset wrapper around torchvision.datasets.CocoDetection
+    """
+
+    _BASE_URL = "https://images.cocodataset.org"
+    _ANNOTATIONS_DIR = "annotations"
+
+    def __init__(self, preprocess_config: Optional[PreprocessConfig] = None):
+        super().__init__(preprocess_config)
+
+        # metadata
+        self.name = "coco"
+        self.num_classes = 80
+        self.num_input_channels = 3
+
+        # normalization (we map COCO→ImageNet stats in your NormalizationParameters)
+        params = NormalizationParameters.get_params(DatasetType.COCO)
+        self.mean = params.mean
+        self.std = params.std
+
+        # set input_size from preprocess_config if available, else default
+        if preprocess_config and getattr(preprocess_config, "steps", None):
+            for step in preprocess_config.steps:
+                if step.name.lower() == "resize" and "size" in step.params:
+                    self.input_size = tuple(step.params["size"])
+                    break
+            else:
+                self.input_size = (224, 224)  # COCO default
+        else:
+            self.input_size = (224, 224)
+
+    @staticmethod
+    def _download_coco_if_not_exists(root: str, train: bool):
+        split = "train2017" if train else "val2017"
+        # image archive & annotation archive
+        img_url = f"{COCODataset._BASE_URL}/zips/{split}.zip"
+        ann_url = f"{COCODataset._BASE_URL}/{COCODataset._ANNOTATIONS_DIR}/annotations_trainval2017.zip"
+        img_dir = os.path.join(root, split)
+        ann_dir = os.path.join(root, COCODataset._ANNOTATIONS_DIR)
+        with temporarily_disable_ssl_verification():
+            if not os.path.isdir(img_dir):
+                download_and_extract_archive(
+                    url=img_url, download_root=root, extract_root=root
+                )
+
+            if not os.path.isdir(ann_dir):
+                download_and_extract_archive(
+                    url=ann_url, download_root=root, extract_root=root
+                )
+
+    def get_dataset_class(self):
+        return datasets.CocoDetection
+
+    def load_dataset(
+        self,
+        root: Optional[str] = None,
+        train: bool = True,
+        download: bool = True,
+        **kwargs,
+    ) -> DatasetWrapper:
+        """
+        Overrides BaseDataset.load_dataset to handle COCO download + instantiation.
+
+        Args:
+            root (str, optional): base dir for COCO. Defaults to advsecurenet/data.
+            train (bool, optional): use train2017 vs val2017. Defaults to True.
+            download (bool, optional): whether to fetch/unzip COCO. Defaults to True.
+            **kwargs: unused for COCO.
+
+        Returns:
+            DatasetWrapper: wraps a torchvision.datasets.CocoDetection
+        """
+        # 1) set up root
+        if root is None:
+            root = pkg_resources.resource_filename("advsecurenet", "data")
+
+        # 2) download if requested
+        if download:
+            self._download_coco_if_not_exists(root, train)
+
+        # 3) build image folder + annotation path
+        split = "train2017" if train else "val2017"
+        img_root = os.path.join(root, split)
+        ann_file = os.path.join(
+            root, "annotations", f"instances_{'train' if train else 'val'}2017.json"
+        )
+
+        # 4) get transforms from preprocess_config
+        transform = self.get_transforms()
+
+        # 5) instantiate the torchvision dataset
+        coco_ds = datasets.CocoDetection(
+            root=img_root,
+            annFile=ann_file,
+            transform=transform,
+            target_transform=_to_contiguous,
+        )
+
+        # 6) wrap and return
+        self._dataset = DatasetWrapper(dataset=coco_ds, name=self.name)
+        self.data_type = DataType.TRAIN if train else DataType.TEST
+        return self._dataset

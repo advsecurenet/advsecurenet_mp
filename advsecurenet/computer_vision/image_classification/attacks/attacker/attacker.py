@@ -10,6 +10,7 @@ from advsecurenet.evaluation.adversarial_evaluator import AdversarialEvaluator
 from advsecurenet.shared.types.configs.attack_configs.attacker_config import (
     AttackerConfig,
 )
+from advsecurenet.utils.device_utils import setup_device
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,7 @@ class Attacker:
 
     def __init__(self, config: AttackerConfig, **kwargs):
         self._config = config
-        self._device = self._setup_device()
+        self._device = setup_device(config.device.processor)
         self._model = self._setup_model()
         self._dataloader = self._create_dataloader()
         self._kwargs = kwargs
@@ -32,27 +33,15 @@ class Attacker:
         """
         return self._execute_attack()
 
-    def _setup_device(self) -> torch.device:
-        """
-        Setup the device.
-        """
-
-        if self._config.device.processor:
-            device = torch.device(self._config.device.processor)
-        else:
-            if torch.cuda.is_available():
-                device = torch.device("cuda")
-            else:
-                device = torch.device("cpu")
-        return device
-
     def _create_dataloader(self):
         """
         It is possible to pass a DataLoader object directly to the AttackerConfig. If not, we create a DataLoader object from the DataLoaderConfig.
         """
         if isinstance(self._config.dataloader, torch.utils.data.DataLoader):
             return self._config.dataloader
-        return DataLoaderFactory.create_dataloader(self._config.dataloader)
+
+        dataloader_config = self._config.dataloader
+        return DataLoaderFactory.create_dataloader(dataloader_config)
 
     def _setup_model(self) -> torch.nn.Module:
         """
@@ -70,48 +59,55 @@ class Attacker:
             evaluators=self._config.evaluators,
             target_models=self._kwargs.get("target_models", []),
         ) as evaluator:
-            data_iterator = self._get_iterator()
+            # Use tqdm as a context manager to ensure proper cleanup
+            with tqdm(
+                self._dataloader,
+                leave=False,
+                position=1,
+                unit="batch",
+                desc="Generating adversarial samples",
+                colour="red",
+            ) as data_iterator:
+                self._model.eval()
+                for data in data_iterator:
+                    if self._config.attack.targeted and len(data) == 4:
+                        # Dataset returns (images, true_labels, target_images, target_labels) i.e. LOTS
+                        images, true_labels, target_images, target_labels = data
+                    else:
+                        # Dataset returns (images, labels)
+                        images, true_labels = data
+                        target_labels = true_labels
+                        target_images = None
 
-            self._model.eval()
-            for data in data_iterator:
-                if self._config.attack.targeted and len(data) == 4:
-                    # Dataset returns (images, true_labels, target_images, target_labels) i.e. LOTS
-                    images, true_labels, target_images, target_labels = data
-                else:
-                    # Dataset returns (images, labels)
-                    images, true_labels = data
-                    target_labels = true_labels
-                    target_images = None
+                    images, true_labels, target_labels = self._prepare_data(
+                        images, true_labels, target_labels
+                    )
 
-                images, true_labels, target_labels = self._prepare_data(
-                    images, true_labels, target_labels
-                )
+                    adv_images = self._generate_adversarial_images(
+                        images,
+                        target_labels if self._config.attack.targeted else true_labels,
+                        target_images,
+                    )
+                    evaluator.update(
+                        model=self._model,
+                        original_images=images,
+                        true_labels=true_labels,
+                        adversarial_images=adv_images,
+                        is_targeted=self._config.attack.targeted,
+                        target_labels=target_labels,
+                    )
 
-                adv_images = self._generate_adversarial_images(
-                    images,
-                    target_labels if self._config.attack.targeted else true_labels,
-                    target_images,
-                )
-                evaluator.update(
-                    model=self._model,
-                    original_images=images,
-                    true_labels=true_labels,
-                    adversarial_images=adv_images,
-                    is_targeted=self._config.attack.targeted,
-                    target_labels=target_labels,
-                )
+                    if torch.cuda.is_available() and self._device.type == "cuda":
+                        # Free up memory
+                        images = images.cpu()
+                        true_labels = true_labels.cpu()
+                        target_labels = target_labels.cpu()
+                        adv_images = adv_images.cpu()
+                        with torch.cuda.device(self._device):
+                            torch.cuda.empty_cache()
 
-                if torch.cuda.is_available() and self._device.type == "cuda":
-                    # Free up memory
-                    images = images.cpu()
-                    true_labels = true_labels.cpu()
-                    target_labels = target_labels.cpu()
-                    adv_images = adv_images.cpu()
-                    with torch.cuda.device(self._device):
-                        torch.cuda.empty_cache()
-
-                if self._config.return_adversarial_images:
-                    adversarial_images.append(adv_images)
+                    if self._config.return_adversarial_images:
+                        adversarial_images.append(adv_images)
 
             results = evaluator.get_results()
             self._summarize_results(results)
@@ -164,14 +160,4 @@ class Attacker:
         local_results = torch.tensor(value, device=self._device)
         click.secho(
             f"{name.replace('_', ' ').title()}: {local_results.item():.4f}", fg="green"
-        )
-
-    def _get_iterator(self):
-        return tqdm(
-            self._dataloader,
-            leave=False,
-            position=1,
-            unit="batch",
-            desc="Generating adversarial samples",
-            colour="red",
         )

@@ -1,0 +1,93 @@
+model:
+  model_name: CustomYolov5Model
+  num_input_channels: 3
+  architecture:
+    num_classes: 80
+  pretrained: false
+  weights: DEFAULT
+  is_external: true
+  random_seed:
+  path_configs:
+    model_weights_path: model_weights/yolov5s.pt
+    model_arch_path: 
+      ../../../../../advsecurenet/models/CustomODModels/CustomYolov5Model.py
+  norm_config:
+    add_norm_layer: false
+    norm_mean:
+    - 0.485
+    - 0.456
+    - 0.406
+    norm_std:
+    - 0.229
+    - 0.224
+    - 0.225
+  object_detector_config:
+    conf_thresh: 0.25
+    input_shape:
+    - 3
+    - 640
+    - 640
+    clip_values:
+    - 0
+    - 255
+    attack_losses:
+    - loss_total
+    - loss_cls
+    - loss_box
+    - loss_obj
+dataset:
+  dataset_name: coco
+  download: true
+  num_classes: 80
+  dataset_part: test
+  train_dataset_path: advsecurenet/data/train2017
+  test_dataset_path: advsecurenet/data/val2017
+  random_sample_size: 5
+  preprocessing:
+    steps:
+    - name: Resize
+      params:
+        size:
+        - 640
+        - 640
+    - name: ToTensor
+      params:
+    - name: ToDtype
+      params:
+        dtype: torch.float32
+dataloader:
+  default:
+    num_workers: 4
+    shuffle: true
+    drop_last: false
+    pin_memory: true
+    batch_size: 32
+  default.batch_size: 16
+  default.num_workers: 0
+device:
+  use_ddp: false
+  processor: cuda
+  gpu_ids:
+device.processor: cuda:0
+attack_procedure:
+  verbose: true
+  save_result_images: true
+  result_images_dir: attack_tog_mislabeling_ml
+  result_images_prefix: tog_mislabeling_ml_adv
+attack_config:
+  target_parameters:
+    targeted: false
+    target_labels_config:
+      target_labels: []
+  attack_parameters:
+    attack_type: fabrication
+    mislabeling_mode: ml
+    patch_shape:
+    - 3
+    - 200
+    - 200
+    learning_rate: 1.99
+    max_iter: 90
+    eps: 0.03
+    eps_iter: 0.01
+    random_location: false
