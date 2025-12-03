@@ -131,12 +131,12 @@ def attack(
 
     # Build command - MATCH THE EXACT SHELL SCRIPT SYNTAX
     cmd = [
-        sys.executable,
-        "main.py",
-        "--config",
-        str(config_path),
-        f"--config.verbose={verbose}",
-    ]
+            sys.executable,
+            "main.py",
+            f"--config={config_path}",  
+            f"--config.verbose={str(verbose).lower()}", 
+        ]
+
 
     # Only add overrides if values are provided - USE THE EXACT SHELL SCRIPT SYNTAX
     if model:

@@ -1,22 +1,19 @@
 #!/bin/bash
 
-# Parse arguments with defaults
-MODEL_NAME=${1:-"microsoft/DialoGPT-medium"}
-ATTACK_TYPE=${2:-"individual"}
-DATA_TYPE=${3:-"behaviors"}
-DEVICE=${4:-"auto"}
-N_STEPS=${5:-100}
-N_TRAIN_DATA=${6:-1}
-BATCH_SIZE=${7:-32}
-LEARNING_RATE=${8:-0.01}
-CONTROL_INIT=${9:-"! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! !"}
+# Parse arguments with defaults - REMOVE model override
+ATTACK_TYPE=${1:-"individual"}
+DATA_TYPE=${2:-"behaviors"}
+N_STEPS=${3:-100}
+N_TRAIN_DATA=${4:-1}
+BATCH_SIZE=${5:-32}
+LEARNING_RATE=${6:-0.01}
+CONTROL_INIT=${7:-"! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! !"}
 
 echo "🚀 Running Universal GCG Attack"
 echo "================================"
-echo "Model: $MODEL_NAME"
+echo "Using model from config file (Qwen/Qwen2.5-0.5B-Instruct)"
 echo "Attack Type: $ATTACK_TYPE"
 echo "Data Type: $DATA_TYPE"
-echo "Device: $DEVICE"
 echo "Steps: $N_STEPS"
 echo "Training Data: $N_TRAIN_DATA"
 echo "Batch Size: $BATCH_SIZE"
@@ -36,13 +33,9 @@ fi
 for data_offset in 0 10; do
     echo "📊 Running experiment with data offset $data_offset"
     
-    # FIX: Use tuple syntax for lists as the error message suggests
+    # FIXED: Don't override model settings - use config file defaults
     python3 ../main.py \
-        --config ../configs/universal_config.py \
-        --config.model_name="$MODEL_NAME" \
-        --config.model_paths="('$MODEL_NAME',)" \
-        --config.tokenizer_paths="('$MODEL_NAME',)" \
-        --config.device="$DEVICE" \
+        --config=../configs/universal_config.py \
         --config.attack_type="$ATTACK_TYPE" \
         --config.data_type="$DATA_TYPE" \
         --config.n_steps=$N_STEPS \
