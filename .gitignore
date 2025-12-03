@@ -14,7 +14,10 @@ outputs/
 
 # data
 data/
-
+# EXCEPTION: allow data/advbench
+!advsecurenet/llm/GCG/data/
+!advsecurenet/llm/GCG/data/advbench/
+!advsecurenet/llm/GCG/data/advbench/**
 # doc artifacts
 docs/_build/
 
