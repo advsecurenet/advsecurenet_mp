@@ -1283,8 +1283,13 @@ class TestMultiPromptAttackGetFilteredCandsEdgeCases:
 
         worker = MagicMock()
         worker.model = MagicMock()
-        worker.tokenizer.decode.side_effect = ["cand1", "cand2", "curr_control", "cand3"]
-        
+        worker.tokenizer.decode.side_effect = [
+            "cand1",
+            "cand2",
+            "curr_control",
+            "cand3",
+        ]
+
         # Create a mock that returns different token lengths
         def mock_tokenizer_call(text, add_special_tokens=False):
             if text == "cand1":
@@ -1295,7 +1300,7 @@ class TestMultiPromptAttackGetFilteredCandsEdgeCases:
                 return MagicMock(input_ids=[1, 2, 3])  # Same length
             else:
                 return MagicMock(input_ids=[1, 2, 3])  # Same length
-        
+
         worker.tokenizer.side_effect = mock_tokenizer_call
         worker.conv_template = MagicMock()
 
@@ -1325,7 +1330,12 @@ class TestMultiPromptAttackGetFilteredCandsEdgeCases:
         worker = MagicMock()
         worker.model = MagicMock()
         # Only first candidate is valid, others get filtered
-        worker.tokenizer.decode.side_effect = ["valid_cand", "curr_control", "curr_control", "curr_control"]
+        worker.tokenizer.decode.side_effect = [
+            "valid_cand",
+            "curr_control",
+            "curr_control",
+            "curr_control",
+        ]
         worker.tokenizer.return_value.input_ids = [1, 2, 3]  # All same length
         worker.conv_template = MagicMock()
 
@@ -1364,7 +1374,9 @@ class TestMultiPromptAttackLogFileOperations:
         worker.model = MagicMock()
         worker.model.name_or_path = "test_model_name"  # String instead of MagicMock
         worker.tokenizer = MagicMock()
-        worker.tokenizer.name_or_path = "test_tokenizer_name"  # String instead of MagicMock
+        worker.tokenizer.name_or_path = (
+            "test_tokenizer_name"  # String instead of MagicMock
+        )
         worker.conv_template = MagicMock()
         worker.conv_template.name = "test_template"  # String instead of MagicMock
         worker.results.get.return_value = [False, False, 0.5]
@@ -1372,15 +1384,10 @@ class TestMultiPromptAttackLogFileOperations:
         pm = MagicMock()
         managers = {"PM": lambda *args, **kwargs: pm}
 
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as f:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".json") as f:
             logfile_path = f.name
             # Initialize log file
-            json.dump({
-                "controls": [],
-                "losses": [],
-                "runtimes": [],
-                "tests": []
-            }, f)
+            json.dump({"controls": [], "losses": [], "runtimes": [], "tests": []}, f)
 
         try:
             attack = MultiPromptAttack(
@@ -1407,7 +1414,7 @@ class TestMultiPromptAttackLogFileOperations:
             )
 
             # Verify log file was written to
-            with open(logfile_path, 'r') as f:
+            with open(logfile_path, "r") as f:
                 log_data = json.load(f)
                 assert len(log_data["controls"]) > 0
 
