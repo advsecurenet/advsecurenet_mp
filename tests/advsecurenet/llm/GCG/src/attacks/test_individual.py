@@ -219,7 +219,7 @@ class TestIndividualPromptAttackRun:
         assert call_args["control_weight"] == 0.5
         assert call_args["anneal"] is False
         assert call_args["test_steps"] == 25
-        assert call_args["incr_control"] is False
+        # incr_control is not passed to MPA.run() method - it's only used for logfile
         assert call_args["stop_on_success"] is False
         assert call_args["filter_cand"] is False
 
@@ -316,13 +316,16 @@ class TestIndividualPromptAttackEdgeCases:
         assert attack.logfile is None
 
     def test_missing_managers(self, mock_worker):
-        with pytest.raises(TypeError):
-            IndividualPromptAttack(
-                goals=["test"],
-                targets=["test"],
-                workers=[mock_worker],
-                # missing managers
-            )
+        # The IndividualPromptAttack doesn't validate managers parameter in __init__
+        # It will only fail when trying to access self.managers["MPA"] during run()
+        attack = IndividualPromptAttack(
+            goals=["test"], targets=["test"], workers=[mock_worker]
+            # missing managers
+        )
+        
+        # The error happens when trying to run, not during initialization
+        with pytest.raises(TypeError, match="'NoneType' object is not subscriptable"):
+            attack.run(n_steps=1, verbose=False)
 
     def test_empty_workers_list(self, mock_managers):
         attack = IndividualPromptAttack(

@@ -302,10 +302,14 @@ class MultiPromptAttack(object):
             target_weight_fn = lambda _: 1
         elif isinstance(target_weight, (int, float)):
             target_weight_fn = lambda i: target_weight
+        else:
+            target_weight_fn = target_weight
         if control_weight is None:
             control_weight_fn = lambda _: 0.1
         elif isinstance(control_weight, (int, float)):
             control_weight_fn = lambda i: control_weight
+        else:
+            control_weight_fn = control_weight
 
         steps = 0
         loss = best_loss = 1e6

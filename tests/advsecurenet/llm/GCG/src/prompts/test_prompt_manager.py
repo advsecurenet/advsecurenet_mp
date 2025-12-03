@@ -1,7 +1,10 @@
 import pytest
 import torch
 import numpy as np
-from unittest.mock import MagicMock, patch
+import json
+import tempfile
+import os
+from unittest.mock import MagicMock, patch, mock_open
 from advsecurenet.llm.GCG.src.prompts.prompt_manager import PromptManager
 
 
@@ -1040,6 +1043,377 @@ class TestPromptManagerRunMethodEdgeCases:
         assert isinstance(result, tuple)
         assert len(result) == 3
         # Should have stopped before completing all steps
+
+
+class TestMultiPromptAttackLogMethod:
+    @patch("advsecurenet.llm.GCG.src.prompts.prompt_manager.get_nonascii_toks")
+    @patch("builtins.open", new_callable=mock_open)
+    def test_log_method_comprehensive(self, mock_file, mock_nonascii):
+        from advsecurenet.llm.GCG.src.prompts.prompt_manager import MultiPromptAttack
+
+        mock_nonascii.return_value = torch.tensor([])
+
+        # Create mock workers
+        worker1 = MagicMock()
+        worker1.model.name_or_path = "model1"
+        worker2 = MagicMock()
+        worker2.model.name_or_path = "model2"
+
+        pm = MagicMock()
+        managers = {"PM": lambda *args, **kwargs: pm}
+
+        attack = MultiPromptAttack(
+            goals=["goal1", "goal2"],
+            targets=["target1", "target2"],
+            workers=[worker1],
+            test_goals=["test_goal1"],
+            test_targets=["test_target1"],
+            test_workers=[worker2],
+            managers=managers,
+            logfile="test.json",
+        )
+
+        # Mock the existing log file
+        existing_log = {
+            "controls": [],
+            "losses": [],
+            "runtimes": [],
+            "tests": [],
+        }
+        mock_file.return_value.read.return_value = json.dumps(existing_log)
+
+        # Create mock model tests data
+        prompt_tests_jb = np.array([[1, 0, 1], [0, 1, 0]])  # 2 workers x 3 goals
+        prompt_tests_mb = np.array([[1, 1, 0], [1, 0, 1]])  # 2 workers x 3 goals
+        model_tests_loss = np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]])
+
+        model_tests = [prompt_tests_jb, prompt_tests_mb, model_tests_loss]
+
+        with patch("builtins.print") as mock_print:
+            attack.log(
+                step_num=5,
+                n_steps=10,
+                control="test_control",
+                loss=0.25,
+                runtime=1.5,
+                model_tests=model_tests,
+                verbose=True,
+            )
+
+        # Verify print was called for verbose output
+        mock_print.assert_called()
+
+    @patch("advsecurenet.llm.GCG.src.prompts.prompt_manager.get_nonascii_toks")
+    @patch("builtins.open", new_callable=mock_open)
+    def test_log_method_non_verbose(self, mock_file, mock_nonascii):
+        from advsecurenet.llm.GCG.src.prompts.prompt_manager import MultiPromptAttack
+
+        mock_nonascii.return_value = torch.tensor([])
+
+        worker = MagicMock()
+        worker.model.name_or_path = "model1"
+        pm = MagicMock()
+        managers = {"PM": lambda *args, **kwargs: pm}
+
+        attack = MultiPromptAttack(
+            goals=["goal1"],
+            targets=["target1"],
+            workers=[worker],
+            managers=managers,
+            logfile="test.json",
+        )
+
+        existing_log = {"controls": [], "losses": [], "runtimes": [], "tests": []}
+        mock_file.return_value.read.return_value = json.dumps(existing_log)
+
+        model_tests = [np.array([[1]]), np.array([[0]]), np.array([[0.1]])]
+
+        with patch("builtins.print") as mock_print:
+            attack.log(
+                step_num=1,
+                n_steps=5,
+                control="test",
+                loss=0.1,
+                runtime=0.5,
+                model_tests=model_tests,
+                verbose=False,
+            )
+
+        # Verify print was NOT called for non-verbose
+        mock_print.assert_not_called()
+
+    @patch("advsecurenet.llm.GCG.src.prompts.prompt_manager.get_nonascii_toks")
+    @patch("builtins.open", new_callable=mock_open)
+    def test_log_division_by_zero_protection(self, mock_file, mock_nonascii):
+        from advsecurenet.llm.GCG.src.prompts.prompt_manager import MultiPromptAttack
+
+        mock_nonascii.return_value = torch.tensor([])
+
+        worker = MagicMock()
+        worker.model.name_or_path = "model1"
+        pm = MagicMock()
+        managers = {"PM": lambda *args, **kwargs: pm}
+
+        attack = MultiPromptAttack(
+            goals=["goal1"],
+            targets=["target1"],
+            workers=[worker],
+            managers=managers,
+            logfile="test.json",
+        )
+
+        existing_log = {"controls": [], "losses": [], "runtimes": [], "tests": []}
+        mock_file.return_value.read.return_value = json.dumps(existing_log)
+
+        # Create model tests with zero total tests to test division by zero protection
+        prompt_tests_jb = np.array([[0]])
+        prompt_tests_mb = np.array([[0]])
+        model_tests_loss = np.array([[0.5]])
+
+        model_tests = [prompt_tests_jb, prompt_tests_mb, model_tests_loss]
+
+        # Should not raise division by zero error
+        attack.log(
+            step_num=1,
+            n_steps=1,
+            control="test",
+            loss=0.1,
+            runtime=0.5,
+            model_tests=model_tests,
+            verbose=False,
+        )
+
+
+class TestMultiPromptAttackRunWeightFunctions:
+    @patch("advsecurenet.llm.GCG.src.prompts.prompt_manager.get_nonascii_toks")
+    @patch("time.time")
+    def test_run_with_callable_target_weight(self, mock_time, mock_nonascii):
+        from advsecurenet.llm.GCG.src.prompts.prompt_manager import MultiPromptAttack
+
+        mock_nonascii.return_value = torch.tensor([])
+        mock_time.side_effect = [0.0, 1.0]
+
+        worker = MagicMock()
+        worker.model = MagicMock()
+        worker.tokenizer = MagicMock()
+        worker.conv_template = MagicMock()
+        worker.results.get.return_value = [False, False, 0.5]
+
+        pm = MagicMock()
+        managers = {"PM": lambda *args, **kwargs: pm}
+
+        attack = MultiPromptAttack(
+            goals=["goal1"], targets=["target1"], workers=[worker], managers=managers
+        )
+
+        step_calls = []
+
+        def mock_step(**kwargs):
+            step_calls.append(kwargs)
+            return ("control", 0.3)
+
+        attack.step = mock_step
+        attack.test = MagicMock(return_value=([[False]], [[False]], [0.5]))
+
+        # Test with callable target_weight function (not int/float)
+        def target_weight_fn(step):
+            return 0.5 + 0.1 * step
+
+        attack.run(
+            n_steps=1,
+            target_weight=target_weight_fn,
+            stop_on_success=False,
+            verbose=False,
+        )
+
+        # Verify target_weight was called correctly
+        assert step_calls[0]["target_weight"] == 0.5
+
+    @patch("advsecurenet.llm.GCG.src.prompts.prompt_manager.get_nonascii_toks")
+    @patch("time.time")
+    def test_run_with_callable_control_weight(self, mock_time, mock_nonascii):
+        from advsecurenet.llm.GCG.src.prompts.prompt_manager import MultiPromptAttack
+
+        mock_nonascii.return_value = torch.tensor([])
+        mock_time.side_effect = [0.0, 1.0]
+
+        worker = MagicMock()
+        worker.model = MagicMock()
+        worker.tokenizer = MagicMock()
+        worker.conv_template = MagicMock()
+        worker.results.get.return_value = [False, False, 0.5]
+
+        pm = MagicMock()
+        managers = {"PM": lambda *args, **kwargs: pm}
+
+        attack = MultiPromptAttack(
+            goals=["goal1"], targets=["target1"], workers=[worker], managers=managers
+        )
+
+        step_calls = []
+
+        def mock_step(**kwargs):
+            step_calls.append(kwargs)
+            return ("control", 0.3)
+
+        attack.step = mock_step
+        attack.test = MagicMock(return_value=([[False]], [[False]], [0.5]))
+
+        # Test with callable control_weight function (not int/float)
+        def control_weight_fn(step):
+            return 0.2 + 0.05 * step
+
+        attack.run(
+            n_steps=1,
+            control_weight=control_weight_fn,
+            stop_on_success=False,
+            verbose=False,
+        )
+
+        # Verify control_weight was called correctly
+        assert step_calls[0]["control_weight"] == 0.2
+
+
+class TestMultiPromptAttackGetFilteredCandsEdgeCases:
+    @patch("advsecurenet.llm.GCG.src.prompts.prompt_manager.get_nonascii_toks")
+    def test_get_filtered_cands_tokenizer_length_mismatch(self, mock_nonascii):
+        from advsecurenet.llm.GCG.src.prompts.prompt_manager import MultiPromptAttack
+
+        mock_nonascii.return_value = torch.tensor([])
+
+        worker = MagicMock()
+        worker.model = MagicMock()
+        worker.tokenizer.decode.side_effect = ["cand1", "cand2", "curr_control", "cand3"]
+        
+        # Create a mock that returns different token lengths
+        def mock_tokenizer_call(text, add_special_tokens=False):
+            if text == "cand1":
+                return MagicMock(input_ids=[1, 2, 3])  # Same length as control_cand[0]
+            elif text == "cand2":
+                return MagicMock(input_ids=[1, 2])  # Different length
+            elif text == "curr_control":
+                return MagicMock(input_ids=[1, 2, 3])  # Same length
+            else:
+                return MagicMock(input_ids=[1, 2, 3])  # Same length
+        
+        worker.tokenizer.side_effect = mock_tokenizer_call
+        worker.conv_template = MagicMock()
+
+        pm = MagicMock()
+        managers = {"PM": lambda *args, **kwargs: pm}
+
+        attack = MultiPromptAttack(
+            goals=["goal1"], targets=["target1"], workers=[worker], managers=managers
+        )
+
+        control_cand = torch.tensor([[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]])
+
+        # Test filtering with tokenizer length mismatch
+        cands = attack.get_filtered_cands(
+            0, control_cand, filter_cand=True, curr_control="curr_control"
+        )
+
+        # Should handle the case where some candidates are filtered due to length mismatch
+        assert len(cands) == 4
+
+    @patch("advsecurenet.llm.GCG.src.prompts.prompt_manager.get_nonascii_toks")
+    def test_get_filtered_cands_padding_fallback(self, mock_nonascii):
+        from advsecurenet.llm.GCG.src.prompts.prompt_manager import MultiPromptAttack
+
+        mock_nonascii.return_value = torch.tensor([])
+
+        worker = MagicMock()
+        worker.model = MagicMock()
+        # Only first candidate is valid, others get filtered
+        worker.tokenizer.decode.side_effect = ["valid_cand", "curr_control", "curr_control", "curr_control"]
+        worker.tokenizer.return_value.input_ids = [1, 2, 3]  # All same length
+        worker.conv_template = MagicMock()
+
+        pm = MagicMock()
+        managers = {"PM": lambda *args, **kwargs: pm}
+
+        attack = MultiPromptAttack(
+            goals=["goal1"], targets=["target1"], workers=[worker], managers=managers
+        )
+
+        control_cand = torch.tensor([[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]])
+
+        # When most candidates get filtered, should pad with last valid candidate
+        cands = attack.get_filtered_cands(
+            0, control_cand, filter_cand=True, curr_control="curr_control"
+        )
+
+        # Should be padded to full length
+        assert len(cands) == 4
+        # Should contain the valid candidate and padding
+        assert "valid_cand" in cands
+
+
+class TestMultiPromptAttackLogFileOperations:
+    @patch("advsecurenet.llm.GCG.src.prompts.prompt_manager.get_nonascii_toks")
+    @patch("time.time")
+    def test_run_with_logfile_operations(self, mock_time, mock_nonascii):
+        from advsecurenet.llm.GCG.src.prompts.prompt_manager import MultiPromptAttack
+        import tempfile
+        import os
+
+        mock_nonascii.return_value = torch.tensor([])
+        mock_time.side_effect = [0.0, 1.0, 2.0, 3.0, 4.0, 5.0]
+
+        worker = MagicMock()
+        worker.model = MagicMock()
+        worker.model.name_or_path = "test_model_name"  # String instead of MagicMock
+        worker.tokenizer = MagicMock()
+        worker.tokenizer.name_or_path = "test_tokenizer_name"  # String instead of MagicMock
+        worker.conv_template = MagicMock()
+        worker.conv_template.name = "test_template"  # String instead of MagicMock
+        worker.results.get.return_value = [False, False, 0.5]
+
+        pm = MagicMock()
+        managers = {"PM": lambda *args, **kwargs: pm}
+
+        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as f:
+            logfile_path = f.name
+            # Initialize log file
+            json.dump({
+                "controls": [],
+                "losses": [],
+                "runtimes": [],
+                "tests": []
+            }, f)
+
+        try:
+            attack = MultiPromptAttack(
+                goals=["goal1"],
+                targets=["target1"],
+                workers=[worker],
+                managers=managers,
+                logfile=logfile_path,
+            )
+
+            # Mock control_str property to return a string instead of MagicMock
+            attack.control_str = "test_control_string"
+            attack.step = MagicMock(return_value=("control", 0.3))
+            attack.test = MagicMock(return_value=([[False]], [[False]], [0.5]))
+            attack.test_all = MagicMock(return_value=([[False]], [[False]], [[0.5]]))
+
+            # Test with log_first=True and test_steps interval to hit logfile operations
+            attack.run(
+                n_steps=2,
+                test_steps=1,
+                log_first=True,
+                stop_on_success=False,
+                verbose=False,
+            )
+
+            # Verify log file was written to
+            with open(logfile_path, 'r') as f:
+                log_data = json.load(f)
+                assert len(log_data["controls"]) > 0
+
+        finally:
+            if os.path.exists(logfile_path):
+                os.unlink(logfile_path)
 
 
 if __name__ == "__main__":
