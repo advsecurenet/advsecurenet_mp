@@ -21,8 +21,8 @@ setup(
     python_requires=">=3.10",
     install_requires=[
         "click",
-        "torch>=2.0.0",  # Use latest PyTorch
-        "torchvision>=0.15.0",  # Use latest torchvision
+        "torch",  # Use latest PyTorch
+        "torchvision",  # Use latest torchvision
         "colored",
         "tqdm",
         "PyYAML",
