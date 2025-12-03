@@ -404,7 +404,9 @@ def test_init_no_arch_override(hf_config_base):
 # Test load_model Scenarios
 @pytest.mark.advsecurenet
 @pytest.mark.essential
-@pytest.mark.skip(reason="Mock module comparison issues in CI environment - internal implementation test")
+@pytest.mark.skip(
+    reason="Mock module comparison issues in CI environment - internal implementation test"
+)
 def test_load_model_pretrained_success_inferred(
     hf_config_base,
     mock_auto_config,
@@ -442,7 +444,9 @@ def test_load_model_pretrained_success_inferred(
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
-@pytest.mark.skip(reason="Mock attribute error in CI environment - internal implementation test")
+@pytest.mark.skip(
+    reason="Mock attribute error in CI environment - internal implementation test"
+)
 def test_load_model_pretrained_success_manual_override(
     hf_config_base, mock_transformers_getattr, mock_issubclass, mock_warnings
 ):
@@ -464,7 +468,9 @@ def test_load_model_pretrained_success_manual_override(
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
-@pytest.mark.skip(reason="Missing _name_or_path attribute in mock - internal implementation test")
+@pytest.mark.skip(
+    reason="Missing _name_or_path attribute in mock - internal implementation test"
+)
 def test_load_model_non_pretrained_success_inferred(
     hf_config_base,
     mock_auto_config,
@@ -511,7 +517,9 @@ def test_load_model_non_pretrained_success_inferred(
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
-@pytest.mark.skip(reason="Mock attribute error in CI environment - internal implementation test")
+@pytest.mark.skip(
+    reason="Mock attribute error in CI environment - internal implementation test"
+)
 def test_load_model_non_pretrained_success_manual_override(
     hf_config_base,
     mock_auto_config,
@@ -535,7 +543,9 @@ def test_load_model_non_pretrained_success_manual_override(
 
 @pytest.mark.advsecurenet
 @pytest.mark.essential
-@pytest.mark.skip(reason="Mock module comparison issues in CI environment - internal implementation test")
+@pytest.mark.skip(
+    reason="Mock module comparison issues in CI environment - internal implementation test"
+)
 def test_load_model_fallback_to_automodel_inferred_load_error(
     hf_config_base,
     mock_auto_config,
