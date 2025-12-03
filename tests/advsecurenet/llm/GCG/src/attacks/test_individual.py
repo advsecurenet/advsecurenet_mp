@@ -319,10 +319,12 @@ class TestIndividualPromptAttackEdgeCases:
         # The IndividualPromptAttack doesn't validate managers parameter in __init__
         # It will only fail when trying to access self.managers["MPA"] during run()
         attack = IndividualPromptAttack(
-            goals=["test"], targets=["test"], workers=[mock_worker]
+            goals=["test"],
+            targets=["test"],
+            workers=[mock_worker],
             # missing managers
         )
-        
+
         # The error happens when trying to run, not during initialization
         with pytest.raises(TypeError, match="'NoneType' object is not subscriptable"):
             attack.run(n_steps=1, verbose=False)
