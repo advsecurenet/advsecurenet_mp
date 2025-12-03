@@ -20,9 +20,9 @@ setup(
     package_data={"": ["*.yml"]},
     python_requires=">=3.10",
     install_requires=[
-                "click",
+        "click",
         "torch>=2.0.0",  # Use latest PyTorch
-        "torchvision>=0.15.0",  # Use latest torchvision  
+        "torchvision>=0.15.0",  # Use latest torchvision
         "colored",
         "tqdm",
         "PyYAML",
