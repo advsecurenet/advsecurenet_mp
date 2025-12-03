@@ -78,8 +78,10 @@ class TestAttackCommand:
         cmd = call_args[0][0]
         assert sys.executable in cmd
         assert "main.py" in cmd
-        assert "--config" in cmd
-        assert "--config.verbose=False" in cmd
+        # Check for --config= format (not separate --config argument)
+        config_arg = next((arg for arg in cmd if arg.startswith("--config=")), None)
+        assert config_arg is not None, f"Expected --config= argument in command: {cmd}"
+        assert "--config.verbose=false" in cmd
         assert '--config.model_name="gpt2"' in cmd
         assert "--config.n_steps=10" in cmd
 
@@ -136,7 +138,7 @@ class TestAttackCommand:
 
         # Verify subprocess call includes all parameters
         cmd = mock_subprocess.call_args[0][0]
-        assert "--config.verbose=True" in cmd
+        assert "--config.verbose=true" in cmd  # Fixed: lowercase true, not True
         assert '--config.model_name="test_model"' in cmd
         assert '--config.attack_type="individual"' in cmd
         assert '--config.data_type="behaviors"' in cmd
