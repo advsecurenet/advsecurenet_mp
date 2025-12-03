@@ -21,8 +21,8 @@ setup(
     python_requires=">=3.10",
     install_requires=[
         "click",
-        "torch",
-        "torchvision",
+        "torch>=2.0.0,<2.4.0",  # Compatible range for opacus 1.3.0
+        "torchvision>=0.15.0,<0.19.0",  # Compatible with torch version range
         "colored",
         "tqdm",
         "PyYAML",
@@ -49,6 +49,8 @@ setup(
         "accelerate>=0.33",
         "peft>=0.12",
         "ml-collections",
+        "opacus",  # Version compatible with PyTorch 2.1.x, no RMSNorm dependency
+        "thop",  # Required for model operations profiling
     ],
     entry_points={
         "console_scripts": [
