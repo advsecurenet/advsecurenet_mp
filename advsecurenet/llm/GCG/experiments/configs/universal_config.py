@@ -31,7 +31,7 @@ def get_config():
     config.n_train_data = 10
     config.n_test_data = 0
     config.data_offset = 0
-    config.train_data = "../../data/llm/GCG/data/advbench/harmful_behaviors.csv"
+    config.train_data = os.path.join(os.path.dirname(__file__), "../../data/advbench/harmful_behaviors.csv")
     config.test_data = ""
 
     # === OPTIMIZATION PARAMETERS ===

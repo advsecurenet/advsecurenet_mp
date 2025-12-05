@@ -47,11 +47,11 @@ for data_offset in 0 10; do
         --config.verbose=true
         
     if [ $? -eq 0 ]; then
-        echo "✅ Completed offset $data_offset"
+        echo "Completed offset $data_offset"
     else
-        echo "❌ Failed offset $data_offset"
+        echo "Failed offset $data_offset"
         break
     fi
 done
 
-echo "🎉 All experiments completed!"
+echo "All experiments completed!"
