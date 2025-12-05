@@ -1,3 +1,17 @@
+"""Universal adapter for conversation templates across HuggingFace models.
+
+This module provides a unified interface for handling conversation templates
+from various sources including FastChat, HuggingFace built-in chat templates,
+and manual fallbacks. It's specifically optimized for GCG (Greedy Coordinate
+Gradient) attacks by handling special token removal and template normalization.
+
+The adapter supports:
+- FastChat conversation templates for popular models
+- HuggingFace built-in chat templates
+- Manual fallback templates for unsupported models
+- Special token handling for adversarial attacks
+"""
+
 import re
 from typing import Dict, Optional, Any, List
 
@@ -6,16 +20,31 @@ try:
     from fastchat.model.model_adapter import get_conversation_template
 
     FASTCHAT_AVAILABLE = True
-    print("✅ FastChat available for conversation templates")
+    print("FastChat available for conversation templates")
 except ImportError:
     FASTCHAT_AVAILABLE = False
-    print("⚠️ FastChat not available. Install with: pip install fschat")
+    print("FastChat not available. Install with: pip install fschat")
 
 
 class ConversationTemplateAdapter:
-    """Universal adapter for any HuggingFace model using FastChat."""
+    """Universal adapter for conversation templates across HuggingFace models.
+    
+    This class provides a unified interface for handling conversation templates
+    from various sources, with intelligent fallbacks and special handling for
+    adversarial attacks like GCG.
+    
+    Features:
+    - Automatic FastChat template detection
+    - HuggingFace built-in chat template support
+    - Manual fallback templates for unsupported models
+    - Special token removal for adversarial compatibility
+    - Model family detection and template mapping
+    
+    Attributes:
+        FASTCHAT_TEMPLATE_MAP: Mapping of model families to FastChat templates
+    """
 
-    # FastChat template fallback mapping for common models
+    # FastChat template fallback mapping for common model families
     FASTCHAT_TEMPLATE_MAP = {
         "dialogpt": "one_shot",
         "gpt2": "zero_shot",
@@ -46,22 +75,31 @@ class ConversationTemplateAdapter:
 
     @staticmethod
     def get_fastchat_template(model_name: str):
-        """Get FastChat conversation template for any model."""
+        """Get FastChat conversation template for any model.
+        
+        Attempts to retrieve a conversation template using FastChat's auto-detection,
+        falls back to pattern-based matching, and finally tries common templates.
+        
+        Args:
+            model_name: Name or path of the HuggingFace model
+            
+        Returns:
+            FastChat Conversation object if found, None otherwise
+        """
         if not FASTCHAT_AVAILABLE:
             return None
 
-        # Handle None or empty model name
         if not model_name:
-            print(f"⚠️ Invalid model name: {model_name}")
+            print(f"Invalid model name: {model_name}")
             return None
 
         try:
             # First, try direct model name lookup (FastChat's auto-detection)
             conv = get_conversation_template(model_name)
-            print(f"✅ FastChat auto-detected template '{conv.name}' for {model_name}")
+            print(f"FastChat auto-detected template '{conv.name}' for {model_name}")
             return conv
         except Exception as e:
-            print(f"⚠️ FastChat auto-detection failed for {model_name}: {e}")
+            print(f"FastChat auto-detection failed for {model_name}: {e}")
 
             # Fallback to pattern-based template selection
             model_lower = model_name.lower()
@@ -73,7 +111,7 @@ class ConversationTemplateAdapter:
                     try:
                         conv = get_conv_template(template_name)
                         print(
-                            f"✅ Using FastChat template '{template_name}' for {model_name} (family: {family})"
+                            f"Using FastChat template '{template_name}' for {model_name} (family: {family})"
                         )
                         return conv
                     except Exception:
@@ -85,21 +123,30 @@ class ConversationTemplateAdapter:
                 try:
                     conv = get_conv_template(template)
                     print(
-                        f"✅ Using FastChat fallback template '{template}' for {model_name}"
+                        f"Using FastChat fallback template '{template}' for {model_name}"
                     )
                     return conv
                 except:
                     continue
 
-            print(f"❌ Could not find any FastChat template for {model_name}")
+            print(f"Could not find any FastChat template for {model_name}")
             return None
 
     @staticmethod
     def detect_model_family(model_name: str) -> str:
-        """Detect model family from HuggingFace model name."""
+        """Detect model family from HuggingFace model name.
+        
+        Uses pattern matching against known model families to determine
+        the appropriate conversation template category.
+        
+        Args:
+            model_name: Name or path of the HuggingFace model
+            
+        Returns:
+            Detected model family string, 'generic' if no match found
+        """
         model_name_lower = model_name.lower()
 
-        # Use FastChat template map for detection
         for family in ConversationTemplateAdapter.FASTCHAT_TEMPLATE_MAP.keys():
             if family in model_name_lower:
                 return family
@@ -108,8 +155,21 @@ class ConversationTemplateAdapter:
 
     @staticmethod
     def get_universal_conversation_format(model_name: str, tokenizer) -> Dict[str, Any]:
-        """Get universal conversation format using FastChat."""
-
+        """Get universal conversation format using multiple fallback strategies.
+        
+        Attempts to obtain conversation format in order of preference:
+        1. FastChat templates (most comprehensive)
+        2. HuggingFace built-in chat templates
+        3. Manual fallback templates
+        
+        Args:
+            model_name: Name or path of the HuggingFace model
+            tokenizer: HuggingFace tokenizer instance
+            
+        Returns:
+            Dictionary containing conversation format configuration including
+            format_type, roles, separators, and template information
+        """
         # Try FastChat first
         if FASTCHAT_AVAILABLE:
             fastchat_conv = ConversationTemplateAdapter.get_fastchat_template(
@@ -145,7 +205,18 @@ class ConversationTemplateAdapter:
 
     @staticmethod
     def _get_manual_fallback(model_name: str, tokenizer) -> Dict[str, Any]:
-        """Manual fallback when FastChat is not available."""
+        """Manual fallback conversation templates when FastChat is unavailable.
+        
+        Provides basic conversation templates for common model families
+        when other template sources are not accessible.
+        
+        Args:
+            model_name: Name or path of the HuggingFace model
+            tokenizer: HuggingFace tokenizer instance
+            
+        Returns:
+            Dictionary with manual conversation format configuration
+        """
         family = ConversationTemplateAdapter.detect_model_family(model_name)
 
         # Simplified manual formats as last resort
@@ -185,14 +256,27 @@ class ConversationTemplateAdapter:
         tokenizer,
         avoid_special_tokens: bool = True,
     ) -> str:
-        """Format prompt for GCG attack using FastChat."""
-
+        """Format prompt for GCG attack with proper conversation structure.
+        
+        Creates a formatted conversation prompt suitable for GCG attacks,
+        handling special tokens and template-specific formatting.
+        
+        Args:
+            prompt: User input/attack prompt
+            target: Desired model response/target
+            model_name: Name or path of the HuggingFace model
+            tokenizer: HuggingFace tokenizer instance
+            avoid_special_tokens: Whether to remove problematic special tokens
+            
+        Returns:
+            Formatted conversation string ready for GCG attack
+        """
         conv_format = ConversationTemplateAdapter.get_universal_conversation_format(
             model_name, tokenizer
         )
 
         print(
-            f"🔧 Using template '{conv_format.get('template_name', 'unknown')}' for {model_name}"
+            f"Using template '{conv_format.get('template_name', 'unknown')}' for {model_name}"
         )
 
         # Use FastChat template
@@ -230,13 +314,13 @@ class ConversationTemplateAdapter:
                         if token and token in formatted:
                             formatted = formatted.replace(token, "")
                             print(
-                                f"🧹 Removed problematic token '{token}' for GCG compatibility"
+                                f"Removed problematic token '{token}' for GCG compatibility"
                             )
 
                 return formatted.strip()
 
             except Exception as e:
-                print(f"⚠️ FastChat formatting failed: {e}, using fallback")
+                print(f"FastChat formatting failed: {e}, using fallback")
 
         # Use HuggingFace chat template
         elif conv_format["format_type"] == "chat_template":
@@ -252,7 +336,7 @@ class ConversationTemplateAdapter:
                     formatted = formatted.replace(conv_format["eos_token"], "")
                 return formatted.strip()
             except Exception as e:
-                print(f"⚠️ HuggingFace chat template failed: {e}, using manual fallback")
+                print(f"HuggingFace chat template failed: {e}, using manual fallback")
 
         # Manual formatting fallback
         template = conv_format.get(
@@ -273,8 +357,18 @@ class ConversationTemplateAdapter:
 
     @staticmethod
     def normalize_template(conv_template, tokenizer):
-        """Normalize conversation template using FastChat knowledge."""
-
+        """Normalize conversation template using FastChat knowledge.
+        
+        Updates the conversation template with proper settings from FastChat
+        or fallback configurations, optimized for GCG attacks.
+        
+        Args:
+            conv_template: Conversation template object to normalize
+            tokenizer: HuggingFace tokenizer instance
+            
+        Returns:
+            Normalized conversation template object
+        """
         model_name = getattr(tokenizer, "name_or_path", "unknown")
 
         if FASTCHAT_AVAILABLE:
@@ -295,11 +389,11 @@ class ConversationTemplateAdapter:
                     conv_template.eos_token = ""
 
                     print(
-                        f"✅ Normalized template using FastChat '{fastchat_conv.name}' for {model_name}"
+                        f"Normalized template using FastChat '{fastchat_conv.name}' for {model_name}"
                     )
                     return conv_template
             except Exception as e:
-                print(f"⚠️ FastChat normalization failed: {e}")
+                print(f"FastChat normalization failed: {e}")
 
         # Fallback normalization
         conv_format = ConversationTemplateAdapter.get_universal_conversation_format(
@@ -314,7 +408,18 @@ class ConversationTemplateAdapter:
 
     @staticmethod
     def get_special_tokens_info(tokenizer):
-        """Extract special token information from any HuggingFace tokenizer."""
+        """Extract special token information from any HuggingFace tokenizer.
+        
+        Safely extracts both token IDs and token strings for special tokens,
+        handling cases where tokens may not be defined.
+        
+        Args:
+            tokenizer: HuggingFace tokenizer instance
+            
+        Returns:
+            Dictionary containing special token IDs and strings, with None
+            values for undefined tokens
+        """
         return {
             "bos_token_id": getattr(tokenizer, "bos_token_id", None),
             "eos_token_id": getattr(tokenizer, "eos_token_id", None),
@@ -328,12 +433,19 @@ class ConversationTemplateAdapter:
 
     @staticmethod
     def list_supported_templates() -> List[str]:
-        """List all available FastChat conversation templates."""
+        """List all available FastChat conversation templates.
+        
+        Discovers and returns a list of FastChat conversation template names
+        that are available in the current environment.
+        
+        Returns:
+            List of template names if FastChat is available,
+            error message list if not installed
+        """
         if not FASTCHAT_AVAILABLE:
             return ["FastChat not installed"]
 
         try:
-            # Try to get available template names from FastChat
             template_names = []
             common_templates = [
                 "vicuna_v1.1",
