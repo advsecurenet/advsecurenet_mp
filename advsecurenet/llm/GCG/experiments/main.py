@@ -15,7 +15,7 @@ from advsecurenet.llm.GCG.src.conversation.template_utils import (
 _CONFIG = config_flags.DEFINE_config_file("config")
 
 
-# Function to import module at the runtime
+
 def dynamic_import(module):
     return importlib.import_module(module)
 
