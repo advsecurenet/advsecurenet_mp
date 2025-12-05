@@ -91,10 +91,10 @@ def attack(
     config_override,
 ):
     """Run universal GCG attack on specified model.
-    
+
     This command executes a GCG attack using the specified configuration and parameters.
     All parameters can override the values in the config file.
-    
+
     Args:
         config: Path to config file (default: configs/universal_config.py)
         model: HuggingFace model name or path (overrides config)
@@ -212,9 +212,7 @@ def attack(
         if result.returncode == 0:
             click.echo("Attack completed successfully!")
         else:
-            click.echo(
-                f"Attack failed with exit code: {result.returncode}", err=True
-            )
+            click.echo(f"Attack failed with exit code: {result.returncode}", err=True)
             sys.exit(result.returncode)
 
     except KeyboardInterrupt:
@@ -231,7 +229,7 @@ def attack(
 @gcg.command()
 def list_configs():
     """List available configuration files.
-    
+
     Scans the configs directory and displays all available Python configuration
     files that can be used with the attack command.
     """
@@ -257,10 +255,10 @@ def list_configs():
 @gcg.command()
 def test():
     """Test if GCG environment is properly set up.
-    
+
     Verifies that all required files and directories are present,
     checks Python dependencies, and reports the environment status.
-    
+
     This command checks for:
     - Required files (main.py, config files, data files)
     - Required directories (configs, data, advbench)
@@ -320,7 +318,7 @@ def test():
 @gcg.command()
 def quick():
     """Run a quick test attack with minimal settings.
-    
+
     Executes a minimal GCG attack with predefined settings for quick testing.
     Uses gpt2 model with 10 optimization steps and basic parameters.
     """
@@ -349,10 +347,10 @@ def quick():
 @click.argument("models", nargs=-1)
 def benchmark(models):
     """Benchmark GCG attack across multiple models.
-    
+
     Runs GCG attacks on multiple models and reports success/failure for each.
     If no models are specified, uses default set: gpt2, t5-small, distilgpt2.
-    
+
     Args:
         models: List of model names to benchmark. If empty, uses default models.
     """
@@ -420,10 +418,10 @@ def evaluate_hf(
     results_file, model, device, temperature, num_samples, save_results, verbose
 ):
     """Evaluate GCG attack using HuggingFace model inference.
-    
+
     Evaluates the effectiveness of GCG attacks by running inference with
     the generated adversarial prompts on HuggingFace models.
-    
+
     Args:
         results_file: Path to GCG results JSON file. If not provided, uses latest.
         model: Override model name (default: use from results)

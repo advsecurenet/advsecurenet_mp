@@ -9,16 +9,16 @@ import torch.nn as nn
 
 class AttackPrompt(object):
     """A class for generating and managing adversarial attack prompts.
-    
+
     This class constructs adversarial prompts by combining goals, control strings,
     and targets within conversation templates. It handles tokenization complexities
     across different model architectures and provides methods for optimization,
     evaluation, and generation.
-    
+
     The class automatically detects token boundaries for different prompt components
     (goal, control, target) and provides robust slice management for gradient-based
     optimization attacks like GCG.
-    
+
     Attributes:
         goal: The intended goal/instruction for the attack
         target: The desired model response
@@ -95,12 +95,12 @@ class AttackPrompt(object):
 
     def _update_ids(self):
         """Update token IDs and slices with robust tokenization handling.
-        
+
         This method rebuilds the conversation template with current goal,
         control, and target strings, then detects token boundaries for
         each component. It uses robust slice detection with fallback
         to template-specific logic if needed.
-        
+
         The method handles tokenization complexities across different
         model architectures and conversation templates.
         """
@@ -126,11 +126,11 @@ class AttackPrompt(object):
 
     def validate_slices(self):
         """Validate that all slices are properly defined and non-overlapping.
-        
+
         Checks that all token slices have valid start/stop positions and
         reasonable ordering. Raises ValueError for invalid slices and
         prints warnings for potentially incorrect slice ordering.
-        
+
         Raises:
             ValueError: If any slice has invalid start/stop positions
         """
@@ -158,15 +158,15 @@ class AttackPrompt(object):
 
     def _detect_slices_robust(self, full_prompt):
         """Universal slice detection that works with any tokenizer.
-        
+
         Incrementally builds the conversation and detects token boundaries
         for each component. This method handles tokenizer quirks like
         special token addition/removal and works across different
         model architectures.
-        
+
         Args:
             full_prompt: The complete formatted conversation prompt
-            
+
         The method sets the following slice attributes:
         - _user_role_slice: Tokens for the user role indicator
         - _goal_slice: Tokens for the goal/instruction text
@@ -377,11 +377,11 @@ class AttackPrompt(object):
     @torch.no_grad()
     def generate(self, model, gen_config=None):
         """Generate model output given the current prompt state.
-        
+
         Args:
             model: The language model to generate with
             gen_config: Generation configuration (uses model default if None)
-            
+
         Returns:
             torch.Tensor: Generated token IDs after the assistant role
         """
@@ -408,11 +408,11 @@ class AttackPrompt(object):
 
     def generate_str(self, model, gen_config=None):
         """Generate model output as a decoded string.
-        
+
         Args:
             model: The language model to generate with
             gen_config: Generation configuration (uses model default if None)
-            
+
         Returns:
             str: Generated text after the assistant role
         """
@@ -420,14 +420,14 @@ class AttackPrompt(object):
 
     def test(self, model, gen_config=None):
         """Test the attack prompt and evaluate success.
-        
+
         Generates a response and checks for jailbreaking success based on
         the absence of refusal prefixes and presence of target text.
-        
+
         Args:
             model: The language model to test with
             gen_config: Generation configuration (uses model default if None)
-            
+
         Returns:
             tuple: (jailbroken: bool, exact_match: int) where jailbroken
                    indicates successful attack and exact_match indicates
@@ -445,10 +445,10 @@ class AttackPrompt(object):
     @torch.no_grad()
     def test_loss(self, model):
         """Compute the target loss for the current prompt state.
-        
+
         Args:
             model: The language model to compute loss with
-            
+
         Returns:
             float: Mean target loss value
         """
@@ -457,10 +457,10 @@ class AttackPrompt(object):
 
     def grad(self, model):
         """Compute gradients for adversarial optimization.
-        
+
         Args:
             model: The language model to compute gradients with
-            
+
         Raises:
             NotImplementedError: This method needs to be implemented
         """
@@ -469,19 +469,19 @@ class AttackPrompt(object):
     @torch.no_grad()
     def logits(self, model, test_controls=None, return_ids=False):
         """Compute logits for the prompt with given control strings.
-        
+
         This method handles various input formats for control strings and
         prepares batched inputs for efficient model inference. It supports
         both string and tensor control inputs with appropriate padding.
-        
+
         Args:
             model: The language model to compute logits with
             test_controls: Control strings/tokens to test (uses current if None)
             return_ids: Whether to return input IDs along with logits
-            
+
         Returns:
             torch.Tensor or tuple: Model logits, optionally with input IDs
-            
+
         Raises:
             ValueError: If test_controls format is invalid or has wrong shape
         """
@@ -559,11 +559,11 @@ class AttackPrompt(object):
 
     def target_loss(self, logits, ids):
         """Compute cross-entropy loss for target tokens.
-        
+
         Args:
             logits: Model logits tensor
             ids: Input token IDs tensor
-            
+
         Returns:
             torch.Tensor: Loss values for target tokens
         """
@@ -576,11 +576,11 @@ class AttackPrompt(object):
 
     def control_loss(self, logits, ids):
         """Compute cross-entropy loss for control tokens.
-        
+
         Args:
             logits: Model logits tensor
             ids: Input token IDs tensor
-            
+
         Returns:
             torch.Tensor: Loss values for control tokens
         """
@@ -594,7 +594,7 @@ class AttackPrompt(object):
     @property
     def assistant_str(self):
         """Get the assistant role string from the prompt.
-        
+
         Returns:
             str: Decoded assistant role text
         """
@@ -603,7 +603,7 @@ class AttackPrompt(object):
     @property
     def assistant_toks(self):
         """Get the assistant role tokens from the prompt.
-        
+
         Returns:
             torch.Tensor: Assistant role token IDs
         """
@@ -612,7 +612,7 @@ class AttackPrompt(object):
     @property
     def goal_str(self):
         """Get the goal string from the prompt.
-        
+
         Returns:
             str: Decoded goal text
         """
@@ -621,7 +621,7 @@ class AttackPrompt(object):
     @goal_str.setter
     def goal_str(self, goal):
         """Set the goal string and update token IDs.
-        
+
         Args:
             goal: New goal text
         """
@@ -631,7 +631,7 @@ class AttackPrompt(object):
     @property
     def goal_toks(self):
         """Get the goal tokens from the prompt.
-        
+
         Returns:
             torch.Tensor: Goal token IDs
         """
@@ -640,7 +640,7 @@ class AttackPrompt(object):
     @property
     def target_str(self):
         """Get the target string from the prompt.
-        
+
         Returns:
             str: Decoded target text
         """
@@ -649,7 +649,7 @@ class AttackPrompt(object):
     @target_str.setter
     def target_str(self, target):
         """Set the target string and update token IDs.
-        
+
         Args:
             target: New target text
         """
@@ -659,7 +659,7 @@ class AttackPrompt(object):
     @property
     def target_toks(self):
         """Get the target tokens from the prompt.
-        
+
         Returns:
             torch.Tensor: Target token IDs
         """
@@ -668,7 +668,7 @@ class AttackPrompt(object):
     @property
     def control_str(self):
         """Get the control string from the prompt.
-        
+
         Returns:
             str: Decoded control text
         """
@@ -677,7 +677,7 @@ class AttackPrompt(object):
     @control_str.setter
     def control_str(self, control):
         """Set the control string and update token IDs.
-        
+
         Args:
             control: New control text
         """
@@ -687,7 +687,7 @@ class AttackPrompt(object):
     @property
     def control_toks(self):
         """Get the control tokens from the prompt.
-        
+
         Returns:
             torch.Tensor: Control token IDs
         """
@@ -696,7 +696,7 @@ class AttackPrompt(object):
     @control_toks.setter
     def control_toks(self, control_toks):
         """Set the control tokens and update the prompt.
-        
+
         Args:
             control_toks: New control token IDs
         """
@@ -706,7 +706,7 @@ class AttackPrompt(object):
     @property
     def prompt(self):
         """Get the full user prompt (goal + control).
-        
+
         Returns:
             str: Decoded prompt text combining goal and control
         """
@@ -717,7 +717,7 @@ class AttackPrompt(object):
     @property
     def input_toks(self):
         """Get all input token IDs.
-        
+
         Returns:
             torch.Tensor: Complete input token sequence
         """
@@ -726,7 +726,7 @@ class AttackPrompt(object):
     @property
     def input_str(self):
         """Get the complete input string.
-        
+
         Returns:
             str: Decoded complete input text
         """
@@ -735,7 +735,7 @@ class AttackPrompt(object):
     @property
     def eval_str(self):
         """Get evaluation string with special tokens removed.
-        
+
         Returns:
             str: Clean evaluation text up to assistant role
         """

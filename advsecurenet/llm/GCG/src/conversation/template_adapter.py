@@ -28,18 +28,18 @@ except ImportError:
 
 class ConversationTemplateAdapter:
     """Universal adapter for conversation templates across HuggingFace models.
-    
+
     This class provides a unified interface for handling conversation templates
     from various sources, with intelligent fallbacks and special handling for
     adversarial attacks like GCG.
-    
+
     Features:
     - Automatic FastChat template detection
     - HuggingFace built-in chat template support
     - Manual fallback templates for unsupported models
     - Special token removal for adversarial compatibility
     - Model family detection and template mapping
-    
+
     Attributes:
         FASTCHAT_TEMPLATE_MAP: Mapping of model families to FastChat templates
     """
@@ -76,13 +76,13 @@ class ConversationTemplateAdapter:
     @staticmethod
     def get_fastchat_template(model_name: str):
         """Get FastChat conversation template for any model.
-        
+
         Attempts to retrieve a conversation template using FastChat's auto-detection,
         falls back to pattern-based matching, and finally tries common templates.
-        
+
         Args:
             model_name: Name or path of the HuggingFace model
-            
+
         Returns:
             FastChat Conversation object if found, None otherwise
         """
@@ -135,13 +135,13 @@ class ConversationTemplateAdapter:
     @staticmethod
     def detect_model_family(model_name: str) -> str:
         """Detect model family from HuggingFace model name.
-        
+
         Uses pattern matching against known model families to determine
         the appropriate conversation template category.
-        
+
         Args:
             model_name: Name or path of the HuggingFace model
-            
+
         Returns:
             Detected model family string, 'generic' if no match found
         """
@@ -156,16 +156,16 @@ class ConversationTemplateAdapter:
     @staticmethod
     def get_universal_conversation_format(model_name: str, tokenizer) -> Dict[str, Any]:
         """Get universal conversation format using multiple fallback strategies.
-        
+
         Attempts to obtain conversation format in order of preference:
         1. FastChat templates (most comprehensive)
         2. HuggingFace built-in chat templates
         3. Manual fallback templates
-        
+
         Args:
             model_name: Name or path of the HuggingFace model
             tokenizer: HuggingFace tokenizer instance
-            
+
         Returns:
             Dictionary containing conversation format configuration including
             format_type, roles, separators, and template information
@@ -206,14 +206,14 @@ class ConversationTemplateAdapter:
     @staticmethod
     def _get_manual_fallback(model_name: str, tokenizer) -> Dict[str, Any]:
         """Manual fallback conversation templates when FastChat is unavailable.
-        
+
         Provides basic conversation templates for common model families
         when other template sources are not accessible.
-        
+
         Args:
             model_name: Name or path of the HuggingFace model
             tokenizer: HuggingFace tokenizer instance
-            
+
         Returns:
             Dictionary with manual conversation format configuration
         """
@@ -257,17 +257,17 @@ class ConversationTemplateAdapter:
         avoid_special_tokens: bool = True,
     ) -> str:
         """Format prompt for GCG attack with proper conversation structure.
-        
+
         Creates a formatted conversation prompt suitable for GCG attacks,
         handling special tokens and template-specific formatting.
-        
+
         Args:
             prompt: User input/attack prompt
             target: Desired model response/target
             model_name: Name or path of the HuggingFace model
             tokenizer: HuggingFace tokenizer instance
             avoid_special_tokens: Whether to remove problematic special tokens
-            
+
         Returns:
             Formatted conversation string ready for GCG attack
         """
@@ -358,14 +358,14 @@ class ConversationTemplateAdapter:
     @staticmethod
     def normalize_template(conv_template, tokenizer):
         """Normalize conversation template using FastChat knowledge.
-        
+
         Updates the conversation template with proper settings from FastChat
         or fallback configurations, optimized for GCG attacks.
-        
+
         Args:
             conv_template: Conversation template object to normalize
             tokenizer: HuggingFace tokenizer instance
-            
+
         Returns:
             Normalized conversation template object
         """
@@ -409,13 +409,13 @@ class ConversationTemplateAdapter:
     @staticmethod
     def get_special_tokens_info(tokenizer):
         """Extract special token information from any HuggingFace tokenizer.
-        
+
         Safely extracts both token IDs and token strings for special tokens,
         handling cases where tokens may not be defined.
-        
+
         Args:
             tokenizer: HuggingFace tokenizer instance
-            
+
         Returns:
             Dictionary containing special token IDs and strings, with None
             values for undefined tokens
@@ -434,10 +434,10 @@ class ConversationTemplateAdapter:
     @staticmethod
     def list_supported_templates() -> List[str]:
         """List all available FastChat conversation templates.
-        
+
         Discovers and returns a list of FastChat conversation template names
         that are available in the current environment.
-        
+
         Returns:
             List of template names if FastChat is available,
             error message list if not installed
