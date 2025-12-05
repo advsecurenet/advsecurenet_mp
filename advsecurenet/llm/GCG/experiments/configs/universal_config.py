@@ -7,15 +7,14 @@ def get_config():
     """
     Universal GCG config that works with any HuggingFace model.
     Uses the ConversationTemplateAdapter in attack_manager.py for template handling.
-    All parameters can be overridden via command line using --config.parameter_name=value
     """
 
     # Start with fresh config
     config = config_dict.ConfigDict()
 
     # === UNIVERSAL MODE SETTINGS ===
-    config.universal_mode = True
-    config.auto_template_detection = False
+    config.universal_mode = True  
+    config.auto_template_detection = False  
 
     # === MODEL PARAMETERS ===
     config.model_name = "Qwen/Qwen2.5-0.5B-Instruct"  # Default - can be overridden
@@ -31,9 +30,7 @@ def get_config():
     config.n_train_data = 10
     config.n_test_data = 0
     config.data_offset = 0
-    config.train_data = os.path.join(
-        os.path.dirname(__file__), "../../data/advbench/harmful_behaviors.csv"
-    )
+    config.train_data = os.path.join(os.path.dirname(__file__), "../../data/advbench/harmful_behaviors.csv")
     config.test_data = ""
 
     # === OPTIMIZATION PARAMETERS ===
@@ -76,13 +73,14 @@ def get_config():
         else:
             config.device = "cpu"
 
+   
     def get_current_model_name():
         return getattr(config, "model_name", "gpt2")
 
-    config.model_paths = (config.model_name,)
-    config.tokenizer_paths = (config.model_name,)
-    config.devices = (config.device,)
-    config.conversation_templates = ("zero_shot",)
+    config.model_paths = (config.model_name,)  
+    config.tokenizer_paths = (config.model_name,)  
+    config.devices = (config.device,)  
+    config.conversation_templates = ("zero_shot",) 
 
     # === MODEL KWARGS ===
     config.model_kwargs = [
