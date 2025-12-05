@@ -13,3 +13,4 @@ class ODAttackerConfig(AttackerConfig):
     """
 
     evaluators: list[str] = field(default_factory=lambda: ["mean_average_precision"])
+    dataset_name: Optional[str] = "coco"

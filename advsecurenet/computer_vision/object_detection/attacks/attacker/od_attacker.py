@@ -25,7 +25,6 @@ class ODAttacker(ABC):
     def __init__(self, config: ODAttackerConfig):
         self._config = config
         self._device = setup_device(config.device.processor)
-        self._eval_model = config.model.to(self._device).eval()
         self._dataloader = self._create_dataloader()
         try:
             dl_len = len(self._dataloader)  # type: ignore[arg-type]

@@ -171,31 +171,3 @@ ID_TO_CONTIGUOUS = {
 
 def map_raw_to_contiguous(raw_label: int) -> int:
     return ID_TO_CONTIGUOUS[raw_label]
-
-
-def extract_predictions(predictions_, conf_thresh):
-    # Get the predicted class
-    predictions_class = [
-        COCO_INSTANCE_CATEGORY_NAMES[i] for i in list(predictions_["labels"])
-    ]
-    #  print("\npredicted classes:", predictions_class)
-    if len(predictions_class) < 1:
-        return [], [], []
-    # Get the predicted bounding boxes
-    predictions_boxes = [
-        [(i[0], i[1]), (i[2], i[3])] for i in list(predictions_["boxes"])
-    ]
-    # Get the predicted prediction score
-    predictions_score = list(predictions_["scores"])
-    # Get a list of index with score greater than threshold
-    threshold = conf_thresh
-    predictions_t = [
-        predictions_score.index(x) for x in predictions_score if x > threshold
-    ]
-    if len(predictions_t) <= 0:
-        return [], [], []
-    # predictions in score order
-    predictions_boxes = [predictions_boxes[i] for i in predictions_t]
-    predictions_class = [predictions_class[i] for i in predictions_t]
-    predictions_scores = [predictions_score[i] for i in predictions_t]
-    return predictions_class, predictions_boxes, predictions_scores

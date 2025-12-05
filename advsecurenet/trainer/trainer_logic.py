@@ -49,12 +49,23 @@ def run_batch(
     """
     model.train()
     optimizer.zero_grad()
-    output = model(source)
 
-    if hasattr(output, "logits"):
-        output = output.logits
+    try:
+        output = model(source, targets)
+        if isinstance(output, dict):
+            loss = sum(v for v in output.values())
+        else:
+            if hasattr(output, "logits"):
+                output = output.logits
+            loss = loss_fn(output, targets)
+    except TypeError:
+        output = model(source)
 
-    loss = loss_fn(output, targets)
+        if hasattr(output, "logits"):
+            output = output.logits
+
+        loss = loss_fn(output, targets)
+
     loss.backward()
     optimizer.step()
     if scheduler:

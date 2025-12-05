@@ -6,5 +6,5 @@ evaluation_config:
   evaluators: # list of strings
     - "mean_average_precision"
   target_models: # needed to evaluate the transferability of the attack
-    - name: "custom_yolov5_model"
-      config: "../shared/model_config.yml"
+    - name: "trained_yolov5_model"
+      config: "../shared/od_model_config.yml"

@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List
+from typing import List, Any
 
 from advsecurenet.computer_vision.base.adversarial_attack import (
     AdversarialAttack,
@@ -15,5 +15,5 @@ class AdversarialTrainingConfig:
     """
 
     train_config: TrainConfig
-    models: List[BaseModel]
+    models: List[BaseModel] | List[Any]
     attacks: List[AdversarialAttack]

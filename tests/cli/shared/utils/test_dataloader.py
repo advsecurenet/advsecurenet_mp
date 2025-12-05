@@ -20,7 +20,7 @@ def test_get_dataloader_default(mock_secho, mock_create_dataloader):
     dataloader = get_dataloader(mock_config, mock_dataset)
 
     mock_create_dataloader.assert_called_once_with(
-        DataLoaderConfig(
+        config=DataLoaderConfig(
             dataset=mock_dataset,
             batch_size=mock_loader_config.batch_size,
             num_workers=mock_loader_config.num_workers,
@@ -46,7 +46,7 @@ def test_get_dataloader_train(mock_secho, mock_create_dataloader):
     dataloader = get_dataloader(mock_config, mock_dataset, dataset_type="train")
 
     mock_create_dataloader.assert_called_once_with(
-        DataLoaderConfig(
+        config=DataLoaderConfig(
             dataset=mock_dataset,
             batch_size=mock_loader_config.batch_size,
             num_workers=mock_loader_config.num_workers,
@@ -72,7 +72,7 @@ def test_get_dataloader_test(mock_secho, mock_create_dataloader):
     dataloader = get_dataloader(mock_config, mock_dataset, dataset_type="test")
 
     mock_create_dataloader.assert_called_once_with(
-        DataLoaderConfig(
+        config=DataLoaderConfig(
             dataset=mock_dataset,
             batch_size=mock_loader_config.batch_size,
             num_workers=mock_loader_config.num_workers,

@@ -1,5 +1,5 @@
 import random
-from typing import Optional
+from typing import Optional, Union
 
 import torch
 from torch.utils.data import DataLoader
@@ -11,14 +11,16 @@ from advsecurenet.models.base_model import BaseModel
 from advsecurenet.shared.types.configs.defense_configs.adversarial_training_config import (
     AdversarialTrainingConfig,
 )
-from advsecurenet.trainer.trainer import Trainer
+from advsecurenet.computer_vision.base.base_adversarial_training import (
+    BaseAdversarialTraining,
+)
 from advsecurenet.trainer import trainer_logic
 from advsecurenet.utils.adversarial_target_generator import AdversarialTargetGenerator
 
 import advsecurenet.trainer.trainer_logic
 
 
-class AdversarialTraining(Trainer):
+class AdversarialTraining(BaseAdversarialTraining):
     """
     Adversarial Training class. This module implements the Adversarial Training defense.
 
@@ -29,9 +31,8 @@ class AdversarialTraining(Trainer):
 
     def __init__(self, config: AdversarialTrainingConfig) -> None:
         self._check_config(config)
-        self.config: AdversarialTrainingConfig = config
         self.adversarial_target_generator = AdversarialTargetGenerator()
-        super().__init__(config.train_config)
+        super().__init__(config)
 
     # Helper function to shuffle the combined clean and adversarial data
 
