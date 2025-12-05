@@ -93,8 +93,10 @@ for name, fn in _defaults.items():
 
 
 class _DummyDistributedSampler:
-    def __init__(self, dataset):
+    def __init__(self, dataset, num_replicas=None, rank=None, **kwargs):
         self.dataset = dataset
+        self.num_replicas = num_replicas
+        self.rank = rank
 
     def set_epoch(self, epoch):
         pass
