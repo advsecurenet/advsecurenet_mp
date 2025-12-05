@@ -159,23 +159,23 @@ class AdversarialEvaluator:
         print(f"{'-'*50}")
         baseline_prompt = self.format_prompt(goal)
         print(f"Prompt: {baseline_prompt}")
-        print(f"\nResponse:")
+        print("\nResponse:")
         baseline_response = self.generate_response(
             baseline_prompt, max_new_tokens, temperature
         )
         print(f"{baseline_response}")
 
-        print(f"\nADVERSARIAL (With Suffix):")
+        print("\nADVERSARIAL (With Suffix):")
         print(f"{'-'*50}")
         adversarial_prompt = self.format_prompt(goal, suffix)
         print(f"Prompt: {adversarial_prompt}")
-        print(f"\nResponse:")
+        print("\nResponse:")
         adversarial_response = self.generate_response(
             adversarial_prompt, max_new_tokens, temperature
         )
         print(f"{adversarial_response}")
 
-        print(f"\nANALYSIS:")
+        print("\nANALYSIS:")
         print(f"{'-'*30}")
 
         refusal_patterns = [

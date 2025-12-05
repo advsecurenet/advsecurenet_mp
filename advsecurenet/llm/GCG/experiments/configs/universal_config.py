@@ -100,13 +100,13 @@ def get_config():
 
     # === DEBUG INFO ===
     if config.verbose:
-        print(f" Universal GCG Config Loaded")
+        print(" Universal GCG Config Loaded")
         print(f" Model: {config.model_name}")
         print(f" Model Paths: {config.model_paths}")
         print(f" Tokenizer Paths: {config.tokenizer_paths}")
         print(f" Device: {config.device}")
         print(f" Universal Mode: {config.universal_mode}")
-        print(f"Template will be auto-adapted by ConversationTemplateAdapter")
+        print("Template will be auto-adapted by ConversationTemplateAdapter")
 
     return config
 

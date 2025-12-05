@@ -172,8 +172,7 @@ class EvaluateAttack(object):
                         batch_attention_mask = batch_inputs["attention_mask"].to(
                             model.device
                         )
-                        # position_ids = batch_attention_mask.long().cumsum(-1) - 1
-                        # position_ids.masked_fill_(batch_attention_mask == 0, 1)
+                    
                         outputs = model.generate(
                             batch_input_ids,
                             attention_mask=batch_attention_mask,
