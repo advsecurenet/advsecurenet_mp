@@ -14,8 +14,8 @@ def get_config():
     config = config_dict.ConfigDict()
 
     # === UNIVERSAL MODE SETTINGS ===
-    config.universal_mode = True  # Enable universal model support
-    config.auto_template_detection = False  # Let attack_manager handle templates
+    config.universal_mode = True  
+    config.auto_template_detection = False  
 
     # === MODEL PARAMETERS ===
     config.model_name = "Qwen/Qwen2.5-0.5B-Instruct"  # Default - can be overridden
@@ -31,7 +31,7 @@ def get_config():
     config.n_train_data = 10
     config.n_test_data = 0
     config.data_offset = 0
-    config.train_data = "/Users/philip/Desktop/advsecurenet_mp/advsecurenet/llm/GCG/data/advbench/harmful_behaviors.csv"
+    config.train_data = "../../data/llm/GCG/data/advbench/harmful_behaviors.csv"
     config.test_data = ""
 
     # === OPTIMIZATION PARAMETERS ===
@@ -74,15 +74,14 @@ def get_config():
         else:
             config.device = "cpu"
 
-    # === REQUIRED DERIVED FIELDS (set immediately) ===
-    # These MUST exist for the framework to work
+   
     def get_current_model_name():
         return getattr(config, "model_name", "gpt2")
 
-    config.model_paths = (config.model_name,)  # Tuple instead of list
-    config.tokenizer_paths = (config.model_name,)  # Tuple instead of list
-    config.devices = (config.device,)  # Tuple instead of list
-    config.conversation_templates = ("zero_shot",)  # Tuple instead of list
+    config.model_paths = (config.model_name,)  
+    config.tokenizer_paths = (config.model_name,)  
+    config.devices = (config.device,)  
+    config.conversation_templates = ("zero_shot",) 
 
     # === MODEL KWARGS ===
     config.model_kwargs = [
@@ -97,17 +96,17 @@ def get_config():
     results_dir = os.path.dirname(config.result_prefix)
     if results_dir and not os.path.exists(results_dir):
         os.makedirs(results_dir, exist_ok=True)
-        print(f"🔧 Created results directory: {results_dir}")
+        print(f"Created results directory: {results_dir}")
 
     # === DEBUG INFO ===
     if config.verbose:
-        print(f"🔧 Universal GCG Config Loaded")
-        print(f"🔧 Model: {config.model_name}")
-        print(f"🔧 Model Paths: {config.model_paths}")
-        print(f"🔧 Tokenizer Paths: {config.tokenizer_paths}")
-        print(f"🔧 Device: {config.device}")
-        print(f"🔧 Universal Mode: {config.universal_mode}")
-        print(f"🔧 Template will be auto-adapted by ConversationTemplateAdapter")
+        print(f" Universal GCG Config Loaded")
+        print(f" Model: {config.model_name}")
+        print(f" Model Paths: {config.model_paths}")
+        print(f" Tokenizer Paths: {config.tokenizer_paths}")
+        print(f" Device: {config.device}")
+        print(f" Universal Mode: {config.universal_mode}")
+        print(f"Template will be auto-adapted by ConversationTemplateAdapter")
 
     return config
 

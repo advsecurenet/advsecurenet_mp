@@ -1,3 +1,10 @@
+"""CLI tool for running Universal GCG attacks on HuggingFace models.
+
+This module provides a command-line interface for executing GCG (Greedy Coordinate Gradient)
+adversarial attacks on language models. It supports various attack configurations,
+model evaluation, and benchmarking capabilities.
+"""
+
 import click
 import subprocess
 import sys
@@ -83,9 +90,26 @@ def attack(
     verbose,
     config_override,
 ):
-    """Run universal GCG attack on specified model."""
-
-    # Get the current directory (should be experiments directory)
+    """Run universal GCG attack on specified model.
+    
+    This command executes a GCG attack using the specified configuration and parameters.
+    All parameters can override the values in the config file.
+    
+    Args:
+        config: Path to config file (default: configs/universal_config.py)
+        model: HuggingFace model name or path (overrides config)
+        attack_type: Type of attack to run - 'individual' or 'transfer'
+        data_type: Data type for attack - 'behaviors' or 'strings'
+        device: Device to use for computation (overrides config)
+        steps: Number of optimization steps (overrides config)
+        train_data: Number of training examples (overrides config)
+        batch_size: Batch size for optimization (overrides config)
+        learning_rate: Learning rate for optimization (overrides config)
+        control_init: Initial control string (overrides config)
+        data_offset: Data offset for experiments (overrides config)
+        verbose: Enable verbose output
+        config_override: Additional config parameter overrides
+    """
     gcg_dir = Path.cwd()
 
     # Verify config file exists - handle both relative and absolute paths
@@ -95,7 +119,7 @@ def attack(
         config_path = Path(config)
 
     if not config_path.exists():
-        click.echo(f"❌ Config file not found: {config_path}", err=True)
+        click.echo(f"Error: Config file not found: {config_path}", err=True)
 
         # List available configs
         configs_dir = gcg_dir / "configs"
@@ -103,12 +127,12 @@ def attack(
             available_configs = [
                 f.name for f in configs_dir.glob("*.py") if f.name != "__init__.py"
             ]
-            click.echo(f"📁 Available configs: {', '.join(available_configs)}")
+            click.echo(f"Available configs: {', '.join(available_configs)}")
 
         sys.exit(1)
 
-    click.echo(f"🚀 Running Universal GCG Attack")
-    click.echo(f"================================")
+    click.echo("Running Universal GCG Attack")
+    click.echo("================================")
     click.echo(f"Config: {config_path}")
     if model:
         click.echo(f"Model Override: {model}")
@@ -127,9 +151,9 @@ def attack(
     if learning_rate:
         click.echo(f"Learning Rate Override: {learning_rate}")
     click.echo(f"Working Directory: {gcg_dir}")
-    click.echo(f"================================")
+    click.echo("================================")
 
-    # Build command - MATCH THE EXACT SHELL SCRIPT SYNTAX
+    # Build command with exact shell script syntax
     cmd = [
         sys.executable,
         "main.py",
@@ -137,22 +161,22 @@ def attack(
         f"--config.verbose={str(verbose).lower()}",
     ]
 
-    # Only add overrides if values are provided - USE THE EXACT SHELL SCRIPT SYNTAX
+    # Add parameter overrides when values are provided
     if model:
         cmd.extend(
             [
-                f'--config.model_name="{model}"',  # FIXED: Add quotes like shell script
-                f"--config.model_paths=\"('{model}',)\"",  # FIXED: Exact shell script syntax
-                f"--config.tokenizer_paths=\"('{model}',)\"",  # FIXED: Exact shell script syntax
+                f'--config.model_name="{model}"',
+                f"--config.model_paths=\"('{model}',)\"",
+                f"--config.tokenizer_paths=\"('{model}',)\"",
             ]
         )
 
     if device:
-        cmd.append(f'--config.device="{device}"')  # FIXED: Add quotes
+        cmd.append(f'--config.device="{device}"')
     if attack_type:
-        cmd.append(f'--config.attack_type="{attack_type}"')  # FIXED: Add quotes
+        cmd.append(f'--config.attack_type="{attack_type}"')
     if data_type:
-        cmd.append(f'--config.data_type="{data_type}"')  # FIXED: Add quotes
+        cmd.append(f'--config.data_type="{data_type}"')
     if steps:
         cmd.append(f"--config.n_steps={steps}")
     if train_data:
@@ -162,7 +186,7 @@ def attack(
     if learning_rate:
         cmd.append(f"--config.lr={learning_rate}")
     if control_init:
-        cmd.append(f'--config.control_init="{control_init}"')  # FIXED: Add quotes
+        cmd.append(f'--config.control_init="{control_init}"')
     if data_offset is not None:
         cmd.append(f"--config.data_offset={data_offset}")
 
@@ -173,48 +197,51 @@ def attack(
             cmd.append(f"--config.{key}={value}")
         else:
             click.echo(
-                f"⚠️  Invalid config override format: {override} (use key=value)",
+                f"Warning: Invalid config override format: {override} (use key=value)",
                 err=True,
             )
 
-    # Run the attack
+    # Execute the attack
     try:
         if verbose:
-            click.echo(f"🔧 Executing: {' '.join(cmd)}")
+            click.echo(f"Executing: {' '.join(cmd)}")
 
         # Use subprocess.run without capture_output to show real-time progress
         result = subprocess.run(cmd, cwd=gcg_dir, text=True)
 
         if result.returncode == 0:
-            click.echo("✅ Attack completed successfully!")
+            click.echo("Attack completed successfully!")
         else:
             click.echo(
-                f"❌ Attack failed with exit code: {result.returncode}", err=True
+                f"Attack failed with exit code: {result.returncode}", err=True
             )
             sys.exit(result.returncode)
 
     except KeyboardInterrupt:
-        click.echo("\n🛑 Attack interrupted by user")
+        click.echo("\nAttack interrupted by user")
         sys.exit(1)
     except FileNotFoundError:
-        click.echo(f"❌ Python executable not found: {sys.executable}", err=True)
+        click.echo(f"Python executable not found: {sys.executable}", err=True)
         sys.exit(1)
     except Exception as e:
-        click.echo(f"❌ Unexpected error: {e}", err=True)
+        click.echo(f"Unexpected error: {e}", err=True)
         sys.exit(1)
 
 
 @gcg.command()
 def list_configs():
-    """List available configuration files."""
-
+    """List available configuration files.
+    
+    Scans the configs directory and displays all available Python configuration
+    files that can be used with the attack command.
+    """
     configs_dir = Path.cwd() / "configs"
 
     if not configs_dir.exists():
-        click.echo("❌ Configs directory not found")
+        click.echo("Configs directory not found")
         return
 
-    click.echo("📁 Available Configuration Files:")
+    click.echo("Available Configuration Files:")
     click.echo("=" * 35)
 
     config_files = sorted(
@@ -222,18 +249,26 @@ def list_configs():
     )
 
     for config_file in config_files:
-        click.echo(f"• {config_file.name}")
+        click.echo(f"- {config_file.name}")
 
-    click.echo(f"\n💡 Usage: python3 cli_gcg.py attack --config configs/my_config.py")
+    click.echo("\nUsage: python3 cli_gcg.py attack --config configs/my_config.py")
 
 
 @gcg.command()
 def test():
-    """Test if GCG environment is properly set up."""
-
+    """Test if GCG environment is properly set up.
+    
+    Verifies that all required files and directories are present,
+    checks Python dependencies, and reports the environment status.
+    
+    This command checks for:
+    - Required files (main.py, config files, data files)
+    - Required directories (configs, data, advbench)
+    - Python packages (PyTorch, Transformers)
+    """
     gcg_dir = Path.cwd()
 
-    click.echo("🧪 Testing GCG Environment")
+    click.echo("Testing GCG Environment")
     click.echo("=" * 30)
 
     # Check directory structure
@@ -250,43 +285,46 @@ def test():
     for item, item_type in required_items:
         path = gcg_dir / item
         if item_type == "file" and path.is_file():
-            click.echo(f"✅ {item} (file)")
+            click.echo(f"[OK] {item} (file)")
         elif item_type == "directory" and path.is_dir():
-            click.echo(f"✅ {item} (directory)")
+            click.echo(f"[OK] {item} (directory)")
         else:
-            click.echo(f"❌ {item} (missing {item_type})")
+            click.echo(f"[MISSING] {item} ({item_type})")
             all_good = False
 
     # Check Python environment
     try:
         import torch
 
-        click.echo(f"✅ PyTorch: {torch.__version__}")
+        click.echo(f"[OK] PyTorch: {torch.__version__}")
     except ImportError:
-        click.echo("❌ PyTorch not installed")
+        click.echo("[MISSING] PyTorch not installed")
         all_good = False
 
     try:
         import transformers
 
-        click.echo(f"✅ Transformers: {transformers.__version__}")
+        click.echo(f"[OK] Transformers: {transformers.__version__}")
     except ImportError:
-        click.echo("❌ Transformers not installed")
+        click.echo("[MISSING] Transformers not installed")
         all_good = False
 
     if all_good:
-        click.echo("\n🎉 Environment is properly configured!")
+        click.echo("\nEnvironment is properly configured!")
         click.echo("You can now run: python3 cli_gcg.py attack --model gpt2 --steps 10")
     else:
-        click.echo("\n❌ Environment needs fixing before running attacks")
+        click.echo("\nEnvironment needs fixing before running attacks")
         sys.exit(1)
 
 
 @gcg.command()
 def quick():
-    """Run a quick test attack with minimal settings."""
-
-    click.echo("🚀 Running Quick Test Attack (10 steps)")
+    """Run a quick test attack with minimal settings.
+    
+    Executes a minimal GCG attack with predefined settings for quick testing.
+    Uses gpt2 model with 10 optimization steps and basic parameters.
+    """
+    click.echo("Running Quick Test Attack (10 steps)")
 
     ctx = click.Context(attack)
     ctx.invoke(
@@ -310,12 +348,18 @@ def quick():
 @gcg.command()
 @click.argument("models", nargs=-1)
 def benchmark(models):
-    """Benchmark GCG attack across multiple models."""
-
+    """Benchmark GCG attack across multiple models.
+    
+    Runs GCG attacks on multiple models and reports success/failure for each.
+    If no models are specified, uses default set: gpt2, t5-small, distilgpt2.
+    
+    Args:
+        models: List of model names to benchmark. If empty, uses default models.
+    """
     if not models:
         models = ["gpt2", "t5-small", "distilgpt2"]
 
-    click.echo(f"🏁 Benchmarking {len(models)} models...")
+    click.echo(f"Benchmarking {len(models)} models...")
 
     results = []
     for i, model in enumerate(models, 1):
@@ -339,20 +383,20 @@ def benchmark(models):
                 verbose=False,
                 config_override=(),
             )
-            results.append((model, "✅"))
+            results.append((model, "[OK]"))
 
         except Exception as e:
-            click.echo(f"❌ {model} failed: {e}")
-            results.append((model, "❌"))
+            click.echo(f"[FAILED] {model}: {e}")
+            results.append((model, "[FAILED]"))
 
     # Summary
-    click.echo("\n📊 Benchmark Results:")
+    click.echo("\nBenchmark Results:")
     click.echo("=" * 40)
     for model, status in results:
         click.echo(f"{status} {model}")
 
-    success_rate = len([r for r in results if r[1] == "✅"]) / len(results)
-    click.echo(f"\n🎯 Success Rate: {success_rate:.1%}")
+    success_rate = len([r for r in results if r[1] == "[OK]"]) / len(results)
+    click.echo(f"\nSuccess Rate: {success_rate:.1%}")
 
 
 @gcg.command()
@@ -375,8 +419,20 @@ def benchmark(models):
 def evaluate_hf(
     results_file, model, device, temperature, num_samples, save_results, verbose
 ):
-    """Evaluate GCG attack using HuggingFace model inference."""
-
+    """Evaluate GCG attack using HuggingFace model inference.
+    
+    Evaluates the effectiveness of GCG attacks by running inference with
+    the generated adversarial prompts on HuggingFace models.
+    
+    Args:
+        results_file: Path to GCG results JSON file. If not provided, uses latest.
+        model: Override model name (default: use from results)
+        device: Device to use for inference (auto, cpu, cuda:0)
+        temperature: Generation temperature for model inference
+        num_samples: Number of response samples to generate
+        save_results: Whether to save evaluation results to file
+        verbose: Show all generated responses
+    """
     # Auto-find latest results file if not specified
     if not results_file:
         results_dir = Path.cwd() / "results"
@@ -384,12 +440,12 @@ def evaluate_hf(
             json_files = list(results_dir.glob("*.json"))
             if json_files:
                 results_file = max(json_files, key=lambda x: x.stat().st_mtime)
-                click.echo(f"📁 Using latest results file: {results_file.name}")
+                click.echo(f"Using latest results file: {results_file.name}")
             else:
-                click.echo("❌ No results files found in results/ directory", err=True)
+                click.echo("No results files found in results/ directory", err=True)
                 sys.exit(1)
         else:
-            click.echo("❌ Results directory not found", err=True)
+            click.echo("Results directory not found", err=True)
             sys.exit(1)
 
     # Build evaluation command
@@ -416,11 +472,11 @@ def evaluate_hf(
     try:
         result = subprocess.run(cmd, cwd=Path.cwd(), text=True)
         if result.returncode == 0:
-            click.echo("✅ Evaluation completed!")
+            click.echo("Evaluation completed!")
         else:
             sys.exit(result.returncode)
     except Exception as e:
-        click.echo(f"❌ Evaluation failed: {e}", err=True)
+        click.echo(f"Evaluation failed: {e}", err=True)
         sys.exit(1)
 
 
