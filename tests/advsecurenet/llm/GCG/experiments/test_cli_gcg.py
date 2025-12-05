@@ -337,9 +337,9 @@ class TestTestCommand:
 
         assert result.exit_code == 0
         assert "Environment is properly configured" in result.output
-        assert "✅ main.py (file)" in result.output
-        assert "✅ PyTorch: 1.9.0" in result.output
-        assert "✅ Transformers: 4.20.0" in result.output
+        assert "[OK] main.py (file)" in result.output
+        assert "[OK] PyTorch: 1.9.0" in result.output
+        assert "[OK] Transformers: 4.20.0" in result.output
 
     @patch("advsecurenet.llm.GCG.experiments.cli_gcg.Path.cwd")
     def test_test_command_missing_files(self, mock_cwd):
@@ -361,7 +361,7 @@ class TestTestCommand:
 
         assert result.exit_code == 1
         assert "Environment needs fixing" in result.output
-        assert "❌" in result.output
+        assert "[MISSING]" in result.output
 
     @patch("advsecurenet.llm.GCG.experiments.cli_gcg.Path.cwd")
     def test_test_command_missing_dependencies(self, mock_cwd):
@@ -398,8 +398,8 @@ class TestTestCommand:
 
         # Should show missing dependencies and exit with code 1
         assert result.exit_code == 1
-        assert "❌ PyTorch not installed" in result.output
-        assert "❌ Transformers not installed" in result.output
+        assert "[MISSING] PyTorch not installed" in result.output
+        assert "[MISSING] Transformers not installed" in result.output
 
 
 class TestQuickCommand:
@@ -499,8 +499,8 @@ class TestBenchmarkCommand:
         result = self.runner.invoke(benchmark)
 
         assert result.exit_code == 0
-        assert "✅" in result.output  # Should have some successes
-        assert "❌" in result.output  # Should have some failures
+        assert "[OK]" in result.output  # Should have some successes
+        assert "[FAILED]" in result.output  # Should have some failures
 
 
 class TestEvaluateHFCommand:
