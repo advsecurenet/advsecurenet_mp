@@ -21,8 +21,8 @@ setup(
     python_requires=">=3.10",
     install_requires=[
         "click",
-        "torch",
-        "torchvision",
+        "torch",  # Use latest PyTorch
+        "torchvision",  # Use latest torchvision
         "colored",
         "tqdm",
         "PyYAML",
@@ -30,16 +30,27 @@ setup(
         "ruamel.yaml",
         "matplotlib",
         "scikit-image",
+        "scikit-learn",
         "einops",
         "filetype",
         "requests",
-        "transformers==4.48.3",  # Ensure compatibility with YOLOv5
+        "pydantic>=2,<3",
+        "transformers==4.48.3",
+        "fschat==0.2.36",
         "datasets",
         "mean_average_precision",
         "yolov5",
         "huggingface-hub==0.24.1",  # Ensure compatibility with YOLOv5
         "pycocotools",
-        "opacus",
+        "pandas",
+        "numpy",
+        "soundfile>=0.12,<0.14",
+        "safetensors>=0.4",  # commonly needed with HF models
+        "accelerate>=0.33",
+        "peft>=0.12",
+        "ml-collections",
+        "opacus>=1.4.0",  # Use newer opacus that supports latest PyTorch
+        "thop",  # Required for model operations profiling
     ],
     entry_points={
         "console_scripts": [
