@@ -144,7 +144,7 @@ def attack(
         click.echo(f"Device Override: {device}")
     if steps:
         click.echo(f"Steps Override: {steps}")
-    if train_data:
+    if train_data is not None:
         click.echo(f"Training Data Override: {train_data}")
     if batch_size:
         click.echo(f"Batch Size Override: {batch_size}")
@@ -153,40 +153,39 @@ def attack(
     click.echo(f"Working Directory: {gcg_dir}")
     click.echo("================================")
 
-    # Build command with exact shell script syntax
+    # Build command with simple format (individual mode only)
     cmd = [
         sys.executable,
         "main.py",
         f"--config={config_path}",
-        f"--config.verbose={str(verbose).lower()}",
     ]
 
-    # Add parameter overrides when values are provided
+    # Force individual attack mode (no transfer)
+    cmd.append("--config.transfer=false")
+    
+    # Add parameter overrides when values are provided (simple format)
+    if verbose:
+        cmd.append(f"--config.verbose={str(verbose).lower()}")
+    
     if model:
-        cmd.extend(
-            [
-                f'--config.model_name="{model}"',
-                f"--config.model_paths=\"('{model}',)\"",
-                f"--config.tokenizer_paths=\"('{model}',)\"",
-            ]
-        )
-
+        cmd.append(f"--config.model_name={model}")
+    
     if device:
-        cmd.append(f'--config.device="{device}"')
+        cmd.append(f"--config.device={device}")
     if attack_type:
-        cmd.append(f'--config.attack_type="{attack_type}"')
+        cmd.append(f"--config.attack_type={attack_type}")
     if data_type:
-        cmd.append(f'--config.data_type="{data_type}"')
+        cmd.append(f"--config.data_type={data_type}")
     if steps:
         cmd.append(f"--config.n_steps={steps}")
-    if train_data:
+    if train_data is not None:  # Fix: check for None instead of truthy
         cmd.append(f"--config.n_train_data={train_data}")
     if batch_size:
         cmd.append(f"--config.batch_size={batch_size}")
     if learning_rate:
         cmd.append(f"--config.lr={learning_rate}")
     if control_init:
-        cmd.append(f'--config.control_init="{control_init}"')
+        cmd.append(f"--config.control_init={control_init}")
     if data_offset is not None:
         cmd.append(f"--config.data_offset={data_offset}")
 

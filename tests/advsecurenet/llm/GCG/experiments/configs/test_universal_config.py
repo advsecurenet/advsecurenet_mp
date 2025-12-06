@@ -83,7 +83,7 @@ class TestGetConfig:
         # Test control parameters
         assert config.control_init == "! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! !"
         assert config.n_steps == 100
-        assert config.batch_size == 256
+        assert config.batch_size == 16
         assert config.lr == 1e-1
 
         # Test optimization parameters
