@@ -203,7 +203,7 @@ class MultiPromptAttack(object):
         log_first=False,
         filter_cand=True,
         verbose=True,
-        incr_control=False
+        incr_control=False,
     ):
 
         def P(e, e_prime, k):
@@ -368,7 +368,7 @@ class MultiPromptAttack(object):
 
         with open(self.logfile, "r") as f:
             log = json.load(f)
-            
+
         log["controls"].append(control)
         log["losses"].append(loss)
         log["runtimes"].append(runtime)
