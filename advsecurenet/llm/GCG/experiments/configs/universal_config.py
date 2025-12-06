@@ -38,7 +38,7 @@ def get_config():
     # === OPTIMIZATION PARAMETERS ===
     config.n_steps = 100
     config.test_steps = 10
-    config.batch_size = 256
+    config.batch_size = 16
     config.lr = 0.1
     config.topk = 256
     config.temp = 1.5

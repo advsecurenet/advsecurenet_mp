@@ -1,0 +1,40 @@
+train:
+  model_name: gpt2
+  output_dir: outputs/gpt2-instruction
+  learning_rate: 1e-4
+  max_steps: 5
+  per_device_train_batch_size: 1
+  per_device_eval_batch_size: 2
+  gradient_accumulation_steps: 8
+  fp16: false
+  bf16: false
+  gradient_checkpointing: true
+  logging_strategy: steps
+  logging_steps: 20
+  evaluation_strategy: steps     
+  eval_steps: 100
+  save_strategy: steps
+  save_steps: 200
+  save_total_limit: 2
+  lr_scheduler_type: cosine
+  warmup_ratio: 0.03
+  weight_decay: 0.0
+  dataloader_num_workers: 4
+  disable_tqdm: false
+  seed: 42
+  report_to: []     # or [] to silence external loggers
+
+data:
+  hub_name: yahma/alpaca-cleaned
+  hub_train_split: "train[:45000]"
+  hub_eval_split:  "train[45000:52000]"
+  max_seq_len: 512
+
+peft:
+  enabled: False
+  quantization: qlora             # use qlora only if bitsandbytes is available
+  r: 8
+  lora_alpha: 16
+  lora_dropout: 0.05
+  # For GPT-NeoX/Pythia, these cover attn + MLP. Start with qkv only if you want smaller adapters.
+  target_modules:  ["query_key_value", "dense", "dense_h_to_4h", "dense_4h_to_h"]
