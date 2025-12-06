@@ -181,7 +181,7 @@ class AttackPrompt(object):
         user_role_prompt = self.conv_template.get_prompt()
         user_role_tokens = self.tokenizer(user_role_prompt).input_ids
         self._user_role_slice = slice(0, len(user_role_tokens))
-
+        
         goal_start = len(user_role_tokens)
         if self.goal:
             self.conv_template.update_last_message(self.goal)
