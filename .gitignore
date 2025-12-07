@@ -156,3 +156,4 @@ myenv/
 
 wandb/
 
+!README.md
