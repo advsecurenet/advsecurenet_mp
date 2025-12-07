@@ -166,6 +166,43 @@ AdvSecureNet stands out among adversarial machine learning toolkits like IBM ART
 [1] SecML supports attacks from CleverHans and FoolBox
 [2] This feature is only available for adversarial training.
 
+## Object Detection
+
+AdvSecureNet now supports object detection tasks, extending its capabilities beyond image classification.
+
+- **Attacks**:
+    - **Adversarial Patch (DPatch)**: Supports both untargeted and targeted attacks.
+    - **Pixel Perturbation (TOG)**: Includes Untargeted, Vanishing, Fabrication, and Mislabeling variations.
+- **Defenses**:
+    - **Adversarial Training**: Train robust object detectors against adversarial attacks.
+- **Metrics**:
+    - **Mean Average Precision (mAP)**: Evaluate model performance under attack.
+
+## Large Language Models (LLMs)
+
+The toolkit has been expanded to include security evaluations for Large Language Models.
+
+- **Attacks**:
+    - **Greedy Coordinate Gradient (GCG)**: A white-box attack for generating adversarial suffixes.
+- **Fine-Tuning**:
+    - **Supervised Fine-Tuning (SFT)**: Fine-tune LLMs using the Hugging Face Trainer.
+- **Integration**:
+    - Seamless integration with Hugging Face models and datasets.
+
+## Differential Privacy
+
+AdvSecureNet now incorporates Differential Privacy to protect training data.
+
+- **Training**:
+    - **DP-SGD**: Train models with Differentially Private Stochastic Gradient Descent using Opacus.
+
+## Extensible Model Loading
+
+The toolkit supports extensible model and dataset loading, allowing you to use custom resources without modifying the codebase.
+
+- **Configuration**: Define models and datasets in YAML configuration files.
+- **Hugging Face**: Directly load models and datasets using their Hugging Face Hub identifiers.
+
 ## Usage
 
 The library can be used as a command line tool or as an importable Python package.
@@ -196,6 +233,18 @@ or
 advsecurenet evaluate adversarial -c ./evaluate_adversarial.yml
 ```
 
+Running an object detection attack:
+
+```bash
+advsecurenet attack -c ./examples/cli/adversarial_od_attacks/dpatch_untargeted.yml
+```
+
+Running an LLM attack:
+
+```bash
+advsecurenet attack -c ./examples/cli/llm/gcg_attack.yml
+```
+
 ### Python Package
 
 You can import the library as a Python package. You can use the `advsecurenet` module to access the library. You can find the available modules and classes in the [documentation](http://melihcatal.github.io/advsecurenet/).
@@ -211,11 +260,11 @@ Examples of different use cases can be found in the [examples](./examples/) dire
 
 The high-level architecture of the toolkit is shown in the figure below.
 
-![advsecurenet_arch](https://drive.switch.ch/index.php/s/SdKAyOZs1d9bcin/download)
+![advsecurenet_arch](docs/images/architecture.png)
 
-![cli-arch](https://drive.switch.ch/index.php/s/ZbjIHBHql0dV6n0/download)
+The toolkit is designed to be modular and extensible. It now features a domain-specific folder structure, separating `computer_vision` (with `image_classification` and `object_detection`) and `llm` components. A shared configuration layer ensures consistency between the CLI and Python API.
 
-The toolkit is designed to be modular and extensible. CLI and Python API are implemented separately, however, they share the same core components and they have the same package structure for the sake of consistency. Tests are implemented for both CLI and Python API to ensure the correctness of the implementation and again they follow the same structure. The toolkit is designed to be easily extensible, new attacks, defenses, and evaluation metrics can be added by implementing the corresponding classes and registering them in the corresponding registries.
+CLI and Python API are implemented separately, however, they share the same core components and they have the same package structure for the sake of consistency. Tests are implemented for both CLI and Python API to ensure the correctness of the implementation and again they follow the same structure. The toolkit is designed to be easily extensible, new attacks, defenses, and evaluation metrics can be added by implementing the corresponding classes and registering them in the corresponding registries.
 
 ## Testing
 
