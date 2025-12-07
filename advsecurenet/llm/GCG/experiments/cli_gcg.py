@@ -162,14 +162,14 @@ def attack(
 
     # Force individual attack mode (no transfer)
     cmd.append("--config.transfer=false")
-    
+
     # Add parameter overrides when values are provided (simple format)
     if verbose:
         cmd.append(f"--config.verbose={str(verbose).lower()}")
-    
+
     if model:
         cmd.append(f"--config.model_name={model}")
-    
+
     if device:
         cmd.append(f"--config.device={device}")
     if attack_type:

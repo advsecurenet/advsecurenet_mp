@@ -637,4 +637,3 @@ class TestPromptManagerMissingCoverage:
         )
 
         assert torch.equal(manager.disallowed_toks, test_nonascii)
-
